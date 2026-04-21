@@ -1,0 +1,267 @@
+import 'package:flutter/material.dart';
+import 'package:gerelat_frontend/nucleo/temas/cores.dart';
+import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
+import 'package:gerelat_frontend/paginas/login/pagina_login.dart';
+
+/// Página exibida após o envio do e-mail de recuperação de senha.
+/// Confirma o envio e oferece ação de reenvio e retorno ao login.
+class PaginaEmailEnviado extends StatelessWidget {
+  const PaginaEmailEnviado({super.key});
+
+  /// Navega para o login limpando todo o histórico de navegação
+  void _voltarAoLogin(BuildContext context) {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const PaginaLogin()),
+      (rota) => false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Cores.fundoPagina,
+      appBar: _construirBarraTopo(),
+      body: Column(
+        children: [
+          Expanded(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 40,
+                ),
+                child: _construirCard(context),
+              ),
+            ),
+          ),
+          _construirRodapeCompleto(),
+        ],
+      ),
+    );
+  }
+
+  /// Barra superior com logo GeRelat — HeadlineSmall (Poppins Regular 24px)
+  PreferredSizeWidget _construirBarraTopo() {
+    return AppBar(
+      backgroundColor: Cores.fundoPagina,
+      elevation: 0,
+      centerTitle: true,
+      automaticallyImplyLeading: false,
+      title: Text(
+        'GeRelat',
+        style: Tipografia.headlineSmall.copyWith(
+          letterSpacing: -1.2,
+          color: Cores.pretoProfundo,
+        ),
+      ),
+    );
+  }
+
+  /// Card principal branco com ícone, texto e ações
+  Widget _construirCard(BuildContext context) {
+    return Container(
+      width: 448,
+      padding: const EdgeInsets.all(48),
+      decoration: BoxDecoration(
+        color: Cores.branco,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _construirIcone(),
+          const SizedBox(height: 32),
+          _construirTextos(),
+          const SizedBox(height: 32),
+          _construirAcoes(context),
+        ],
+      ),
+    );
+  }
+
+  /// Ícone de e-mail com check dentro de círculo azul claro com brilho sutil
+  Widget _construirIcone() {
+    return Center(
+      child: SizedBox(
+        width: 96,
+        height: 96,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Brilho azul sutil atrás do ícone
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                color: Cores.azulPrimario.withValues(alpha: 0.05),
+                shape: BoxShape.circle,
+              ),
+            ),
+            // Círculo azul claro principal
+            Container(
+              width: 96,
+              height: 96,
+              decoration: const BoxDecoration(
+                color: Color(0xFFD6E3FF),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.mark_email_read_outlined,
+                color: Cores.azulPrimario,
+                size: 42,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Título e subtítulo de confirmação usando o design system
+  Widget _construirTextos() {
+    return Column(
+      children: [
+        // Título → HeadlineMedium (Poppins Regular 28px)
+        Text(
+          'E-mail de recuperação\nenviado!',
+          style: Tipografia.headlineMedium.copyWith(
+            letterSpacing: -0.75,
+            height: 1.25,
+            color: Cores.pretoProfundo,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16),
+        // Subtítulo → BodyLarge (Roboto Regular 16px)
+        Text(
+          'Verifique sua caixa de entrada e siga as instruções para redefinir sua senha.',
+          style: Tipografia.bodyLarge.copyWith(
+            height: 1.625,
+            color: Cores.cinzaEscuro,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  /// Botão principal e texto auxiliar de reenvio
+  Widget _construirAcoes(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Botão "Voltar ao Login" → TitleMedium (Poppins Medium 16px)
+        SizedBox(
+          height: 52,
+          child: ElevatedButton(
+            onPressed: () => _voltarAoLogin(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Cores.azulPrimario,
+              foregroundColor: Cores.branco,
+              elevation: 1,
+              shadowColor: Colors.black.withValues(alpha: 0.05),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              'Voltar ao Login',
+              style: Tipografia.titleMedium.copyWith(color: Cores.branco),
+            ),
+          ),
+        ),
+        const SizedBox(height: 36),
+        // Texto auxiliar com link de reenvio → BodyMedium (Roboto Regular 14px)
+        RichText(
+          textAlign: TextAlign.center,
+          text: TextSpan(
+            style: Tipografia.bodyMedium.copyWith(
+              height: 1.43,
+              color: Cores.cinzaEscuro,
+            ),
+            children: [
+              const TextSpan(text: 'Não recebeu o e-mail? '),
+              // "Tente reenviar" como link azul — LabelLarge (Roboto SemiBold 14px)
+              WidgetSpan(
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    onTap: () {
+                      // TODO: implementar reenvio do e-mail de recuperação
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('E-mail reenviado!')),
+                      );
+                    },
+                    child: Text(
+                      'Tente reenviar',
+                      style: Tipografia.labelLarge.copyWith(
+                        color: Cores.azulPrimario,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const TextSpan(text: ' ou verifique sua pasta de spam.'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Rodapé com "CONFIRMAÇÃO DE SEGURANÇA" entre divisores e copyright abaixo
+  Widget _construirRodapeCompleto() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        children: [
+          // Linha decorativa com texto "CONFIRMAÇÃO DE SEGURANÇA"
+          Opacity(
+            opacity: 0.4,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Divisor esquerdo
+                Container(
+                  width: 32,
+                  height: 1,
+                  color: Cores.cinzaEscuro,
+                ),
+                const SizedBox(width: 8),
+                // Texto em maiúsculas → LabelSmall (Roboto Regular 10px)
+                Text(
+                  'CONFIRMAÇÃO DE SEGURANÇA',
+                  style: Tipografia.labelSmall.copyWith(
+                    letterSpacing: 1,
+                    color: Cores.cinzaEscuro,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Divisor direito
+                Container(
+                  width: 32,
+                  height: 1,
+                  color: Cores.cinzaEscuro,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Copyright → BodySmall (Roboto Regular 12px)
+          Text(
+            '© 2026 GeRelat • Segurança e transparência em seus relatórios.',
+            style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
