@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:gerelat_frontend/nucleo/componentes/botao_primario.dart';
+import 'package:gerelat_frontend/nucleo/componentes/decoracao_campo.dart';
+import 'package:gerelat_frontend/nucleo/componentes/estilo_botao.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
+import 'package:gerelat_frontend/nucleo/utils/breakpoints.dart';
 import 'package:gerelat_frontend/paginas/recuperar_senha/pagina_email_enviado.dart';
 
 /// Página de recuperação de senha.
@@ -13,14 +17,10 @@ class PaginaRecuperarSenha extends StatefulWidget {
 }
 
 class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
-  // Chave para validar o formulário
-  final _chaveFormulario = GlobalKey<FormState>();
-
   // Controlador do campo de e-mail
   final _controladorEmail = TextEditingController();
 
-  // Indica se o envio está sendo processado
-  bool _carregando = false;
+  // bool _carregando = false;
 
   @override
   void dispose() {
@@ -29,24 +29,24 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
     super.dispose();
   }
 
-  /// Valida o e-mail e envia a solicitação de recuperação de senha
-  Future<void> _enviarLink() async {
-    if (!_chaveFormulario.currentState!.validate()) return;
-
-    setState(() => _carregando = true);
-
-    // TODO: integrar com endpoint de recuperação de senha da gerelat-api
-    await Future.delayed(const Duration(seconds: 1));
-
-    setState(() => _carregando = false);
-
-    if (!mounted) return;
-
-    // Navega para a página de confirmação de e-mail enviado
+  // TODO: descomentar quando o back-end habilitar recuperação de senha
+  void _enviarLink() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const PaginaEmailEnviado()),
     );
   }
+
+  // Future<void> _enviarLink() async {
+  //   if (!_chaveFormulario.currentState!.validate()) return;
+  //   setState(() => _carregando = true);
+  //   // chamar endpoint: POST /auth/password-reset/ com { email: _controladorEmail.text.trim() }
+  //   await Future.delayed(const Duration(seconds: 1)); // remover após integração
+  //   setState(() => _carregando = false);
+  //   if (!mounted) return;
+  //   Navigator.of(context).pushReplacement(
+  //     MaterialPageRoute(builder: (_) => const PaginaEmailEnviado()),
+  //   );
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -114,7 +114,7 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
             width: 500,
             height: 500,
             decoration: BoxDecoration(
-              color: const Color(0xFFA8C8FF).withValues(alpha: 0.2),
+              color: Cores.azulBrilho.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
           ),
@@ -127,7 +127,7 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
             width: 400,
             height: 400,
             decoration: BoxDecoration(
-              color: const Color(0xFFA3F69C).withValues(alpha: 0.15),
+              color: Cores.verdeSuccesso.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
           ),
@@ -138,8 +138,11 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
 
   /// Card principal com formulário de recuperação
   Widget _construirCard() {
+    final largura = MediaQuery.sizeOf(context).width;
+    final cardWidth = largura < Breakpoints.thresholdCard ? largura - 32 : 448.0;
+
     return Container(
-      width: 448,
+      width: cardWidth,
       decoration: BoxDecoration(
         color: Cores.branco,
         // Raio maior (24px) conforme especificação do Figma
@@ -192,9 +195,7 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
             // Conteúdo do card
             Padding(
               padding: const EdgeInsets.all(40),
-              child: Form(
-                key: _chaveFormulario,
-                child: Column(
+              child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _construirIcone(),
@@ -209,7 +210,6 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
                   ],
                 ),
               ),
-            ),
           ],
         ),
       ),
@@ -279,41 +279,11 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
         TextFormField(
           controller: _controladorEmail,
           keyboardType: TextInputType.emailAddress,
-          decoration: InputDecoration(
-            hintText: 'exemplo@email.com',
-            // Placeholder → BodyMedium (Roboto Regular 14px)
-            hintStyle: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
-            prefixIcon: const Icon(
-              Icons.mail_outline,
-              color: Cores.cinzaMedio,
-              size: 18,
-            ),
-            filled: true,
-            fillColor: Cores.cinzaClaro,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 15,
-            ),
-            // Border-radius 16px conforme Figma
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(
-                color: Cores.azulPrimario,
-                width: 1.5,
-              ),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: Colors.redAccent),
-            ),
+          decoration: decoracaoCampo(
+            dica: 'exemplo@email.com',
+            icone: Icons.mail_outline,
+            borderRadius: 16,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
           ),
           // Valida formato básico de e-mail
           validator: (valor) {
@@ -328,52 +298,11 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
 
   /// Botão com gradiente azul e ícone de seta
   Widget _construirBotaoEnviar() {
-    return SizedBox(
-      height: 56,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          // Gradiente azul conforme especificação do Figma
-          gradient: const LinearGradient(
-            colors: [Color(0xFF00488D), Color(0xFF005FB8)],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 6,
-              offset: const Offset(0, 4),
-              spreadRadius: -1,
-            ),
-          ],
-        ),
-        child: ElevatedButton.icon(
-          onPressed: _carregando ? null : _enviarLink,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-            foregroundColor: Cores.branco,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-          ),
-          // Texto → TitleMedium (Poppins Medium 16px)
-          label: Text(
-            'Enviar Link',
-            style: Tipografia.titleMedium.copyWith(color: Cores.branco),
-          ),
-          icon: _carregando
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    color: Cores.branco,
-                    strokeWidth: 2,
-                  ),
-                )
-              : const Icon(Icons.arrow_forward, size: 14, color: Cores.branco),
-          iconAlignment: IconAlignment.end,
-        ),
-      ),
+    return BotaoPrimario(
+      rotulo: 'Enviar Link',
+      onPressed: _enviarLink,
+      icone: Icons.arrow_forward,
+      estilo: EstiloBotao.comGradiente,
     );
   }
 

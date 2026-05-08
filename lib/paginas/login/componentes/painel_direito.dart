@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
+// import 'package:gerelat_frontend/autenticacao/dominio/casos_de_uso/fazer_login.dart';
+// import 'package:gerelat_frontend/autenticacao/injecao_auth.dart';
+import 'package:gerelat_frontend/nucleo/componentes/botao_primario.dart';
+import 'package:gerelat_frontend/nucleo/componentes/decoracao_campo.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
+import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
+import 'package:gerelat_frontend/nucleo/utils/breakpoints.dart';
+// import 'package:gerelat_frontend/nucleo/utils/result.dart';
 import 'package:gerelat_frontend/paginas/cadastro/pagina_cadastro.dart';
+import 'package:gerelat_frontend/paginas/dashboard/pagina_dashboard.dart';
 import 'package:gerelat_frontend/paginas/recuperar_senha/pagina_recuperar_senha.dart';
 
 /// Painel branco da direita na tela de login.
@@ -26,35 +34,59 @@ class _PainelDireitoState extends State<PainelDireito> {
   // Controla o estado do checkbox "Manter conectado"
   bool _manterConectado = false;
 
-  // Indica se o login está sendo processado
-  bool _carregando = false;
+  // bool _carregando = false;
+  // final _fazerLogin = InjecaoAuth.fazerLogin();
 
   @override
   void dispose() {
-    // Libera os controladores da memória quando o widget é destruído
     _controladorEmail.dispose();
     _controladorSenha.dispose();
     super.dispose();
   }
 
-  /// Valida os campos e tenta fazer login na API
-  Future<void> _realizarLogin() async {
-    // Verifica se todos os campos são válidos
-    if (!_chaveFormulario.currentState!.validate()) return;
-
-    setState(() => _carregando = true);
-
-    // TODO: integrar com POST /auth/login/ da gerelat-api
-    await Future.delayed(const Duration(seconds: 1));
-
-    setState(() => _carregando = false);
+  // TODO: descomentar quando o back-end habilitar autenticação
+  void _realizarLogin() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const PaginaDashboard()),
+      (rota) => false,
+    );
   }
+
+  // Future<void> _realizarLogin() async {
+  //   if (!_chaveFormulario.currentState!.validate()) return;
+  //   setState(() => _carregando = true);
+  //   final resultado = await _fazerLogin(
+  //     ParamsLogin(
+  //       email: _controladorEmail.text.trim(),
+  //       senha: _controladorSenha.text,
+  //     ),
+  //   );
+  //   setState(() => _carregando = false);
+  //   if (!mounted) return;
+  //   switch (resultado) {
+  //     case Right():
+  //       Navigator.of(context).pushAndRemoveUntil(
+  //         MaterialPageRoute(builder: (_) => const PaginaDashboard()),
+  //         (rota) => false,
+  //       );
+  //     case Left(:final error):
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(
+  //           content: Text(error.errorMessages),
+  //           backgroundColor: Colors.redAccent,
+  //         ),
+  //       );
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
+    final largura = MediaQuery.sizeOf(context).width;
+    final hPadding = largura < 400 ? 24.0 : (largura < Breakpoints.thresholdLogin ? 32.0 : 56.0);
+
     return Container(
       color: Cores.branco,
-      padding: const EdgeInsets.symmetric(horizontal: 56, vertical: 48),
+      padding: EdgeInsets.symmetric(horizontal: hPadding, vertical: 48),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -85,24 +117,20 @@ class _PainelDireitoState extends State<PainelDireito> {
 
   /// Título e subtítulo de boas-vindas
   Widget _construirCabecalho() {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Bem-vindo de volta',
-          style: TextStyle(
+          style: Tipografia.headlineSmall.copyWith(
             color: Cores.pretoProfundo,
-            fontSize: 26,
             fontWeight: FontWeight.w700,
           ),
         ),
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
         Text(
           'Acesse sua conta para gerenciar seus relatórios.',
-          style: TextStyle(
-            color: Cores.cinzaMedio,
-            fontSize: 14,
-          ),
+          style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
         ),
       ],
     );
@@ -133,11 +161,7 @@ class _PainelDireitoState extends State<PainelDireito> {
   Widget _construirLabelCampo(String texto) {
     return Text(
       texto,
-      style: const TextStyle(
-        color: Cores.cinzaEscuro,
-        fontSize: 13,
-        fontWeight: FontWeight.w500,
-      ),
+      style: Tipografia.labelLarge.copyWith(color: Cores.cinzaEscuro),
     );
   }
 
@@ -174,13 +198,9 @@ class _PainelDireitoState extends State<PainelDireito> {
                 MaterialPageRoute(builder: (_) => const PaginaRecuperarSenha()),
               );
             },
-            child: const Text(
+            child: Text(
               'Esqueci a senha',
-              style: TextStyle(
-                color: Cores.azulPrimario,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
+              style: Tipografia.labelLarge.copyWith(color: Cores.azulPrimario),
             ),
           ),
         ),
@@ -238,12 +258,9 @@ class _PainelDireitoState extends State<PainelDireito> {
           ),
         ),
         const SizedBox(width: 10),
-        const Text(
+        Text(
           'Manter conectado',
-          style: TextStyle(
-            color: Cores.cinzaEscuro,
-            fontSize: 14,
-          ),
+          style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
         ),
       ],
     );
@@ -251,29 +268,9 @@ class _PainelDireitoState extends State<PainelDireito> {
 
   /// Botão principal de login
   Widget _construirBotaoEntrar() {
-    return SizedBox(
-      width: double.infinity,
-      height: 52,
-      child: ElevatedButton(
-        onPressed: _carregando ? null : _realizarLogin,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Cores.azulPrimario,
-          foregroundColor: Cores.branco,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          elevation: 0,
-        ),
-        child: _carregando
-            // Mostra indicador de carregamento enquanto processa o login
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(color: Cores.branco, strokeWidth: 2),
-              )
-            : const Text(
-                'Entrar na Plataforma',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-              ),
-      ),
+    return BotaoPrimario(
+      rotulo: 'Entrar na Plataforma',
+      onPressed: _realizarLogin,
     );
   }
 
@@ -285,7 +282,7 @@ class _PainelDireitoState extends State<PainelDireito> {
         const SizedBox(width: 12),
         Text(
           'ou',
-          style: TextStyle(color: Cores.cinzaMedio, fontSize: 13),
+          style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
         ),
         const SizedBox(width: 12),
         const Expanded(child: Divider(color: Cores.cinzaClaro)),
@@ -298,9 +295,9 @@ class _PainelDireitoState extends State<PainelDireito> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Text(
+        Text(
           'Não possui uma conta? ',
-          style: TextStyle(color: Cores.cinzaMedio, fontSize: 14),
+          style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
         ),
         MouseRegion(
           cursor: SystemMouseCursors.click,
@@ -311,11 +308,10 @@ class _PainelDireitoState extends State<PainelDireito> {
                 MaterialPageRoute(builder: (_) => const PaginaCadastro()),
               );
             },
-            child: const Text(
+            child: Text(
               'Cadastrar-se',
-              style: TextStyle(
+              style: Tipografia.labelLarge.copyWith(
                 color: Cores.azulPrimario,
-                fontSize: 14,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -327,47 +323,27 @@ class _PainelDireitoState extends State<PainelDireito> {
 
   /// Rodapé com copyright
   Widget _construirRodape() {
-    return const Center(
+    return Center(
       child: Text(
         '© 2026 GeRelat Intelligence Solutions. Todos os direitos reservados.',
-        style: TextStyle(
-          color: Cores.cinzaMedio,
-          fontSize: 12,
-        ),
+        style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
       ),
     );
   }
 
-  /// Decoração padrão reutilizável para os campos de texto
   InputDecoration _decoracaoCampo({
     required String dica,
     required IconData icone,
     Widget? sufixo,
-  }) {
-    return InputDecoration(
-      hintText: dica,
-      hintStyle: const TextStyle(color: Cores.cinzaAzulado, fontSize: 14),
-      prefixIcon: Icon(icone, color: Cores.cinzaMedio, size: 20),
-      suffixIcon: sufixo,
-      filled: true,
-      fillColor: Cores.fundoPagina,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Cores.cinzaClaro),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Cores.cinzaClaro),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Cores.azulPrimario, width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.redAccent),
-      ),
-    );
-  }
+  }) =>
+      decoracaoCampo(
+        dica: dica,
+        icone: icone,
+        sufixo: sufixo,
+        fillColor: Cores.fundoPagina,
+        iconSize: 20,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        hintColor: Cores.cinzaAzulado,
+        bordaVisivel: true,
+      );
 }

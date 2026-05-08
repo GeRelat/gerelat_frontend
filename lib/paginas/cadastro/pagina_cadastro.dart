@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gerelat_frontend/nucleo/componentes/barra_topo.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
+import 'package:gerelat_frontend/nucleo/utils/breakpoints.dart';
 import 'package:gerelat_frontend/paginas/cadastro/componentes/formulario_cadastro.dart';
 
 /// Página de cadastro de novo usuário.
@@ -12,7 +13,7 @@ class PaginaCadastro extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Cores.pretoProfundo,
+      backgroundColor: Cores.cinzaClaro,
       appBar: const BarraTopo(),
       body: Column(
         children: [
@@ -20,7 +21,10 @@ class PaginaCadastro extends StatelessWidget {
           Expanded(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 65),
+                padding: EdgeInsets.symmetric(
+                  horizontal: Breakpoints.isMobile(context) ? 16 : 48,
+                  vertical: Breakpoints.isMobile(context) ? 24 : 65,
+                ),
                 child: FormularioCadastro(
                   // Volta para a página anterior (login) ao clicar em "Fazer login"
                   aoClicarEmLogin: () => Navigator.of(context).pop(),

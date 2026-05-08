@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
+import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 
 /// Painel azul da esquerda na tela de login.
 /// Exibe o logo GeRelat, slogan, ilustração e rodapé de segurança.
@@ -32,11 +33,10 @@ class PainelEsquerdo extends StatelessWidget {
 
   /// Exibe o nome "GeRelat" como logo em texto branco e negrito
   Widget _construirLogo() {
-    return const Text(
+    return Text(
       'GeRelat',
-      style: TextStyle(
+      style: Tipografia.headlineMedium.copyWith(
         color: Cores.branco,
-        fontSize: 28,
         fontWeight: FontWeight.w800,
         letterSpacing: -0.5,
       ),
@@ -45,13 +45,11 @@ class PainelEsquerdo extends StatelessWidget {
 
   /// Exibe o slogan institucional abaixo do logo
   Widget _construirSlogan() {
-    return const Text(
+    return Text(
       'A inteligência por trás dos seus dados.\nRelatórios precisos para decisões estratégicas.',
-      style: TextStyle(
+      style: Tipografia.bodyMedium.copyWith(
         color: Cores.branco,
-        fontSize: 15,
         height: 1.6,
-        fontWeight: FontWeight.w400,
       ),
     );
   }
@@ -137,25 +135,20 @@ class PainelEsquerdo extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         // Expanded garante que o texto ocupe o espaço restante sem transbordar
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Segurança Total',
-                style: TextStyle(
+                style: Tipografia.labelLarge.copyWith(
                   color: Cores.branco,
-                  fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               Text(
                 'Seus dados protegidos por criptografia de ponta.',
-                style: TextStyle(
-                  color: Cores.branco,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w400,
-                ),
+                style: Tipografia.bodySmall.copyWith(color: Cores.branco),
               ),
             ],
           ),
