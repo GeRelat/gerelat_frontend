@@ -8,11 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-<<<<<<< HEAD
-import 'package:gerelat_frontend/main.dart';
-=======
 import 'package:gerelat_frontend.dart';
->>>>>>> f4ffd17 (feat: implementa logo oficial)
 
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
