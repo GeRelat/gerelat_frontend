@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
+import 'package:gerelat_frontend/nucleo/utils/breakpoints.dart';
 import 'package:gerelat_frontend/paginas/login/componentes/painel_direito.dart';
 import 'package:gerelat_frontend/paginas/login/componentes/painel_esquerdo.dart';
 
 /// Página principal de login do GeRelat.
-/// Layout dividido em dois painéis: azul (esquerda) e branco (direita).
+/// Desktop/tablet (≥700px): dois painéis lado a lado.
+/// Mobile (<700px): apenas o painel de formulário.
 class PaginaLogin extends StatelessWidget {
   const PaginaLogin({super.key});
 
@@ -12,15 +14,29 @@ class PaginaLogin extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Cores.fundoPagina,
-      body: Center(
-        child: ConstrainedBox(
-          // Limita a largura máxima do card de login
-          constraints: const BoxConstraints(maxWidth: 1100, maxHeight: 660),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: _construirCardLogin(),
-          ),
-        ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < Breakpoints.thresholdLogin) {
+            return Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  child: const PainelDireito(),
+                ),
+              ),
+            );
+          }
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1100, maxHeight: 660),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: _construirCardLogin(),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -41,18 +57,10 @@ class PaginaLogin extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
-        child: Row(
+        child: const Row(
           children: [
-            // Painel esquerdo azul — ocupa 45% da largura
-            const Flexible(
-              flex: 45,
-              child: PainelEsquerdo(),
-            ),
-            // Painel direito branco com formulário — ocupa 55% da largura
-            const Flexible(
-              flex: 55,
-              child: PainelDireito(),
-            ),
+            Flexible(flex: 45, child: PainelEsquerdo()),
+            Flexible(flex: 55, child: PainelDireito()),
           ],
         ),
       ),

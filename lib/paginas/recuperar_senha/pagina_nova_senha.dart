@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:gerelat_frontend/nucleo/componentes/botao_primario.dart';
+import 'package:gerelat_frontend/nucleo/componentes/decoracao_campo.dart';
+import 'package:gerelat_frontend/nucleo/componentes/estilo_botao.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
+import 'package:gerelat_frontend/nucleo/utils/breakpoints.dart';
 import 'package:gerelat_frontend/paginas/login/pagina_login.dart';
 
 /// Página de redefinição de senha.
@@ -105,8 +109,11 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
 
   /// Card principal com formulário de nova senha
   Widget _construirCard() {
+    final largura = MediaQuery.sizeOf(context).width;
+    final cardWidth = largura < Breakpoints.thresholdCard ? largura - 32 : 448.0;
+
     return Container(
-      width: 448,
+      width: cardWidth,
       decoration: BoxDecoration(
         color: Cores.branco,
         borderRadius: BorderRadius.circular(12),
@@ -174,7 +181,7 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
           width: 64,
           height: 64,
           decoration: const BoxDecoration(
-            color: Color(0xFFD6E3FF),
+            color: Cores.azulClaro,
             shape: BoxShape.circle,
           ),
           child: const Icon(
@@ -298,37 +305,14 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
     );
   }
 
-  /// Botão de redefinir senha com ícone de seta → TitleMedium (Poppins Medium 16px)
+  /// Botão de redefinir senha com ícone de seta
   Widget _construirBotaoRedefinir() {
-    return SizedBox(
-      height: 56,
-      child: ElevatedButton.icon(
-        onPressed: _carregando ? null : _redefinirSenha,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Cores.azulPrimario,
-          foregroundColor: Cores.branco,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          elevation: 4,
-          shadowColor: Colors.black.withValues(alpha: 0.1),
-        ),
-        label: Text(
-          'Redefinir Senha',
-          style: Tipografia.titleMedium.copyWith(color: Cores.branco),
-        ),
-        icon: _carregando
-            ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  color: Cores.branco,
-                  strokeWidth: 2,
-                ),
-              )
-            : const Icon(Icons.arrow_forward, size: 14, color: Cores.branco),
-        iconAlignment: IconAlignment.end,
-      ),
+    return BotaoPrimario(
+      rotulo: 'Redefinir Senha',
+      onPressed: _redefinirSenha,
+      carregando: _carregando,
+      icone: Icons.arrow_forward,
+      estilo: EstiloBotao.grande,
     );
   }
 
@@ -358,38 +342,18 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
     );
   }
 
-  /// Decoração padrão dos campos de texto
   InputDecoration _decoracaoCampo({
     required String dica,
     required IconData icone,
     Widget? sufixo,
-  }) {
-    return InputDecoration(
-      hintText: dica,
-      hintStyle: Tipografia.bodyLarge.copyWith(color: Cores.cinzaMedio),
-      prefixIcon: Icon(icone, color: Cores.cinzaMedio, size: 16),
-      suffixIcon: sufixo,
-      filled: true,
-      fillColor: Cores.cinzaClaro,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Cores.azulPrimario, width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.redAccent),
-      ),
-    );
-  }
+  }) =>
+      decoracaoCampo(
+        dica: dica,
+        icone: icone,
+        sufixo: sufixo,
+        iconSize: 16,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      );
 
   /// Rodapé com copyright → BodySmall (Roboto Regular 12px)
   Widget _construirRodape() {

@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:gerelat_frontend/nucleo/servicos/servico_autenticacao.dart';
+// import 'package:gerelat_frontend/autenticacao/dominio/casos_de_uso/fazer_cadastro.dart';
+// import 'package:gerelat_frontend/autenticacao/injecao_auth.dart';
+import 'package:gerelat_frontend/nucleo/componentes/botao_primario.dart';
+import 'package:gerelat_frontend/nucleo/componentes/decoracao_campo.dart';
+import 'package:gerelat_frontend/nucleo/componentes/estilo_botao.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
+import 'package:gerelat_frontend/nucleo/utils/breakpoints.dart';
+// import 'package:gerelat_frontend/nucleo/utils/result.dart';
 import 'package:gerelat_frontend/paginas/sucesso_cadastro/pagina_sucesso_cadastro.dart';
 
 /// Formulário de cadastro de novo usuário.
@@ -29,12 +35,11 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
   // Controla visibilidade do campo senha
   bool _senhaVisivel = false;
 
-  // Indica se o cadastro está sendo processado
-  bool _carregando = false;
+  // bool _carregando = false;
+  // final _fazerCadastro = InjecaoAuth.fazerCadastro();
 
   @override
   void dispose() {
-    // Libera todos os controladores ao destruir o widget
     _controladorNome.dispose();
     _controladorEmail.dispose();
     _controladorSenha.dispose();
@@ -42,43 +47,47 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
     super.dispose();
   }
 
-  /// Valida os campos, chama a API e navega para a tela de sucesso
-  Future<void> _realizarCadastro() async {
-    if (!_chaveFormulario.currentState!.validate()) return;
-
-    setState(() => _carregando = true);
-
-    final resultado = await ServicoAutenticacao.cadastrar(
-      nomeCompleto: _controladorNome.text.trim(),
-      email: _controladorEmail.text.trim(),
-      senha: _controladorSenha.text,
+  // TODO: descomentar quando o back-end habilitar autenticação
+  void _realizarCadastro() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const PaginaSucessoCadastro()),
     );
-
-    setState(() => _carregando = false);
-
-    // Verifica se o widget ainda está na tela antes de usar context
-    if (!mounted) return;
-
-    if (resultado.sucesso) {
-      // Navega para a página de sucesso substituindo o cadastro na pilha
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const PaginaSucessoCadastro()),
-      );
-    } else {
-      // Exibe o erro retornado pela API
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(resultado.mensagemErro ?? 'Erro ao criar conta.'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    }
   }
+
+  // Future<void> _realizarCadastro() async {
+  //   if (!_chaveFormulario.currentState!.validate()) return;
+  //   setState(() => _carregando = true);
+  //   final resultado = await _fazerCadastro(
+  //     ParamsCadastro(
+  //       nomeCompleto: _controladorNome.text.trim(),
+  //       email: _controladorEmail.text.trim(),
+  //       senha: _controladorSenha.text,
+  //     ),
+  //   );
+  //   setState(() => _carregando = false);
+  //   if (!mounted) return;
+  //   switch (resultado) {
+  //     case Right():
+  //       Navigator.of(context).pushReplacement(
+  //         MaterialPageRoute(builder: (_) => const PaginaSucessoCadastro()),
+  //       );
+  //     case Left(:final error):
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(
+  //           content: Text(error.errorMessages),
+  //           backgroundColor: Colors.redAccent,
+  //         ),
+  //       );
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
+    final largura = MediaQuery.sizeOf(context).width;
+    final cardWidth = largura < Breakpoints.thresholdForm ? largura - 32 : 512.0;
+
     return Container(
-      width: 512,
+      width: cardWidth,
       decoration: BoxDecoration(
         color: Cores.branco,
         borderRadius: BorderRadius.circular(12),
@@ -238,45 +247,13 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
     );
   }
 
-  /// Botão principal de cadastro usando TitleMedium do design system
+  /// Botão principal de cadastro
   Widget _construirBotaoCadastrar() {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton.icon(
-        onPressed: _carregando ? null : _realizarCadastro,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Cores.azulPrimario,
-          foregroundColor: Cores.branco,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          elevation: 0,
-          shadowColor: Cores.azulPrimario.withValues(alpha: 0.2),
-        ),
-        icon: _carregando
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: Cores.branco,
-                  strokeWidth: 2,
-                ),
-              )
-            : const SizedBox.shrink(),
-        label: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Texto do botão → TitleMedium (Poppins Medium 16px)
-            Text(
-              'Cadastrar',
-              style: Tipografia.titleMedium.copyWith(color: Cores.branco),
-            ),
-            if (!_carregando) ...[
-              const SizedBox(width: 8),
-              const Icon(Icons.arrow_forward, size: 16, color: Cores.branco),
-            ],
-          ],
-        ),
-      ),
+    return BotaoPrimario(
+      rotulo: 'Cadastrar',
+      onPressed: _realizarCadastro,
+      icone: Icons.arrow_forward,
+      estilo: EstiloBotao.grande,
     );
   }
 
@@ -330,39 +307,10 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
     );
   }
 
-  /// Decoração padrão reutilizável para os campos de texto
   InputDecoration _decoracaoCampo({
     required String dica,
     required IconData icone,
     Widget? sufixo,
-  }) {
-    return InputDecoration(
-      hintText: dica,
-      // Placeholder → BodyLarge com opacidade reduzida
-      hintStyle: Tipografia.bodyLarge.copyWith(
-        color: Cores.cinzaMedio.withValues(alpha: 0.6),
-      ),
-      prefixIcon: Icon(icone, color: Cores.cinzaMedio, size: 18),
-      suffixIcon: sufixo,
-      filled: true,
-      fillColor: Cores.cinzaClaro,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Cores.azulPrimario, width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.redAccent),
-      ),
-    );
-  }
+  }) =>
+      decoracaoCampo(dica: dica, icone: icone, sufixo: sufixo);
 }

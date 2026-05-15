@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:gerelat_frontend/nucleo/componentes/botao_primario.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
+import 'package:gerelat_frontend/nucleo/utils/breakpoints.dart';
 import 'package:gerelat_frontend/paginas/login/pagina_login.dart';
 
 /// Página exibida após o envio do e-mail de recuperação de senha.
@@ -59,8 +61,11 @@ class PaginaEmailEnviado extends StatelessWidget {
 
   /// Card principal branco com ícone, texto e ações
   Widget _construirCard(BuildContext context) {
+    final largura = MediaQuery.sizeOf(context).width;
+    final cardWidth = largura < Breakpoints.thresholdCard ? largura - 32 : 448.0;
+
     return Container(
-      width: 448,
+      width: cardWidth,
       padding: const EdgeInsets.all(48),
       decoration: BoxDecoration(
         color: Cores.branco,
@@ -109,7 +114,7 @@ class PaginaEmailEnviado extends StatelessWidget {
               width: 96,
               height: 96,
               decoration: const BoxDecoration(
-                color: Color(0xFFD6E3FF),
+                color: Cores.azulClaro,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -157,25 +162,9 @@ class PaginaEmailEnviado extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Botão "Voltar ao Login" → TitleMedium (Poppins Medium 16px)
-        SizedBox(
-          height: 52,
-          child: ElevatedButton(
-            onPressed: () => _voltarAoLogin(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Cores.azulPrimario,
-              foregroundColor: Cores.branco,
-              elevation: 1,
-              shadowColor: Colors.black.withValues(alpha: 0.05),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: Text(
-              'Voltar ao Login',
-              style: Tipografia.titleMedium.copyWith(color: Cores.branco),
-            ),
-          ),
+        BotaoPrimario(
+          rotulo: 'Voltar ao Login',
+          onPressed: () => _voltarAoLogin(context),
         ),
         const SizedBox(height: 36),
         // Texto auxiliar com link de reenvio → BodyMedium (Roboto Regular 14px)

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:gerelat_frontend/nucleo/componentes/botao_primario.dart';
+import 'package:gerelat_frontend/nucleo/componentes/estilo_botao.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
+import 'package:gerelat_frontend/nucleo/utils/breakpoints.dart';
 import 'package:gerelat_frontend/paginas/login/pagina_login.dart';
 
 /// Página exibida após o cadastro ser concluído com sucesso.
@@ -32,8 +35,11 @@ class PaginaSucessoCadastro extends StatelessWidget {
 
   /// Card principal branco com todos os elementos de sucesso
   Widget _construirCard(BuildContext context) {
+    final largura = MediaQuery.sizeOf(context).width;
+    final cardWidth = largura < Breakpoints.thresholdCard ? largura - 32 : 448.0;
+
     return Container(
-      width: 448,
+      width: cardWidth,
       decoration: BoxDecoration(
         color: Cores.branco,
         borderRadius: BorderRadius.circular(12),
@@ -99,7 +105,7 @@ class PaginaSucessoCadastro extends StatelessWidget {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: const Color(0xFFA3F69C).withValues(alpha: 0.2),
+                color: Cores.verdeSuccesso.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
             ),
@@ -108,10 +114,10 @@ class PaginaSucessoCadastro extends StatelessWidget {
               width: 80,
               height: 80,
               decoration: const BoxDecoration(
-                color: Color(0xFFA3F69C),
+                color: Cores.verdeSuccesso,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.check, color: Color(0xFF002204), size: 30),
+              child: const Icon(Icons.check, color: Cores.verdeEscuro, size: 30),
             ),
           ],
         ),
@@ -166,24 +172,10 @@ class PaginaSucessoCadastro extends StatelessWidget {
   Widget _construirAcoes(BuildContext context) {
     return Column(
       children: [
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: ElevatedButton(
-            onPressed: () => _irParaLogin(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Cores.azulPrimario,
-              foregroundColor: Cores.branco,
-              elevation: 1,
-              shadowColor: Colors.black.withValues(alpha: 0.05),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            // Texto do botão → TitleMedium (Poppins Medium 16px)
-            child: Text(
-              'Ir para o Login',
-              style: Tipografia.titleMedium.copyWith(color: Cores.branco),
-            ),
-          ),
+        BotaoPrimario(
+          rotulo: 'Ir para o Login',
+          onPressed: () => _irParaLogin(context),
+          estilo: const EstiloBotao(altura: 48),
         ),
         const SizedBox(height: 16),
         // Texto secundário → TitleSmall (Poppins Medium 14px)
