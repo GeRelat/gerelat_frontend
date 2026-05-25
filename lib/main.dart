@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:gerelat_frontend/paginas/login/pagina_login.dart';
-import 'paginas/dashboard.dart';
+import 'paginas/dashboard/dashboard.dart';
 
 /// Ponto de entrada da aplicação GeRelat.
 void main() {
