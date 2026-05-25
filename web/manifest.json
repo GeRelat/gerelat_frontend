@@ -10,11 +10,7 @@
     "prefer_related_applications": false,
     "icons": [
         {
-<<<<<<< HEAD
-            "src": "icons/Icon-192.png",
-=======
             "src": "icons/Icon-192",
->>>>>>> f4ffd17 (feat: implementa logo oficial)
             "sizes": "192x192",
             "type": "image/png"
         },
@@ -36,8 +32,4 @@
             "purpose": "maskable"
         }
     ]
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> f4ffd17 (feat: implementa logo oficial)

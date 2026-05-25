@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:gerelat_frontend/paginas/login/pagina_login.dart';
+import 'paginas/dashboard.dart';
 
 /// Ponto de entrada da aplicação GeRelat.
 void main() {
@@ -23,7 +24,7 @@ class AplicativoGeRelat extends StatelessWidget {
         textTheme: Tipografia.textTheme,
       ),
       // Página inicial é sempre o login
-      home: const PaginaLogin(),
+      home: const DashboardPage(),
     );
   }
 }

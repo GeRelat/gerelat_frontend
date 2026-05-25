@@ -16,10 +16,7 @@ class PaginaLogin extends StatelessWidget {
         child: ConstrainedBox(
           // Limita a largura máxima do card de login
           constraints: const BoxConstraints(maxWidth: 1100, maxHeight: 660),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: _construirCardLogin(),
-          ),
+          child: Padding(padding: const EdgeInsets.all(24), child: _construirCardLogin()),
         ),
       ),
     );
@@ -31,28 +28,16 @@ class PaginaLogin extends StatelessWidget {
       decoration: BoxDecoration(
         color: Cores.branco,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Cores.pretoProfundo.withValues(alpha: 0.08),
-            blurRadius: 40,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Cores.pretoProfundo.withValues(alpha: 0.08), blurRadius: 40, offset: const Offset(0, 8))],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: Row(
           children: [
             // Painel esquerdo azul — ocupa 45% da largura
-            const Flexible(
-              flex: 45,
-              child: PainelEsquerdo(),
-            ),
+            const Flexible(flex: 45, child: PainelEsquerdo()),
             // Painel direito branco com formulário — ocupa 55% da largura
-            const Flexible(
-              flex: 55,
-              child: PainelDireito(),
-            ),
+            const Flexible(flex: 55, child: PainelDireito()),
           ],
         ),
       ),
