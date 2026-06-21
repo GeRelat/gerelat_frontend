@@ -1,567 +1,356 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
+import 'package:gerelat_frontend/aplicacao/dependencias.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/dashboard_view_model.dart';
+import 'package:gerelat_frontend/dominio/entidades/resumo_dashboard.dart';
+import 'package:gerelat_frontend/nucleo/componentes/app_shell.dart';
+import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
+import 'package:gerelat_frontend/nucleo/temas/cores.dart';
+import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
+import 'package:gerelat_frontend/paginas/programas/pagina_programas.dart';
+import 'package:gerelat_frontend/paginas/relatorios/pagina_relatorios.dart';
 
-class DashboardPage extends StatelessWidget {
+class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
-  static const Color azul = Color(0xff0057D9);
-  static const Color azulClaro = Color(0xff0A6CFF);
-  static const Color azulEscuro = Color(0xff004A98);
+  @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
 
-  static const Color fundo = Color(0xffF5F7FA);
-  static const Color borda = Color(0xffE5E7EB);
-  static const Color texto = Color(0xff111827);
+class _DashboardPageState extends State<DashboardPage> {
+  late final DashboardViewModel _viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = DashboardViewModel(
+      DependenciasApp.instancia.repositorioCatalogo,
+    )
+      ..carregar();
+  }
+
+  @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: fundo,
-      body: Row(
-        children: [
-          _buildSidebar(),
-
-          Expanded(
+    return AppShell(
+      secaoAtual: SecaoApp.dashboard,
+      titulo: 'Dashboard',
+      dicaPesquisa: 'Pesquisar...',
+      child: AnimatedBuilder(
+        animation: _viewModel,
+        builder: (context, _) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(32),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildTopBar(),
-
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(40, 36, 40, 36),
-
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-
-                      children: [
-                        const Text(
-                          "Visão geral da sua gestão de relatórios",
-                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w500, color: Color(0xff1F2937)),
-                        ),
-
-                        const SizedBox(height: 36),
-
-                        _buildStatusCards(),
-
-                        const SizedBox(height: 40),
-
-                        _buildActionCards(),
-                      ],
-                    ),
+                Text(
+                  'Visao geral da sua gestao de relatorios',
+                  style: Tipografia.headlineSmall.copyWith(
+                    color: Cores.textoPrincipal,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
+                const SizedBox(height: 24),
+                _conteudoResumo(),
+                const SizedBox(height: 32),
+                _acoesPrincipais(context),
+                const SizedBox(height: 32),
+                _sincronizacao(),
               ],
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 
-  // =========================================================
-  // SIDEBAR
-  // =========================================================
-
-  Widget _buildSidebar() {
-    return Container(
-      width: 223,
-
-      decoration: const BoxDecoration(
-        color: Colors.white,
-
-        border: Border(right: BorderSide(color: borda, width: 1)),
-      ),
-
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-
-        children: [
-          Container(
-            height: 72,
-
-            alignment: Alignment.centerLeft,
-
-            padding: const EdgeInsets.only(left: 22),
-
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: borda, width: 1)),
-            ),
-
-            child: RichText(
-              text: const TextSpan(
-                children: [
-                  TextSpan(
-                    text: "Ge",
-                    style: TextStyle(fontSize: 29, fontWeight: FontWeight.w700, letterSpacing: -1.0, color: Color(0xff003E91), height: 1),
-                  ),
-
-                  TextSpan(
-                    text: "Relat",
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.w100, letterSpacing: -1.0, color: Color(0xff0054C7), height: 1),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 28),
-
-          _sideItem(LucideIcons.house, "Dashboard", true),
-
-          _sideItem(LucideIcons.folder_kanban, "Programas", false),
-
-          _sideItem(LucideIcons.calendar, "Eventos", false),
-
-          _sideItem(LucideIcons.file_text, "Relatórios", false),
-
-          _sideItem(LucideIcons.copy, "Templates", false),
-
-          const Spacer(),
-
-          Container(height: 1, color: borda),
-
-          const SizedBox(height: 14),
-
-          _sideItem(LucideIcons.settings, "Configurações", false),
-
-          _sideItem(LucideIcons.log_out, "Sair", false),
-
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-
-  Widget _sideItem(IconData icon, String label, bool active) {
-    return Container(
-      height: 52,
-
-      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-
-      decoration: BoxDecoration(
-        color: active ? const Color(0xffEEF5FF) : Colors.transparent,
-
-        borderRadius: BorderRadius.circular(30),
-
-        boxShadow: active ? [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, 2))] : [],
-      ),
-
-      child: Padding(
-        padding: const EdgeInsets.only(left: 18, right: 16),
-
-        child: Row(
-          children: [
-            Icon(icon, size: 23, color: active ? azul : texto),
-
-            const SizedBox(width: 16),
-
-            Text(
-              label,
-
-              style: TextStyle(fontSize: 18, height: 1, fontWeight: FontWeight.w500, color: active ? azul : Colors.black),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // =========================================================
-  // TOP BAR
-  // =========================================================
-
-  Widget _buildTopBar() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isNarrow = constraints.maxWidth < 780;
-
-        return Container(
-          height: 92,
-
-          padding: const EdgeInsets.symmetric(horizontal: 40),
-
-          decoration: const BoxDecoration(
-            color: Colors.white,
-
-            border: Border(bottom: BorderSide(color: borda, width: 1)),
-          ),
-
-          child: Row(
-            children: [
-              Flexible(
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 400, minWidth: 220),
-
-                  height: 54,
-
-                  decoration: BoxDecoration(color: const Color(0xffE1E5EA), borderRadius: BorderRadius.circular(10)),
-
-                  padding: const EdgeInsets.symmetric(horizontal: 18),
-
-                  child: const Row(
-                    children: [
-                      Icon(LucideIcons.search, size: 24, color: Color(0xff4B5563)),
-
-                      SizedBox(width: 12),
-
-                      Expanded(
-                        child: Text(
-                          "Pesquisar programas...",
-
-                          overflow: TextOverflow.ellipsis,
-
-                          style: TextStyle(fontSize: 18, color: Color(0xff6B7280)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const Spacer(),
-
-              if (!isNarrow) ...[
-                const Icon(LucideIcons.bell, size: 28, color: Color(0xff374151)),
-
-                const SizedBox(width: 24),
-
-                const Icon(Icons.help_outline, size: 28, color: Color(0xff374151)),
-
-                const SizedBox(width: 24),
-
-                Container(width: 1, height: 38, color: borda),
-
-                const SizedBox(width: 28),
-
-                const Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-
-                  crossAxisAlignment: CrossAxisAlignment.end,
-
-                  children: [
-                    Text(
-                      "Admin User",
-
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: texto),
-                    ),
-
-                    Text("Administrador", style: TextStyle(fontSize: 14, color: Color(0xff4B5563))),
-                  ],
-                ),
-
-                const SizedBox(width: 14),
-              ],
-
-              Container(
-                width: 54,
-                height: 54,
-
-                padding: const EdgeInsets.all(7),
-
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-
-                  border: Border.all(color: const Color(0xffA7C8FF), width: 2),
-                ),
-
-                child: ClipOval(child: Image.asset("assets/images/logo_brisa.png", fit: BoxFit.contain)),
-              ),
-            ],
-          ),
+  Widget _conteudoResumo() {
+    if (_viewModel.carregando && _viewModel.resumo == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_viewModel.mensagemErro != null) {
+      return EstadoVazio(
+        icone: LucideIcons.circle_alert,
+        titulo: 'Nao foi possivel carregar o resumo',
+        descricao: _viewModel.mensagemErro!,
+        acao: 'Tentar novamente',
+        onAcao: _viewModel.carregar,
+      );
+    }
+
+    final resumo =
+        _viewModel.resumo ??
+        const ResumoDashboard(
+          programas: 0,
+          projetos: 0,
+          eventos: 0,
+          templates: 0,
+          relatorios: 0,
         );
-      },
-    );
+
+    return _statusCards(resumo);
   }
 
-  // =========================================================
-  // STATUS CARDS
-  // =========================================================
-
-  Widget _buildStatusCards() {
-    final items = [
-      ("PROGRAMAS", "1", "Ativos no sistema", LucideIcons.folder_kanban, azul),
-
-      ("TEMPLATES", "1", "Disponíveis", LucideIcons.copy, azul),
-
-      ("RELATÓRIOS", "0", "Gerados este mês", LucideIcons.file_text, const Color(0xff10B981)),
-    ];
-
+  Widget _statusCards(ResumoDashboard resumo) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-
-        int columns = 3;
-
-        if (width < 700) {
-          columns = 1;
-        } else if (width < 1050) {
-          columns = 2;
-        }
-
-        const spacing = 30.0;
-
-        final cardWidth = (width - (spacing * (columns - 1))) / columns;
+        final colunas = constraints.maxWidth < 760
+            ? 1
+            : constraints.maxWidth < 1080
+            ? 2
+            : 3;
+        const espaco = 24.0;
+        final largura =
+            (constraints.maxWidth - espaco * (colunas - 1)) / colunas;
 
         return Wrap(
-          spacing: spacing,
-          runSpacing: 24,
-
-          children: items.map((item) {
-            return SizedBox(width: cardWidth, child: _statusCard(item.$1, item.$2, item.$3, item.$4, item.$5));
-          }).toList(),
+          spacing: espaco,
+          runSpacing: espaco,
+          children: [
+            SizedBox(
+              width: largura,
+              child: CartaoInfo(
+                titulo: 'Programas',
+                valor: '${resumo.programas}',
+                descricao: '${resumo.projetos} projetos vinculados',
+                icone: LucideIcons.folder_kanban,
+              ),
+            ),
+            SizedBox(
+              width: largura,
+              child: CartaoInfo(
+                titulo: 'Templates',
+                valor: '${resumo.templates}',
+                descricao: 'Padroes corporativos disponiveis',
+                icone: LucideIcons.copy,
+              ),
+            ),
+            SizedBox(
+              width: largura,
+              child: CartaoInfo(
+                titulo: 'Relatorios',
+                valor: '${resumo.relatorios}',
+                descricao: '${resumo.eventos} eventos mapeados',
+                icone: LucideIcons.file_text,
+                cor: Cores.verdeSucesso,
+              ),
+            ),
+          ],
         );
       },
     );
   }
 
-  Widget _statusCard(String title, String number, String subtitle, IconData icon, Color iconColor) {
-    return Container(
-      height: 205,
-      padding: const EdgeInsets.all(24),
-
-      decoration: BoxDecoration(
-        color: Colors.white,
-
-        borderRadius: BorderRadius.circular(20),
-
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
-      ),
-
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-
-                  maxLines: 1,
-
-                  overflow: TextOverflow.ellipsis,
-
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500, color: texto),
-                ),
-              ),
-
-              Container(
-                width: 40,
-                height: 40,
-
-                decoration: BoxDecoration(color: iconColor.withOpacity(0.12), borderRadius: BorderRadius.circular(14)),
-
-                child: Icon(icon, size: 21, color: iconColor),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 26),
-
-          Text(
-            number,
-
-            style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w700, color: Colors.black, height: 1),
-          ),
-
-          const SizedBox(height: 12),
-
-          Text(
-            subtitle,
-
-            maxLines: 1,
-
-            overflow: TextOverflow.ellipsis,
-
-            style: const TextStyle(fontSize: 16, color: Color(0xff6B7280), height: 1),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionCards() {
+  Widget _acoesPrincipais(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isSmall = constraints.maxWidth < 950;
+        final compacto = constraints.maxWidth < 960;
+        final relatorio = _HeroRelatorio(
+          onTap: () => Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const PaginaRelatorios()),
+          ),
+        );
+        final programa = _AcaoSecundaria(
+          titulo: 'Novo Programa',
+          descricao: 'Configure um novo programa institucional no sistema.',
+          icone: LucideIcons.folder_plus,
+          onTap: () => Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const PaginaProgramas()),
+          ),
+        );
 
-        if (isSmall) {
-          return Column(children: [_buildCriarRelatorioCard(), const SizedBox(height: 24), _buildNovoProgramaCard()]);
+        if (compacto) {
+          return Column(
+            children: [relatorio, const SizedBox(height: 24), programa],
+          );
         }
 
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
-
           children: [
-            Expanded(child: _buildCriarRelatorioCard()),
-
-            const SizedBox(width: 30),
-
-            Expanded(child: _buildNovoProgramaCard()),
+            Expanded(flex: 2, child: relatorio),
+            const SizedBox(width: 24),
+            Expanded(child: programa),
           ],
         );
       },
     );
   }
 
-  Widget _buildCriarRelatorioCard() {
-    return Container(
-      height: 260,
-
-      padding: const EdgeInsets.fromLTRB(40, 36, 40, 32),
-
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xff0054C8), Color(0xff004A98)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-
-        borderRadius: BorderRadius.circular(22),
-      ),
-
+  Widget _sincronizacao() {
+    return CartaoConteudo(
       child: Row(
         children: [
-          Expanded(child: _buildRelatorioTexto()),
-
-          const SizedBox(width: 18),
-
           Container(
-            width: 72,
-            height: 72,
-
-            decoration: BoxDecoration(color: Colors.white.withOpacity(0.18), borderRadius: BorderRadius.circular(24)),
-
-            child: const Icon(LucideIcons.plus, size: 40, color: Colors.white),
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Cores.azulAcao.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(LucideIcons.refresh_cw, color: Cores.azulAcao),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Ultima atualizacao',
+                  style: Tipografia.titleLarge.copyWith(
+                    color: Cores.textoPrincipal,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Seu dashboard foi sincronizado ha poucos minutos com a base de dados corporativa.',
+                  style: Tipografia.bodyMedium.copyWith(
+                    color: Cores.cinzaEscuro,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildRelatorioTexto() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+class _HeroRelatorio extends StatelessWidget {
+  final VoidCallback onTap;
 
-      children: [
-        const Text(
-          "Criar Novo Relatório",
+  const _HeroRelatorio({required this.onTap});
 
-          maxLines: 1,
-
-          overflow: TextOverflow.ellipsis,
-
-          style: TextStyle(fontSize: 30, color: Colors.white, fontWeight: FontWeight.w800),
-        ),
-
-        const SizedBox(height: 14),
-
-        const Text(
-          "Gere relatórios completos a partir dos\n"
-          "seus eventos cadastrados",
-
-          style: TextStyle(fontSize: 20, color: Colors.white, height: 1.4),
-        ),
-
-        const Spacer(),
-
-        Container(
-          height: 52,
-
-          padding: const EdgeInsets.symmetric(horizontal: 26),
-
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28)),
-
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-
-            children: [
-              Text(
-                "Começar agora",
-
-                style: TextStyle(color: azul, fontSize: 17, fontWeight: FontWeight.w800),
-              ),
-
-              SizedBox(width: 12),
-
-              Icon(LucideIcons.arrow_right, color: azul, size: 20),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNovoProgramaCard() {
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      height: 260,
-
-      padding: const EdgeInsets.fromLTRB(40, 36, 40, 32),
-
+      constraints: const BoxConstraints(minHeight: 300),
+      padding: const EdgeInsets.all(40),
       decoration: BoxDecoration(
-        color: Colors.white,
-
-        borderRadius: BorderRadius.circular(22),
-
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 12, offset: const Offset(0, 4))],
+        color: Cores.azulClaro,
+        borderRadius: BorderRadius.circular(16),
       ),
-
       child: Row(
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-
               children: [
-                const Text(
-                  "Novo Programa",
-
-                  maxLines: 1,
-
-                  overflow: TextOverflow.ellipsis,
-
-                  style: TextStyle(fontSize: 30, color: Colors.black, fontWeight: FontWeight.w800),
+                Text(
+                  'Criar Novo Relatorio',
+                  style: Tipografia.headlineMedium.copyWith(
+                    color: Cores.branco,
+                  ),
                 ),
-
                 const SizedBox(height: 14),
-
-                const Text(
-                  "Configure um novo programa\n"
-                  "institucional no sistema",
-
-                  style: TextStyle(fontSize: 20, color: texto, height: 1.4),
+                Text(
+                  'Gere relatorios completos a partir dos seus eventos cadastrados.',
+                  style: Tipografia.bodyLarge.copyWith(
+                    color: Cores.branco,
+                    height: 1.5,
+                  ),
                 ),
-
-                const Spacer(),
-
-                GestureDetector(
-                  onTap: () {},
-
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-
-                    children: [
-                      Text(
-                        "Cadastrar programa",
-
-                        style: TextStyle(color: azul, fontSize: 17, fontWeight: FontWeight.w800),
-                      ),
-
-                      SizedBox(width: 12),
-
-                      Icon(LucideIcons.arrow_right, color: azul, size: 20),
-                    ],
+                const SizedBox(height: 32),
+                ElevatedButton.icon(
+                  onPressed: onTap,
+                  icon: const Icon(LucideIcons.arrow_right, size: 18),
+                  label: const Text('Comecar agora'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Cores.branco,
+                    foregroundColor: Cores.azulAcao,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(999),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-
-          const SizedBox(width: 18),
-
+          const SizedBox(width: 24),
           Container(
-            width: 72,
-            height: 72,
+            width: 148,
+            height: 148,
+            decoration: BoxDecoration(
+              color: Cores.branco.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(28),
+            ),
+            child: const Icon(
+              LucideIcons.chart_bar,
+              color: Cores.branco,
+              size: 72,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-            decoration: BoxDecoration(color: const Color(0xffEEF5FF), borderRadius: BorderRadius.circular(24)),
+class _AcaoSecundaria extends StatelessWidget {
+  final String titulo;
+  final String descricao;
+  final IconData icone;
+  final VoidCallback onTap;
 
-            child: const Icon(LucideIcons.plus, size: 40, color: azul),
+  const _AcaoSecundaria({
+    required this.titulo,
+    required this.descricao,
+    required this.icone,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CartaoConteudo(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: Cores.azulAcao.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Icon(icone, color: Cores.azulAcao, size: 30),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            titulo,
+            textAlign: TextAlign.center,
+            style: Tipografia.titleLarge.copyWith(
+              color: Cores.textoPrincipal,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            descricao,
+            textAlign: TextAlign.center,
+            style: Tipografia.bodyMedium.copyWith(
+              color: Cores.cinzaEscuro,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 24),
+          TextButton.icon(
+            onPressed: onTap,
+            icon: const Icon(LucideIcons.arrow_right, size: 16),
+            label: const Text('Cadastrar programa'),
           ),
         ],
       ),

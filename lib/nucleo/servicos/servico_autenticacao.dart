@@ -1,8 +1,8 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 
-/// Resultado de uma operação de autenticação.
-/// Carrega ou uma mensagem de erro ou indica sucesso.
+import 'package:gerelat_frontend/nucleo/servicos/cliente_http.dart';
+import 'package:gerelat_frontend/nucleo/servicos/servico_token.dart';
+
 class ResultadoAutenticacao {
   final bool sucesso;
   final String? mensagemErro;
@@ -11,81 +11,111 @@ class ResultadoAutenticacao {
   const ResultadoAutenticacao.erro(this.mensagemErro) : sucesso = false;
 }
 
-/// Serviço responsável por toda a comunicação com os endpoints de autenticação da gerelat-api.
 class ServicoAutenticacao {
-  // URL base da API — aponta para o backend Django rodando localmente
-  static const String _urlBase = 'http://localhost:8000';
+  final ClienteHttp _clienteHttp;
+  final ServicoToken _servicoToken;
 
-  /// Registra um novo usuário chamando POST /auth/register/
-  /// Recebe nome completo, e-mail e senha.
-  /// Retorna sucesso ou a mensagem de erro da API.
-  static Future<ResultadoAutenticacao> cadastrar({
+  ServicoAutenticacao({
+    required ClienteHttp clienteHttp,
+    required ServicoToken servicoToken,
+  }) : _clienteHttp = clienteHttp,
+       _servicoToken = servicoToken;
+
+  Future<ResultadoAutenticacao> cadastrar({
     required String nomeCompleto,
     required String email,
     required String senha,
   }) async {
     try {
-      final resposta = await http.post(
-        Uri.parse('$_urlBase/auth/register/'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'full_name': nomeCompleto,
-          'email': email,
-          'password': senha,
-        }),
+      final resposta = await _clienteHttp.post(
+        '/auth/register/',
+        autenticado: false,
+        body: {'full_name': nomeCompleto, 'email': email, 'password': senha},
       );
 
-      // Cadastro realizado com sucesso
       if (resposta.statusCode == 201) {
         return const ResultadoAutenticacao.sucesso();
       }
 
-      // API retornou um erro — tenta extrair a mensagem
-      final corpo = jsonDecode(resposta.body) as Map<String, dynamic>;
-      final mensagem = _extrairMensagemErro(corpo);
+      final mensagem = _extrairMensagemErro(_decodificarObjeto(resposta.body));
       return ResultadoAutenticacao.erro(mensagem);
     } catch (_) {
-      // Erro de conexão — backend pode estar desligado
       return const ResultadoAutenticacao.erro(
-        'Não foi possível conectar ao servidor. Verifique sua conexão.',
+        'Nao foi possivel conectar ao servidor. Verifique sua conexao.',
       );
     }
   }
 
-  /// Faz login chamando POST /auth/login/
-  /// Retorna sucesso com token ou mensagem de erro.
-  static Future<ResultadoAutenticacao> login({
+  Future<ResultadoAutenticacao> login({
     required String email,
     required String senha,
   }) async {
     try {
-      final resposta = await http.post(
-        Uri.parse('$_urlBase/auth/login/'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': senha}),
+      final resposta = await _clienteHttp.post(
+        '/auth/login/',
+        autenticado: false,
+        body: {'email': email, 'password': senha},
       );
 
       if (resposta.statusCode == 200) {
-        // TODO: salvar os tokens JWT retornados pela API
+        final corpo = _decodificarObjeto(resposta.body);
+        final accessToken = corpo['access']?.toString();
+        final refreshToken = corpo['refresh']?.toString();
+
+        if (accessToken == null || refreshToken == null) {
+          return const ResultadoAutenticacao.erro(
+            'Resposta de login invalida. Tokens nao encontrados.',
+          );
+        }
+
+        await _servicoToken.salvar(
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+        );
         return const ResultadoAutenticacao.sucesso();
       }
 
-      final corpo = jsonDecode(resposta.body) as Map<String, dynamic>;
-      final mensagem = _extrairMensagemErro(corpo);
+      final mensagem = _extrairMensagemErro(_decodificarObjeto(resposta.body));
       return ResultadoAutenticacao.erro(mensagem);
     } catch (_) {
       return const ResultadoAutenticacao.erro(
-        'Não foi possível conectar ao servidor. Verifique sua conexão.',
+        'Nao foi possivel conectar ao servidor. Verifique sua conexao.',
       );
     }
   }
 
-  /// Extrai a primeira mensagem de erro legível retornada pela API Django
-  static String _extrairMensagemErro(Map<String, dynamic> corpo) {
+  Future<void> sair() async {
+    final refreshToken = _servicoToken.refreshToken;
+
+    try {
+      if (refreshToken != null && refreshToken.isNotEmpty) {
+        await _clienteHttp.post(
+          '/auth/logout/',
+          body: {'refresh': refreshToken},
+        );
+      }
+    } catch (_) {
+      // Mesmo se a API falhar, a sessao local deve ser encerrada.
+    } finally {
+      await _servicoToken.limpar();
+    }
+  }
+
+  String _extrairMensagemErro(Map<String, dynamic> corpo) {
     for (final valor in corpo.values) {
       if (valor is List && valor.isNotEmpty) return valor.first.toString();
       if (valor is String) return valor;
     }
     return 'Ocorreu um erro inesperado.';
+  }
+
+  Map<String, dynamic> _decodificarObjeto(String corpo) {
+    try {
+      final decodificado = jsonDecode(corpo);
+      if (decodificado is Map<String, dynamic>) return decodificado;
+    } catch (_) {
+      return {'detail': 'Ocorreu um erro inesperado.'};
+    }
+    return {'detail': 'Ocorreu um erro inesperado.'};
   }
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
-import 'package:gerelat_frontend/paginas/recuperar_senha/pagina_email_enviado.dart';
 
 /// Página de recuperação de senha.
 /// O usuário informa o e-mail e recebe um link de redefinição.
@@ -19,9 +18,6 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
   // Controlador do campo de e-mail
   final _controladorEmail = TextEditingController();
 
-  // Indica se o envio está sendo processado
-  bool _carregando = false;
-
   @override
   void dispose() {
     // Libera o controlador ao destruir o widget
@@ -33,18 +29,12 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
   Future<void> _enviarLink() async {
     if (!_chaveFormulario.currentState!.validate()) return;
 
-    setState(() => _carregando = true);
-
-    // TODO: integrar com endpoint de recuperação de senha da gerelat-api
-    await Future.delayed(const Duration(seconds: 1));
-
-    setState(() => _carregando = false);
-
-    if (!mounted) return;
-
-    // Navega para a página de confirmação de e-mail enviado
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const PaginaEmailEnviado()),
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Recuperação de senha ainda não está disponível na API.',
+        ),
+      ),
     );
   }
 
@@ -347,7 +337,7 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
           ],
         ),
         child: ElevatedButton.icon(
-          onPressed: _carregando ? null : _enviarLink,
+          onPressed: _enviarLink,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
@@ -361,16 +351,7 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
             'Enviar Link',
             style: Tipografia.titleMedium.copyWith(color: Cores.branco),
           ),
-          icon: _carregando
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    color: Cores.branco,
-                    strokeWidth: 2,
-                  ),
-                )
-              : const Icon(Icons.arrow_forward, size: 14, color: Cores.branco),
+          icon: const Icon(Icons.arrow_forward, size: 14, color: Cores.branco),
           iconAlignment: IconAlignment.end,
         ),
       ),
@@ -425,9 +406,17 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
             children: [
               const Icon(Icons.language, size: 14, color: Cores.pretoProfundo),
               const SizedBox(width: 16),
-              const Icon(Icons.shield_outlined, size: 14, color: Cores.pretoProfundo),
+              const Icon(
+                Icons.shield_outlined,
+                size: 14,
+                color: Cores.pretoProfundo,
+              ),
               const SizedBox(width: 16),
-              const Icon(Icons.lock_outline, size: 14, color: Cores.pretoProfundo),
+              const Icon(
+                Icons.lock_outline,
+                size: 14,
+                color: Cores.pretoProfundo,
+              ),
             ],
           ),
           const SizedBox(width: 24),

@@ -111,7 +111,11 @@ class PaginaSucessoCadastro extends StatelessWidget {
                 color: Color(0xFFA3F69C),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.check, color: Color(0xFF002204), size: 30),
+              child: const Icon(
+                Icons.check,
+                color: Color(0xFF002204),
+                size: 30,
+              ),
             ),
           ],
         ),
@@ -144,7 +148,8 @@ class PaginaSucessoCadastro extends StatelessWidget {
             ),
             children: [
               const TextSpan(
-                text: 'Sua conta foi configurada e está pronta para uso. Explore todas as ferramentas do ',
+                text:
+                    'Sua conta foi configurada e está pronta para uso. Explore todas as ferramentas do ',
               ),
               // "GeRelat" destacado em azul → LabelLarge (Roboto SemiBold 14px)
               TextSpan(
@@ -176,7 +181,9 @@ class PaginaSucessoCadastro extends StatelessWidget {
               foregroundColor: Cores.branco,
               elevation: 1,
               shadowColor: Colors.black.withValues(alpha: 0.05),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             // Texto do botão → TitleMedium (Poppins Medium 16px)
             child: Text(
@@ -200,7 +207,10 @@ class PaginaSucessoCadastro extends StatelessWidget {
   Widget _construirIdentidadeMarca() {
     return Column(
       children: [
-        Divider(color: Cores.cinzaAzulado.withValues(alpha: 0.15), thickness: 1),
+        Divider(
+          color: Cores.cinzaAzulado.withValues(alpha: 0.15),
+          thickness: 1,
+        ),
         const SizedBox(height: 16),
         // Logo → HeadlineSmall (Poppins Regular 24px) em tamanho reduzido
         Text(

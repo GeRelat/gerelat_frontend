@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:gerelat_frontend/nucleo/servicos/servico_autenticacao.dart';
+import 'package:gerelat_frontend/aplicacao/dependencias.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/cadastro_view_model.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:gerelat_frontend/paginas/sucesso_cadastro/pagina_sucesso_cadastro.dart';
@@ -25,12 +26,23 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
   final _controladorEmail = TextEditingController();
   final _controladorSenha = TextEditingController();
   final _controladorConfirmarSenha = TextEditingController();
+  late final CadastroViewModel _viewModel;
 
   // Controla visibilidade do campo senha
   bool _senhaVisivel = false;
 
   // Indica se o cadastro está sendo processado
-  bool _carregando = false;
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = CadastroViewModel(
+      DependenciasApp.instancia.repositorioAutenticacao,
+    )..addListener(_atualizar);
+  }
+
+  void _atualizar() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void dispose() {
@@ -39,6 +51,8 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
     _controladorEmail.dispose();
     _controladorSenha.dispose();
     _controladorConfirmarSenha.dispose();
+    _viewModel.removeListener(_atualizar);
+    _viewModel.dispose();
     super.dispose();
   }
 
@@ -46,20 +60,16 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
   Future<void> _realizarCadastro() async {
     if (!_chaveFormulario.currentState!.validate()) return;
 
-    setState(() => _carregando = true);
-
-    final resultado = await ServicoAutenticacao.cadastrar(
+    final sucesso = await _viewModel.cadastrar(
       nomeCompleto: _controladorNome.text.trim(),
       email: _controladorEmail.text.trim(),
       senha: _controladorSenha.text,
     );
 
-    setState(() => _carregando = false);
-
     // Verifica se o widget ainda está na tela antes de usar context
     if (!mounted) return;
 
-    if (resultado.sucesso) {
+    if (sucesso) {
       // Navega para a página de sucesso substituindo o cadastro na pilha
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const PaginaSucessoCadastro()),
@@ -68,7 +78,7 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
       // Exibe o erro retornado pela API
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(resultado.mensagemErro ?? 'Erro ao criar conta.'),
+          content: Text(_viewModel.mensagemErro ?? 'Erro ao criar conta.'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -244,7 +254,7 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
       width: double.infinity,
       height: 56,
       child: ElevatedButton.icon(
-        onPressed: _carregando ? null : _realizarCadastro,
+        onPressed: _viewModel.carregando ? null : _realizarCadastro,
         style: ElevatedButton.styleFrom(
           backgroundColor: Cores.azulPrimario,
           foregroundColor: Cores.branco,
@@ -252,7 +262,7 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
           elevation: 0,
           shadowColor: Cores.azulPrimario.withValues(alpha: 0.2),
         ),
-        icon: _carregando
+        icon: _viewModel.carregando
             ? const SizedBox(
                 width: 20,
                 height: 20,
@@ -270,7 +280,7 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
               'Cadastrar',
               style: Tipografia.titleMedium.copyWith(color: Cores.branco),
             ),
-            if (!_carregando) ...[
+            if (!_viewModel.carregando) ...[
               const SizedBox(width: 8),
               const Icon(Icons.arrow_forward, size: 16, color: Cores.branco),
             ],

@@ -191,14 +191,17 @@ class PaginaEmailEnviado extends StatelessWidget {
               // "Tente reenviar" como link azul — LabelLarge (Roboto SemiBold 14px)
               WidgetSpan(
                 child: MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: GestureDetector(
-                    onTap: () {
-                      // TODO: implementar reenvio do e-mail de recuperação
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('E-mail reenviado!')),
-                      );
-                    },
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Reenvio indisponível até a API oferecer recuperação de senha.',
+                            ),
+                          ),
+                        );
+                      },
                     child: Text(
                       'Tente reenviar',
                       style: Tipografia.labelLarge.copyWith(
@@ -229,11 +232,7 @@ class PaginaEmailEnviado extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Divisor esquerdo
-                Container(
-                  width: 32,
-                  height: 1,
-                  color: Cores.cinzaEscuro,
-                ),
+                Container(width: 32, height: 1, color: Cores.cinzaEscuro),
                 const SizedBox(width: 8),
                 // Texto em maiúsculas → LabelSmall (Roboto Regular 10px)
                 Text(
@@ -245,11 +244,7 @@ class PaginaEmailEnviado extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 // Divisor direito
-                Container(
-                  width: 32,
-                  height: 1,
-                  color: Cores.cinzaEscuro,
-                ),
+                Container(width: 32, height: 1, color: Cores.cinzaEscuro),
               ],
             ),
           ),

@@ -23,9 +23,6 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
   // Controla visibilidade da nova senha
   bool _senhaVisivel = false;
 
-  // Indica se a redefinição está sendo processada
-  bool _carregando = false;
-
   @override
   void dispose() {
     // Libera os controladores ao destruir o widget
@@ -38,27 +35,12 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
   Future<void> _redefinirSenha() async {
     if (!_chaveFormulario.currentState!.validate()) return;
 
-    setState(() => _carregando = true);
-
-    // TODO: integrar com endpoint de redefinição de senha da gerelat-api
-    await Future.delayed(const Duration(seconds: 1));
-
-    setState(() => _carregando = false);
-
-    if (!mounted) return;
-
-    // Exibe confirmação e volta ao login
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Senha redefinida com sucesso!'),
-        backgroundColor: Colors.green,
+        content: Text(
+          'Redefinição de senha ainda não está disponível na API.',
+        ),
       ),
-    );
-
-    // Limpa o histórico e volta para o login
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const PaginaLogin()),
-      (rota) => false,
     );
   }
 
@@ -110,9 +92,7 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
       decoration: BoxDecoration(
         color: Cores.branco,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Cores.cinzaAzulado.withValues(alpha: 0.15),
-        ),
+        border: Border.all(color: Cores.cinzaAzulado.withValues(alpha: 0.15)),
         boxShadow: [
           BoxShadow(
             color: Cores.pretoProfundo.withValues(alpha: 0.04),
@@ -303,13 +283,11 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
     return SizedBox(
       height: 56,
       child: ElevatedButton.icon(
-        onPressed: _carregando ? null : _redefinirSenha,
+        onPressed: _redefinirSenha,
         style: ElevatedButton.styleFrom(
           backgroundColor: Cores.azulPrimario,
           foregroundColor: Cores.branco,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           elevation: 4,
           shadowColor: Colors.black.withValues(alpha: 0.1),
         ),
@@ -317,16 +295,7 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
           'Redefinir Senha',
           style: Tipografia.titleMedium.copyWith(color: Cores.branco),
         ),
-        icon: _carregando
-            ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  color: Cores.branco,
-                  strokeWidth: 2,
-                ),
-              )
-            : const Icon(Icons.arrow_forward, size: 14, color: Cores.branco),
+        icon: const Icon(Icons.arrow_forward, size: 14, color: Cores.branco),
         iconAlignment: IconAlignment.end,
       ),
     );
@@ -349,7 +318,9 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
               const SizedBox(width: 4),
               Text(
                 'Voltar para o Login',
-                style: Tipografia.titleSmall.copyWith(color: Cores.azulPrimario),
+                style: Tipografia.titleSmall.copyWith(
+                  color: Cores.azulPrimario,
+                ),
               ),
             ],
           ),

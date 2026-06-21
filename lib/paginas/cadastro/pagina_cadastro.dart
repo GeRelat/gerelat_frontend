@@ -20,7 +20,10 @@ class PaginaCadastro extends StatelessWidget {
           Expanded(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 65),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 48,
+                  vertical: 65,
+                ),
                 child: FormularioCadastro(
                   // Volta para a página anterior (login) ao clicar em "Fazer login"
                   aoClicarEmLogin: () => Navigator.of(context).pop(),
