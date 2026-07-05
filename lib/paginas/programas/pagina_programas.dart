@@ -3,11 +3,10 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/programas_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/programa.dart';
-import 'package:gerelat_frontend/nucleo/componentes/app_shell.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
-import 'package:gerelat_frontend/paginas/programas/pagina_formulario_programa.dart';
+import 'package:go_router/go_router.dart';
 
 class PaginaProgramas extends StatefulWidget {
   const PaginaProgramas({super.key});
@@ -18,46 +17,48 @@ class PaginaProgramas extends StatefulWidget {
 
 class _PaginaProgramasState extends State<PaginaProgramas> {
   late final ProgramasViewModel _viewModel;
+  final _controladorBusca = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _viewModel = ProgramasViewModel(
       DependenciasApp.instancia.repositorioCatalogo,
-    )
-      ..carregar();
+    )..carregar();
   }
 
   @override
   void dispose() {
+    _controladorBusca.dispose();
     _viewModel.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return AppShell(
-      secaoAtual: SecaoApp.programas,
-      titulo: 'Gestao de Programas',
-      dicaPesquisa: 'Pesquisar programas...',
-      child: AnimatedBuilder(
-        animation: _viewModel,
-        builder: (context, _) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _cabecalho(context),
-                const SizedBox(height: 24),
-                _resumo(),
-                const SizedBox(height: 32),
-                _conteudo(),
-              ],
-            ),
-          );
-        },
-      ),
+    return AnimatedBuilder(
+      animation: _viewModel,
+      builder: (context, _) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _cabecalho(context),
+              const SizedBox(height: 20),
+              CampoBusca(
+                controlador: _controladorBusca,
+                dica: 'Pesquisar programas...',
+                aoAlterar: _viewModel.definirBusca,
+              ),
+              const SizedBox(height: 24),
+              _resumo(),
+              const SizedBox(height: 32),
+              _conteudo(),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -82,17 +83,40 @@ class _PaginaProgramasState extends State<PaginaProgramas> {
             ],
           ),
         ),
-        BotaoPrimario(
-          texto: 'Novo Programa',
-          icone: LucideIcons.plus,
-          onPressed: () async {
-            final criado = await Navigator.of(context).push<bool>(
-              MaterialPageRoute(
-                builder: (_) => const PaginaFormularioPrograma(),
-              ),
-            );
-            if (criado == true) await _viewModel.carregar();
-          },
+        Row(
+          children: [
+            BotaoPrimario(
+              texto: 'Textos do Projeto',
+              icone: LucideIcons.file_text,
+              onPressed: () => context.push('/projetos/campos'),
+            ),
+            const SizedBox(width: 12),
+            BotaoPrimario(
+              texto: 'Equipe da Parceira',
+              icone: LucideIcons.users,
+              onPressed: () => context.push('/projetos/equipe'),
+            ),
+            const SizedBox(width: 12),
+            BotaoPrimario(
+              texto: 'Novo Projeto',
+              icone: LucideIcons.git_branch_plus,
+              onPressed: () async {
+                final criado = await context.push<bool>(
+                  '/programas/projetos/novo',
+                );
+                if (criado == true) await _viewModel.carregar();
+              },
+            ),
+            const SizedBox(width: 12),
+            BotaoPrimario(
+              texto: 'Novo Programa',
+              icone: LucideIcons.plus,
+              onPressed: () async {
+                final criado = await context.push<bool>('/programas/novo');
+                if (criado == true) await _viewModel.carregar();
+              },
+            ),
+          ],
         ),
       ],
     );
@@ -159,6 +183,20 @@ class _PaginaProgramasState extends State<PaginaProgramas> {
       );
     }
 
+    if (_viewModel.programas.isEmpty) {
+      return EstadoVazio(
+        icone: LucideIcons.search_x,
+        titulo: 'Nenhum programa encontrado',
+        descricao:
+            'A lista atual não contém programas compatíveis com a busca informada.',
+        acao: 'Limpar busca',
+        onAcao: () {
+          _controladorBusca.clear();
+          _viewModel.definirBusca('');
+        },
+      );
+    }
+
     return _gradeProgramas(_viewModel.programas);
   }
 
@@ -175,8 +213,14 @@ class _PaginaProgramasState extends State<PaginaProgramas> {
           runSpacing: 24,
           children: programas
               .map(
-                (programa) =>
-                    SizedBox(width: largura, child: _CartaoPrograma(programa)),
+                (programa) => SizedBox(
+                  width: largura,
+                  child: _CartaoPrograma(
+                    programa,
+                    onEditado: _viewModel.carregar,
+                    onExcluir: _viewModel.excluir,
+                  ),
+                ),
               )
               .toList(),
         );
@@ -187,8 +231,14 @@ class _PaginaProgramasState extends State<PaginaProgramas> {
 
 class _CartaoPrograma extends StatelessWidget {
   final Programa programa;
+  final Future<void> Function() onEditado;
+  final Future<bool> Function(int) onExcluir;
 
-  const _CartaoPrograma(this.programa);
+  const _CartaoPrograma(
+    this.programa, {
+    required this.onEditado,
+    required this.onExcluir,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -230,6 +280,25 @@ class _CartaoPrograma extends StatelessWidget {
                         height: 1.45,
                       ),
                     ),
+                    if (programa.clienteNome.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(
+                            LucideIcons.building_2,
+                            size: 14,
+                            color: Cores.cinzaMedio,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            programa.clienteNome,
+                            style: Tipografia.bodySmall.copyWith(
+                              color: Cores.cinzaMedio,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -245,19 +314,82 @@ class _CartaoPrograma extends StatelessWidget {
               _status(programa.status),
               const SizedBox(width: 8),
               IconButton(
+                tooltip: 'Projetos do programa',
+                onPressed: () async {
+                  await context.push('/programas/${programa.id}/projetos');
+                  await onEditado();
+                },
+                icon: const Icon(LucideIcons.git_branch, size: 18),
+              ),
+              IconButton(
+                tooltip: 'Equipe fixa do programa',
+                onPressed: () =>
+                    context.push('/programas/${programa.id}/equipe'),
+                icon: const Icon(LucideIcons.users, size: 18),
+              ),
+              IconButton(
                 tooltip: 'Editar programa',
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        const PaginaFormularioPrograma(edicao: true),
-                  ),
-                ),
+                onPressed: () async {
+                  final alterado = await context.push<bool>(
+                    '/programas/${programa.id}/editar',
+                  );
+                  if (alterado == true) {
+                    await onEditado();
+                  }
+                },
                 icon: const Icon(LucideIcons.pencil, size: 18),
+              ),
+              IconButton(
+                tooltip: 'Excluir programa',
+                onPressed: () => _confirmarExclusao(context),
+                icon: const Icon(
+                  LucideIcons.trash_2,
+                  size: 18,
+                  color: Cores.vermelhoErro,
+                ),
               ),
             ],
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _confirmarExclusao(BuildContext context) async {
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir programa'),
+        content: Text(
+          'Tem certeza de que deseja excluir "${programa.nome}"? '
+          'Todos os projetos, eventos, templates e relatórios vinculados a '
+          'este programa também serão excluídos. Esta ação não pode ser desfeita.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => context.pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => context.pop(true),
+            child: const Text(
+              'Excluir',
+              style: TextStyle(color: Cores.vermelhoErro),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmou != true || !context.mounted) return;
+
+    final programaId = programa.id;
+    if (programaId == null) return;
+
+    final sucesso = await onExcluir(programaId);
+    if (!context.mounted || sucesso) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Erro ao excluir o programa.')),
     );
   }
 

@@ -1,40 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:gerelat_frontend/aplicacao/dependencias.dart';
-import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
+import 'package:gerelat_frontend/nucleo/navegacao/app_router.dart';
+import 'package:gerelat_frontend/nucleo/navegacao/estrategia_url.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
-import 'package:gerelat_frontend/paginas/dashboard/dashboard.dart';
-import 'package:gerelat_frontend/paginas/login/pagina_login.dart';
-
-final navegadorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  configurarEstrategiaUrl();
+
   final dependencias = DependenciasApp.instancia;
-  final sessao = SessaoViewModel(dependencias.repositorioAutenticacao);
-  await sessao.inicializar();
+  await dependencias.sessao.inicializar();
 
   dependencias.clienteHttp.onSessaoExpirada = () async {
-    navegadorKey.currentState?.pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const PaginaLogin()),
-      (_) => false,
-    );
+    dependencias.sessao.notificarMudancaAutenticacao();
   };
 
-  runApp(AplicativoGeRelat(sessao: sessao));
+  runApp(const AplicativoGeRelat());
 }
 
 class AplicativoGeRelat extends StatelessWidget {
-  final SessaoViewModel? sessao;
-
-  const AplicativoGeRelat({super.key, this.sessao});
+  const AplicativoGeRelat({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'GeRelat',
       debugShowCheckedModeBanner: false,
-      navigatorKey: navegadorKey,
+      routerConfig: appRouter,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
@@ -47,9 +40,6 @@ class AplicativoGeRelat extends StatelessWidget {
         colorSchemeSeed: const Color(0xFF00488D),
         textTheme: Tipografia.textTheme,
       ),
-      home: (sessao?.estaAutenticado ?? false)
-          ? const DashboardPage()
-          : const PaginaLogin(),
     );
   }
 }

@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/dependencias.dart';
-import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
-import 'package:gerelat_frontend/paginas/dashboard/dashboard.dart';
-import 'package:gerelat_frontend/paginas/eventos/pagina_eventos.dart';
-import 'package:gerelat_frontend/paginas/login/pagina_login.dart';
-import 'package:gerelat_frontend/paginas/programas/pagina_programas.dart';
-import 'package:gerelat_frontend/paginas/relatorios/pagina_relatorios.dart';
-import 'package:gerelat_frontend/paginas/templates/pagina_templates.dart';
+import 'package:go_router/go_router.dart';
 
-enum SecaoApp { dashboard, programas, eventos, relatorios, templates }
+enum SecaoApp {
+  dashboard,
+  clientes,
+  programas,
+  eventos,
+  relatorios,
+  templates,
+  assets,
+}
 
 class AppShell extends StatelessWidget {
   final SecaoApp secaoAtual;
   final String titulo;
-  final String dicaPesquisa;
   final Widget child;
 
   const AppShell({
@@ -24,7 +25,6 @@ class AppShell extends StatelessWidget {
     required this.secaoAtual,
     required this.titulo,
     required this.child,
-    this.dicaPesquisa = 'Pesquisar...',
   });
 
   @override
@@ -37,7 +37,7 @@ class AppShell extends StatelessWidget {
           Expanded(
             child: Column(
               children: [
-                _TopAppBar(titulo: titulo, dicaPesquisa: dicaPesquisa),
+                _TopAppBar(titulo: titulo),
                 Expanded(child: child),
               ],
             ),
@@ -50,9 +50,8 @@ class AppShell extends StatelessWidget {
 
 class _TopAppBar extends StatelessWidget {
   final String titulo;
-  final String dicaPesquisa;
 
-  const _TopAppBar({required this.titulo, required this.dicaPesquisa});
+  const _TopAppBar({required this.titulo});
 
   @override
   Widget build(BuildContext context) {
@@ -65,6 +64,22 @@ class _TopAppBar extends StatelessWidget {
       ),
       child: Row(
         children: [
+          if (context.canPop())
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: IconButton(
+                tooltip: 'Voltar',
+                onPressed: () => context.pop(),
+                icon: const Icon(LucideIcons.arrow_left, size: 20),
+                color: Cores.textoPrincipal,
+                style: IconButton.styleFrom(
+                  backgroundColor: Cores.fundoSecao,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
           Text(
             titulo,
             style: Tipografia.headlineSmall.copyWith(
@@ -73,37 +88,6 @@ class _TopAppBar extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
-            child: Container(
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                color: Cores.cinzaCampo,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    LucideIcons.search,
-                    size: 18,
-                    color: Cores.cinzaEscuro,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      dicaPesquisa,
-                      overflow: TextOverflow.ellipsis,
-                      style: Tipografia.bodyMedium.copyWith(
-                        color: Cores.cinzaMedio,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 20),
           const Icon(LucideIcons.bell, size: 20, color: Cores.cinzaEscuro),
           const SizedBox(width: 16),
           const Icon(Icons.help_outline, size: 20, color: Cores.cinzaEscuro),
@@ -173,31 +157,43 @@ class _SideNav extends StatelessWidget {
                   icon: LucideIcons.house,
                   label: 'Dashboard',
                   ativo: secaoAtual == SecaoApp.dashboard,
-                  onTap: () => _abrir(context, const DashboardPage()),
+                  onTap: () => context.go('/dashboard'),
+                ),
+                _NavItem(
+                  icon: LucideIcons.building_2,
+                  label: 'Clientes',
+                  ativo: secaoAtual == SecaoApp.clientes,
+                  onTap: () => context.go('/clientes'),
                 ),
                 _NavItem(
                   icon: LucideIcons.folder_kanban,
                   label: 'Programas',
                   ativo: secaoAtual == SecaoApp.programas,
-                  onTap: () => _abrir(context, const PaginaProgramas()),
+                  onTap: () => context.go('/programas'),
                 ),
                 _NavItem(
                   icon: LucideIcons.calendar,
                   label: 'Eventos',
                   ativo: secaoAtual == SecaoApp.eventos,
-                  onTap: () => _abrir(context, const PaginaEventos()),
+                  onTap: () => context.go('/eventos'),
                 ),
                 _NavItem(
                   icon: LucideIcons.file_text,
                   label: 'Relatorios',
                   ativo: secaoAtual == SecaoApp.relatorios,
-                  onTap: () => _abrir(context, const PaginaRelatorios()),
+                  onTap: () => context.go('/relatorios'),
                 ),
                 _NavItem(
                   icon: LucideIcons.copy,
                   label: 'Templates',
                   ativo: secaoAtual == SecaoApp.templates,
-                  onTap: () => _abrir(context, const PaginaTemplates()),
+                  onTap: () => context.go('/templates'),
+                ),
+                _NavItem(
+                  icon: LucideIcons.image,
+                  label: 'Imagens',
+                  ativo: secaoAtual == SecaoApp.assets,
+                  onTap: () => context.go('/assets'),
                 ),
               ],
             ),
@@ -211,7 +207,7 @@ class _SideNav extends StatelessWidget {
                   icon: LucideIcons.settings,
                   label: 'Configuracoes',
                   ativo: false,
-                  onTap: () {},
+                  onTap: () => context.go('/configuracoes'),
                 ),
                 _NavItem(
                   icon: LucideIcons.log_out,
@@ -227,24 +223,11 @@ class _SideNav extends StatelessWidget {
     );
   }
 
-  void _abrir(BuildContext context, Widget pagina) {
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => pagina));
-  }
-
   Future<void> _sair(BuildContext context) async {
-    final viewModel = SessaoViewModel(
-      DependenciasApp.instancia.repositorioAutenticacao,
-    );
-    final saiu = await viewModel.sair();
-    viewModel.dispose();
+    final saiu = await DependenciasApp.instancia.sessao.sair();
     if (!saiu) return;
     if (!context.mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const PaginaLogin()),
-      (_) => false,
-    );
+    context.go('/login');
   }
 }
 

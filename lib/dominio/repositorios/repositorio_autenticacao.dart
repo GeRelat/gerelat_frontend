@@ -1,3 +1,5 @@
+import 'package:gerelat_frontend/dominio/entidades/usuario.dart';
+
 class ResultadoLogin {
   final bool sucesso;
   final String? mensagemErro;
@@ -11,12 +13,27 @@ abstract class RepositorioAutenticacao {
 
   Future<void> inicializar();
 
+  Future<Usuario?> obterUsuarioAtual();
+
   Future<ResultadoLogin> login({required String email, required String senha});
 
   Future<ResultadoLogin> cadastrar({
     required String nomeCompleto,
     required String email,
     required String senha,
+  });
+
+  Future<ResultadoLogin> solicitarRecuperacaoSenha({required String email});
+
+  Future<ResultadoLogin> confirmarRecuperacaoSenha({
+    required String uid,
+    required String token,
+    required String novaSenha,
+  });
+
+  Future<ResultadoLogin> alterarSenha({
+    required String senhaAtual,
+    required String novaSenha,
   });
 
   Future<void> sair();

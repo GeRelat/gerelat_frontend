@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:gerelat_frontend/dominio/entidades/usuario.dart';
 import 'package:gerelat_frontend/nucleo/servicos/cliente_http.dart';
 import 'package:gerelat_frontend/nucleo/servicos/servico_token.dart';
 
@@ -72,6 +73,94 @@ class ServicoAutenticacao {
           accessToken: accessToken,
           refreshToken: refreshToken,
         );
+        return const ResultadoAutenticacao.sucesso();
+      }
+
+      final mensagem = _extrairMensagemErro(_decodificarObjeto(resposta.body));
+      return ResultadoAutenticacao.erro(mensagem);
+    } catch (_) {
+      return const ResultadoAutenticacao.erro(
+        'Nao foi possivel conectar ao servidor. Verifique sua conexao.',
+      );
+    }
+  }
+
+  Future<ResultadoAutenticacao> solicitarRecuperacaoSenha({
+    required String email,
+  }) async {
+    try {
+      final resposta = await _clienteHttp.post(
+        '/auth/password/reset/',
+        autenticado: false,
+        body: {'email': email},
+      );
+
+      if (resposta.statusCode == 200) {
+        return const ResultadoAutenticacao.sucesso();
+      }
+
+      final mensagem = _extrairMensagemErro(_decodificarObjeto(resposta.body));
+      return ResultadoAutenticacao.erro(mensagem);
+    } catch (_) {
+      return const ResultadoAutenticacao.erro(
+        'Nao foi possivel conectar ao servidor. Verifique sua conexao.',
+      );
+    }
+  }
+
+  Future<ResultadoAutenticacao> confirmarRecuperacaoSenha({
+    required String uid,
+    required String token,
+    required String novaSenha,
+  }) async {
+    try {
+      final resposta = await _clienteHttp.post(
+        '/auth/password/reset/confirm/',
+        autenticado: false,
+        body: {'uid': uid, 'token': token, 'new_password': novaSenha},
+      );
+
+      if (resposta.statusCode == 200) {
+        return const ResultadoAutenticacao.sucesso();
+      }
+
+      final mensagem = _extrairMensagemErro(_decodificarObjeto(resposta.body));
+      return ResultadoAutenticacao.erro(mensagem);
+    } catch (_) {
+      return const ResultadoAutenticacao.erro(
+        'Nao foi possivel conectar ao servidor. Verifique sua conexao.',
+      );
+    }
+  }
+
+  Future<Usuario?> obterUsuarioAtual() async {
+    try {
+      final resposta = await _clienteHttp.get('/auth/me/');
+      if (resposta.statusCode != 200) return null;
+
+      final corpo = _decodificarObjeto(resposta.body);
+      return Usuario(
+        id: int.tryParse('${corpo['id']}') ?? 0,
+        nomeCompleto: corpo['full_name']?.toString() ?? '',
+        email: corpo['email']?.toString() ?? '',
+        criadoEm: DateTime.tryParse(corpo['created_at']?.toString() ?? ''),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<ResultadoAutenticacao> alterarSenha({
+    required String senhaAtual,
+    required String novaSenha,
+  }) async {
+    try {
+      final resposta = await _clienteHttp.post(
+        '/auth/change-password/',
+        body: {'old_password': senhaAtual, 'new_password': novaSenha},
+      );
+
+      if (resposta.statusCode == 200) {
         return const ResultadoAutenticacao.sucesso();
       }
 

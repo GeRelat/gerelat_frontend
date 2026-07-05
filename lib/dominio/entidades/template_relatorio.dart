@@ -5,6 +5,7 @@ class TemplateRelatorio {
   final String descricao;
   final String tipo;
   final String status;
+  final String arquivoBase;
 
   const TemplateRelatorio({
     this.id,
@@ -13,5 +14,6 @@ class TemplateRelatorio {
     required this.descricao,
     required this.tipo,
     required this.status,
+    this.arquivoBase = '',
   });
 }

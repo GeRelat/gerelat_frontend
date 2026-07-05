@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
-import 'package:gerelat_frontend/paginas/login/pagina_login.dart';
+import 'package:go_router/go_router.dart';
 
 /// Página exibida após o cadastro ser concluído com sucesso.
 /// Confirma a criação da conta e redireciona o usuário para o login.
@@ -11,10 +11,7 @@ class PaginaSucessoCadastro extends StatelessWidget {
   /// Navega para o login e limpa todo o histórico de navegação.
   /// Assim o usuário não consegue voltar para o cadastro com o botão "voltar".
   void _irParaLogin(BuildContext context) {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const PaginaLogin()),
-      (rota) => false,
-    );
+    context.go('/login');
   }
 
   @override
@@ -79,7 +76,7 @@ class PaginaSucessoCadastro extends StatelessWidget {
       height: 4,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF00488D), Color(0xFF005FB8)],
+          colors: [Cores.azulPrimario, Cores.azulGradienteFim],
         ),
       ),
     );
@@ -99,7 +96,7 @@ class PaginaSucessoCadastro extends StatelessWidget {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: const Color(0xFFA3F69C).withValues(alpha: 0.2),
+                color: Cores.verdeClaro.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
             ),
@@ -108,12 +105,12 @@ class PaginaSucessoCadastro extends StatelessWidget {
               width: 80,
               height: 80,
               decoration: const BoxDecoration(
-                color: Color(0xFFA3F69C),
+                color: Cores.verdeClaro,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.check,
-                color: Color(0xFF002204),
+                color: Cores.verdeTextoEscuro,
                 size: 30,
               ),
             ),
@@ -251,7 +248,7 @@ class PaginaSucessoCadastro extends StatelessWidget {
       width: 80,
       height: 4,
       decoration: BoxDecoration(
-        color: ativa ? Cores.azulPrimario : const Color(0xFFE5E8EE),
+        color: ativa ? Cores.azulPrimario : Cores.cinzaInativo,
         borderRadius: BorderRadius.circular(9999),
       ),
     );

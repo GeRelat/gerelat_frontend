@@ -1,12 +1,16 @@
+import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:flutter/material.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
-import 'package:gerelat_frontend/paginas/login/pagina_login.dart';
+import 'package:go_router/go_router.dart';
 
 /// Página de redefinição de senha.
 /// Acessada pelo link recebido no e-mail de recuperação.
 class PaginaNovaSenha extends StatefulWidget {
-  const PaginaNovaSenha({super.key});
+  final String uid;
+  final String token;
+
+  const PaginaNovaSenha({super.key, required this.uid, required this.token});
 
   @override
   State<PaginaNovaSenha> createState() => _PaginaNovaSenhaState();
@@ -22,6 +26,7 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
 
   // Controla visibilidade da nova senha
   bool _senhaVisivel = false;
+  bool _redefinindo = false;
 
   @override
   void dispose() {
@@ -34,12 +39,27 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
   /// Valida os campos e envia a nova senha para a API
   Future<void> _redefinirSenha() async {
     if (!_chaveFormulario.currentState!.validate()) return;
+    setState(() => _redefinindo = true);
+    final resultado = await DependenciasApp.instancia.repositorioAutenticacao
+        .confirmarRecuperacaoSenha(
+          uid: widget.uid,
+          token: widget.token,
+          novaSenha: _controladorNovaSenha.text,
+        );
+    if (!mounted) return;
+    setState(() => _redefinindo = false);
+
+    if (resultado.sucesso) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Senha redefinida com sucesso.')),
+      );
+      context.go('/login');
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Redefinição de senha ainda não está disponível na API.',
-        ),
+      SnackBar(
+        content: Text(resultado.mensagemErro ?? 'Erro ao redefinir senha.'),
       ),
     );
   }
@@ -154,7 +174,7 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
           width: 64,
           height: 64,
           decoration: const BoxDecoration(
-            color: Color(0xFFD6E3FF),
+            color: Cores.azulIlustracaoSuave,
             shape: BoxShape.circle,
           ),
           child: const Icon(
@@ -283,7 +303,7 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
     return SizedBox(
       height: 56,
       child: ElevatedButton.icon(
-        onPressed: _redefinirSenha,
+        onPressed: _redefinindo ? null : _redefinirSenha,
         style: ElevatedButton.styleFrom(
           backgroundColor: Cores.azulPrimario,
           foregroundColor: Cores.branco,
@@ -292,7 +312,7 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
           shadowColor: Colors.black.withValues(alpha: 0.1),
         ),
         label: Text(
-          'Redefinir Senha',
+          _redefinindo ? 'Redefinindo...' : 'Redefinir Senha',
           style: Tipografia.titleMedium.copyWith(color: Cores.branco),
         ),
         icon: const Icon(Icons.arrow_forward, size: 14, color: Cores.branco),
@@ -307,10 +327,7 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
-          onTap: () => Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const PaginaLogin()),
-            (rota) => false,
-          ),
+          onTap: () => context.go('/login'),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -357,7 +374,7 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.redAccent),
+        borderSide: const BorderSide(color: Cores.vermelhoErro),
       ),
     );
   }

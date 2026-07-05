@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
+import 'package:go_router/go_router.dart';
 
 /// Página de recuperação de senha.
 /// O usuário informa o e-mail e recebe um link de redefinição.
@@ -17,6 +19,7 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
 
   // Controlador do campo de e-mail
   final _controladorEmail = TextEditingController();
+  bool _enviando = false;
 
   @override
   void dispose() {
@@ -29,12 +32,19 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
   Future<void> _enviarLink() async {
     if (!_chaveFormulario.currentState!.validate()) return;
 
+    setState(() => _enviando = true);
+    final resultado = await DependenciasApp.instancia.repositorioAutenticacao
+        .solicitarRecuperacaoSenha(email: _controladorEmail.text.trim());
+    if (!mounted) return;
+    setState(() => _enviando = false);
+
+    if (resultado.sucesso) {
+      context.go('/recuperar-senha/enviado');
+      return;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Recuperação de senha ainda não está disponível na API.',
-        ),
-      ),
+      SnackBar(content: Text(resultado.mensagemErro ?? 'Erro ao enviar link.')),
     );
   }
 
@@ -104,7 +114,7 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
             width: 500,
             height: 500,
             decoration: BoxDecoration(
-              color: const Color(0xFFA8C8FF).withValues(alpha: 0.2),
+              color: Cores.azulIlustracaoClaro.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
           ),
@@ -117,7 +127,7 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
             width: 400,
             height: 400,
             decoration: BoxDecoration(
-              color: const Color(0xFFA3F69C).withValues(alpha: 0.15),
+              color: Cores.verdeClaro.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
           ),
@@ -161,7 +171,7 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
                 width: 128,
                 height: 128,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFA8C8FF).withValues(alpha: 0.1),
+                  color: Cores.azulIlustracaoClaro.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -174,7 +184,7 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
                 width: 128,
                 height: 128,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFA3F69C).withValues(alpha: 0.1),
+                  color: Cores.verdeClaro.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -302,7 +312,7 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: Colors.redAccent),
+              borderSide: const BorderSide(color: Cores.vermelhoErro),
             ),
           ),
           // Valida formato básico de e-mail
@@ -324,7 +334,7 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
         decoration: BoxDecoration(
           // Gradiente azul conforme especificação do Figma
           gradient: const LinearGradient(
-            colors: [Color(0xFF00488D), Color(0xFF005FB8)],
+            colors: [Cores.azulPrimario, Cores.azulGradienteFim],
           ),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
@@ -337,7 +347,7 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
           ],
         ),
         child: ElevatedButton.icon(
-          onPressed: _enviarLink,
+          onPressed: _enviando ? null : _enviarLink,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
@@ -348,7 +358,7 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
           ),
           // Texto → TitleMedium (Poppins Medium 16px)
           label: Text(
-            'Enviar Link',
+            _enviando ? 'Enviando...' : 'Enviar Link',
             style: Tipografia.titleMedium.copyWith(color: Cores.branco),
           ),
           icon: const Icon(Icons.arrow_forward, size: 14, color: Cores.branco),
@@ -366,7 +376,7 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
         child: MouseRegion(
           cursor: SystemMouseCursors.click,
           child: GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
+            onTap: () => context.go('/login'),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

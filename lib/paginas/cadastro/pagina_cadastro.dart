@@ -3,6 +3,7 @@ import 'package:gerelat_frontend/nucleo/componentes/barra_topo.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:gerelat_frontend/paginas/cadastro/componentes/formulario_cadastro.dart';
+import 'package:go_router/go_router.dart';
 
 /// Página de cadastro de novo usuário.
 /// Layout: barra superior + card centralizado + rodapé.
@@ -25,8 +26,8 @@ class PaginaCadastro extends StatelessWidget {
                   vertical: 65,
                 ),
                 child: FormularioCadastro(
-                  // Volta para a página anterior (login) ao clicar em "Fazer login"
-                  aoClicarEmLogin: () => Navigator.of(context).pop(),
+                  // Volta para a página de login ao clicar em "Fazer login"
+                  aoClicarEmLogin: () => context.go('/login'),
                 ),
               ),
             ),

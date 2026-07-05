@@ -1,13 +1,15 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/templates_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/template_relatorio.dart';
-import 'package:gerelat_frontend/nucleo/componentes/app_shell.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
+import 'package:gerelat_frontend/nucleo/servicos/arquivo_web.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
-import 'package:gerelat_frontend/paginas/templates/pagina_formulario_template.dart';
+import 'package:go_router/go_router.dart';
 
 class PaginaTemplates extends StatefulWidget {
   const PaginaTemplates({super.key});
@@ -18,44 +20,46 @@ class PaginaTemplates extends StatefulWidget {
 
 class _PaginaTemplatesState extends State<PaginaTemplates> {
   late final TemplatesViewModel _viewModel;
+  final _controladorBusca = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _viewModel = TemplatesViewModel(
       DependenciasApp.instancia.repositorioCatalogo,
-    )
-      ..carregar();
+    )..carregar();
   }
 
   @override
   void dispose() {
+    _controladorBusca.dispose();
     _viewModel.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return AppShell(
-      secaoAtual: SecaoApp.templates,
-      titulo: 'Templates',
-      dicaPesquisa: 'Pesquisar templates...',
-      child: AnimatedBuilder(
-        animation: _viewModel,
-        builder: (context, _) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _cabecalho(context),
-                const SizedBox(height: 24),
-                _conteudo(),
-              ],
-            ),
-          );
-        },
-      ),
+    return AnimatedBuilder(
+      animation: _viewModel,
+      builder: (context, _) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _cabecalho(context),
+              const SizedBox(height: 20),
+              CampoBusca(
+                controlador: _controladorBusca,
+                dica: 'Pesquisar templates...',
+                aoAlterar: _viewModel.definirBusca,
+              ),
+              const SizedBox(height: 24),
+              _conteudo(),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -83,9 +87,10 @@ class _PaginaTemplatesState extends State<PaginaTemplates> {
         BotaoPrimario(
           texto: 'Novo Template',
           icone: LucideIcons.upload,
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const PaginaFormularioTemplate()),
-          ),
+          onPressed: () async {
+            final criado = await context.push<bool>('/templates/novo');
+            if (criado == true) await _viewModel.carregar();
+          },
         ),
       ],
     );
@@ -106,6 +111,19 @@ class _PaginaTemplatesState extends State<PaginaTemplates> {
       );
     }
 
+    if (_viewModel.templates.isEmpty) {
+      return EstadoVazio(
+        icone: LucideIcons.search_x,
+        titulo: 'Nenhum template encontrado',
+        descricao: 'Nenhum template corresponde à busca atual.',
+        acao: 'Limpar busca',
+        onAcao: () {
+          _controladorBusca.clear();
+          _viewModel.definirBusca('');
+        },
+      );
+    }
+
     return _gradeTemplates(_viewModel.templates);
   }
 
@@ -122,8 +140,16 @@ class _PaginaTemplatesState extends State<PaginaTemplates> {
           runSpacing: espaco,
           children: templates
               .map(
-                (template) =>
-                    SizedBox(width: largura, child: _CartaoTemplate(template)),
+                (template) => SizedBox(
+                  width: largura,
+                  child: _CartaoTemplate(
+                    template,
+                    onEditado: _viewModel.carregar,
+                    onExcluir: _viewModel.excluir,
+                    onBaixar: _viewModel.baixarArquivo,
+                    obterMensagemErro: () => _viewModel.mensagemErro,
+                  ),
+                ),
               )
               .toList(),
         );
@@ -134,8 +160,18 @@ class _PaginaTemplatesState extends State<PaginaTemplates> {
 
 class _CartaoTemplate extends StatelessWidget {
   final TemplateRelatorio template;
+  final Future<void> Function() onEditado;
+  final Future<bool> Function(int) onExcluir;
+  final Future<Uint8List?> Function(int) onBaixar;
+  final String? Function() obterMensagemErro;
 
-  const _CartaoTemplate(this.template);
+  const _CartaoTemplate(
+    this.template, {
+    required this.onEditado,
+    required this.onExcluir,
+    required this.onBaixar,
+    required this.obterMensagemErro,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -179,15 +215,31 @@ class _CartaoTemplate extends StatelessWidget {
             children: [
               _status(template.status),
               const Spacer(),
+              IconButton(
+                tooltip: 'Baixar arquivo original (.docx)',
+                onPressed: () => _baixarArquivo(context),
+                icon: const Icon(LucideIcons.download, size: 18),
+              ),
               TextButton.icon(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        const PaginaFormularioTemplate(edicao: true),
-                  ),
-                ),
+                onPressed: () async {
+                  final alterado = await context.push<bool>(
+                    '/templates/${template.id}/editar',
+                  );
+                  if (alterado == true) {
+                    await onEditado();
+                  }
+                },
                 icon: const Icon(LucideIcons.pencil, size: 16),
                 label: const Text('Editar'),
+              ),
+              IconButton(
+                tooltip: 'Excluir template',
+                onPressed: () => _confirmarExclusao(context),
+                icon: const Icon(
+                  LucideIcons.trash_2,
+                  size: 18,
+                  color: Cores.vermelhoErro,
+                ),
               ),
             ],
           ),
@@ -196,11 +248,77 @@ class _CartaoTemplate extends StatelessWidget {
     );
   }
 
+  Future<void> _baixarArquivo(BuildContext context) async {
+    final templateId = template.id;
+    if (templateId == null) return;
+
+    final bytes = await onBaixar(templateId);
+    if (!context.mounted) return;
+
+    if (bytes == null || bytes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            obterMensagemErro() ??
+                'Este template não possui arquivo .docx original armazenado.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    baixarArquivo(
+      bytes: bytes,
+      nomeArquivo: '${template.nome}.docx',
+      mimeType:
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    );
+  }
+
+  Future<void> _confirmarExclusao(BuildContext context) async {
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir template'),
+        content: Text(
+          'Tem certeza de que deseja excluir "${template.nome}"? '
+          'Os vínculos com classes de evento serão removidos junto. '
+          'Se este template já foi usado para gerar algum relatório, '
+          'a exclusão será recusada pelo servidor até que os relatórios '
+          'relacionados sejam removidos. Esta ação não pode ser desfeita.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => context.pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => context.pop(true),
+            child: const Text(
+              'Excluir',
+              style: TextStyle(color: Cores.vermelhoErro),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmou != true || !context.mounted) return;
+
+    final templateId = template.id;
+    if (templateId == null) return;
+
+    final sucesso = await onExcluir(templateId);
+    if (!context.mounted || sucesso) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Erro ao excluir o template.')),
+    );
+  }
+
   Widget _tag(String texto) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: Cores.fundoDestaqueSutil,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(

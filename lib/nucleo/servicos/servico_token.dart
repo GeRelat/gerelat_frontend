@@ -9,8 +9,7 @@ class ServicoToken {
 
   String? get accessToken => _accessToken;
   String? get refreshToken => _refreshToken;
-  bool get estaAutenticado =>
-      _accessToken != null && _accessToken!.isNotEmpty;
+  bool get estaAutenticado => _accessToken != null && _accessToken!.isNotEmpty;
 
   Future<void> carregar() async {
     final preferencias = await SharedPreferences.getInstance();

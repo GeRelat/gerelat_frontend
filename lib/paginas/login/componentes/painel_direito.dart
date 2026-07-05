@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/login_view_model.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
-import 'package:gerelat_frontend/paginas/cadastro/pagina_cadastro.dart';
-import 'package:gerelat_frontend/paginas/dashboard/dashboard.dart';
-import 'package:gerelat_frontend/paginas/recuperar_senha/pagina_recuperar_senha.dart';
+import 'package:go_router/go_router.dart';
 
 class PainelDireito extends StatefulWidget {
   const PainelDireito({super.key});
@@ -49,17 +47,15 @@ class _PainelDireitoState extends State<PainelDireito> {
     if (!mounted) return;
 
     if (sucesso) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const DashboardPage()),
-        (_) => false,
-      );
+      DependenciasApp.instancia.sessao.notificarMudancaAutenticacao();
+      context.go('/dashboard');
       return;
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(_viewModel.mensagemErro ?? 'Erro ao fazer login.'),
-        backgroundColor: Colors.redAccent,
+        backgroundColor: Cores.vermelhoErro,
       ),
     );
   }
@@ -178,11 +174,7 @@ class _PainelDireitoState extends State<PainelDireito> {
         MouseRegion(
           cursor: SystemMouseCursors.click,
           child: GestureDetector(
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const PaginaRecuperarSenha()),
-              );
-            },
+            onTap: () => context.push('/recuperar-senha'),
             child: const Text(
               'Esqueci a senha',
               style: TextStyle(
@@ -305,11 +297,7 @@ class _PainelDireitoState extends State<PainelDireito> {
         MouseRegion(
           cursor: SystemMouseCursors.click,
           child: GestureDetector(
-            onTap: () {
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const PaginaCadastro()));
-            },
+            onTap: () => context.push('/cadastro'),
             child: const Text(
               'Cadastrar-se',
               style: TextStyle(
@@ -360,7 +348,7 @@ class _PainelDireitoState extends State<PainelDireito> {
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.redAccent),
+        borderSide: const BorderSide(color: Cores.vermelhoErro),
       ),
     );
   }

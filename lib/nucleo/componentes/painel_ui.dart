@@ -2,6 +2,56 @@ import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
+import 'package:go_router/go_router.dart';
+
+class CampoBusca extends StatelessWidget {
+  final TextEditingController controlador;
+  final String dica;
+  final ValueChanged<String> aoAlterar;
+
+  const CampoBusca({
+    super.key,
+    required this.controlador,
+    required this.dica,
+    required this.aoAlterar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 360),
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: Cores.cinzaCampo,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            const Icon(LucideIcons.search, size: 18, color: Cores.cinzaEscuro),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextField(
+                controller: controlador,
+                onChanged: aoAlterar,
+                decoration: InputDecoration(
+                  hintText: dica,
+                  border: InputBorder.none,
+                  isCollapsed: true,
+                  hintStyle: Tipografia.bodyMedium.copyWith(
+                    color: Cores.cinzaMedio,
+                  ),
+                ),
+                style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class BotaoPrimario extends StatelessWidget {
   final String texto;
@@ -53,7 +103,6 @@ class CartaoInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 170,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Cores.branco,
@@ -68,6 +117,7 @@ class CartaoInfo extends StatelessWidget {
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -209,9 +259,12 @@ class CampoFormulario extends StatelessWidget {
   final IconData? icone;
   final int maxLines;
   final TextEditingController? controller;
+  final FocusNode? focusNode;
   final String? Function(String?)? validator;
   final TextInputType? keyboardType;
   final bool enabled;
+  final bool obscureText;
+  final Widget? sufixo;
 
   const CampoFormulario({
     super.key,
@@ -220,9 +273,12 @@ class CampoFormulario extends StatelessWidget {
     this.icone,
     this.maxLines = 1,
     this.controller,
+    this.focusNode,
     this.validator,
     this.keyboardType,
     this.enabled = true,
+    this.obscureText = false,
+    this.sufixo,
   });
 
   @override
@@ -237,16 +293,19 @@ class CampoFormulario extends StatelessWidget {
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
+          focusNode: focusNode,
           validator: validator,
           keyboardType: keyboardType,
           enabled: enabled,
-          maxLines: maxLines,
+          maxLines: obscureText ? 1 : maxLines,
+          obscureText: obscureText,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
             prefixIcon: icone == null
                 ? null
                 : Icon(icone, color: Cores.cinzaMedio, size: 18),
+            suffixIcon: sufixo,
             filled: true,
             fillColor: Cores.cinzaClaro,
             contentPadding: const EdgeInsets.symmetric(
@@ -273,6 +332,7 @@ class CampoSelecao extends StatelessWidget {
   final int? valor;
   final List<DropdownMenuItem<int>> itens;
   final ValueChanged<int?>? onChanged;
+  final String? Function(int?)? validator;
 
   const CampoSelecao({
     super.key,
@@ -280,6 +340,7 @@ class CampoSelecao extends StatelessWidget {
     required this.valor,
     required this.itens,
     this.onChanged,
+    this.validator,
   });
 
   @override
@@ -296,7 +357,9 @@ class CampoSelecao extends StatelessWidget {
           initialValue: valor,
           items: itens,
           onChanged: onChanged,
-          validator: (value) => value == null ? 'Selecione uma opção' : null,
+          validator:
+              validator ??
+              (value) => value == null ? 'Selecione uma opção' : null,
           decoration: InputDecoration(
             filled: true,
             fillColor: Cores.cinzaClaro,
@@ -330,7 +393,7 @@ class BarraAcoesFormulario extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         TextButton(
-          onPressed: onCancelar ?? () => Navigator.of(context).pop(),
+          onPressed: onCancelar ?? () => context.pop(),
           child: const Text('Cancelar'),
         ),
         const SizedBox(width: 12),

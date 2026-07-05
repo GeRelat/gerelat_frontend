@@ -3,7 +3,7 @@ import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/cadastro_view_model.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
-import 'package:gerelat_frontend/paginas/sucesso_cadastro/pagina_sucesso_cadastro.dart';
+import 'package:go_router/go_router.dart';
 
 /// Formulário de cadastro de novo usuário.
 /// Contém os campos: nome completo, e-mail, senha e confirmação de senha.
@@ -71,15 +71,13 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
 
     if (sucesso) {
       // Navega para a página de sucesso substituindo o cadastro na pilha
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const PaginaSucessoCadastro()),
-      );
+      context.go('/cadastro/sucesso');
     } else {
       // Exibe o erro retornado pela API
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_viewModel.mensagemErro ?? 'Erro ao criar conta.'),
-          backgroundColor: Colors.redAccent,
+          backgroundColor: Cores.vermelhoErro,
         ),
       );
     }
@@ -371,7 +369,7 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.redAccent),
+        borderSide: const BorderSide(color: Cores.vermelhoErro),
       ),
     );
   }

@@ -3,12 +3,10 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/dashboard_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/resumo_dashboard.dart';
-import 'package:gerelat_frontend/nucleo/componentes/app_shell.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
-import 'package:gerelat_frontend/paginas/programas/pagina_programas.dart';
-import 'package:gerelat_frontend/paginas/relatorios/pagina_relatorios.dart';
+import 'package:go_router/go_router.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -25,8 +23,7 @@ class _DashboardPageState extends State<DashboardPage> {
     super.initState();
     _viewModel = DashboardViewModel(
       DependenciasApp.instancia.repositorioCatalogo,
-    )
-      ..carregar();
+    )..carregar();
   }
 
   @override
@@ -37,36 +34,31 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return AppShell(
-      secaoAtual: SecaoApp.dashboard,
-      titulo: 'Dashboard',
-      dicaPesquisa: 'Pesquisar...',
-      child: AnimatedBuilder(
-        animation: _viewModel,
-        builder: (context, _) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Visao geral da sua gestao de relatorios',
-                  style: Tipografia.headlineSmall.copyWith(
-                    color: Cores.textoPrincipal,
-                    fontWeight: FontWeight.w700,
-                  ),
+    return AnimatedBuilder(
+      animation: _viewModel,
+      builder: (context, _) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Visao geral da sua gestao de relatorios',
+                style: Tipografia.headlineSmall.copyWith(
+                  color: Cores.textoPrincipal,
+                  fontWeight: FontWeight.w700,
                 ),
-                const SizedBox(height: 24),
-                _conteudoResumo(),
-                const SizedBox(height: 32),
-                _acoesPrincipais(context),
-                const SizedBox(height: 32),
-                _sincronizacao(),
-              ],
-            ),
-          );
-        },
-      ),
+              ),
+              const SizedBox(height: 24),
+              _conteudoResumo(),
+              const SizedBox(height: 32),
+              _acoesPrincipais(context),
+              const SizedBox(height: 32),
+              _sincronizacao(),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -153,17 +145,13 @@ class _DashboardPageState extends State<DashboardPage> {
       builder: (context, constraints) {
         final compacto = constraints.maxWidth < 960;
         final relatorio = _HeroRelatorio(
-          onTap: () => Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const PaginaRelatorios()),
-          ),
+          onTap: () => context.go('/relatorios'),
         );
         final programa = _AcaoSecundaria(
           titulo: 'Novo Programa',
           descricao: 'Configure um novo programa institucional no sistema.',
           icone: LucideIcons.folder_plus,
-          onTap: () => Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const PaginaProgramas()),
-          ),
+          onTap: () => context.go('/programas'),
         );
 
         if (compacto) {

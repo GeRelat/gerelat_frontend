@@ -1,3 +1,4 @@
+import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
 import 'package:gerelat_frontend/dados/repositorios/repositorio_autenticacao_http.dart';
 import 'package:gerelat_frontend/dados/repositorios/repositorio_catalogo_http.dart';
 import 'package:gerelat_frontend/dados/servicos/servico_api_gerelat.dart';
@@ -14,12 +15,14 @@ class DependenciasApp {
   final ClienteHttp clienteHttp;
   final RepositorioCatalogo repositorioCatalogo;
   final RepositorioAutenticacao repositorioAutenticacao;
+  final SessaoViewModel sessao;
 
   DependenciasApp._({
     required this.servicoToken,
     required this.clienteHttp,
     required this.repositorioCatalogo,
     required this.repositorioAutenticacao,
+    required this.sessao,
   });
 
   factory DependenciasApp._criar() {
@@ -29,17 +32,17 @@ class DependenciasApp {
       clienteHttp: cliente,
       servicoToken: tokens,
     );
+    final repositorioAutenticacao = RepositorioAutenticacaoHttp(
+      servico: autenticacao,
+      tokens: tokens,
+    );
 
     return DependenciasApp._(
       servicoToken: tokens,
       clienteHttp: cliente,
-      repositorioCatalogo: RepositorioCatalogoHttp(
-        ServicoApiGerelat(cliente),
-      ),
-      repositorioAutenticacao: RepositorioAutenticacaoHttp(
-        servico: autenticacao,
-        tokens: tokens,
-      ),
+      repositorioCatalogo: RepositorioCatalogoHttp(ServicoApiGerelat(cliente)),
+      repositorioAutenticacao: repositorioAutenticacao,
+      sessao: SessaoViewModel(repositorioAutenticacao),
     );
   }
 }

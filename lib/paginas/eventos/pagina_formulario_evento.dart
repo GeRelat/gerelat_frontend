@@ -2,19 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/evento_form_view_model.dart';
-import 'package:gerelat_frontend/nucleo/componentes/app_shell.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
+import 'package:go_router/go_router.dart';
 
 class PaginaFormularioEvento extends StatefulWidget {
   final bool edicao;
+  final int? eventoId;
 
-  const PaginaFormularioEvento({super.key, this.edicao = false});
+  const PaginaFormularioEvento({super.key, this.edicao = false, this.eventoId});
 
   @override
-  State<PaginaFormularioEvento> createState() =>
-      _PaginaFormularioEventoState();
+  State<PaginaFormularioEvento> createState() => _PaginaFormularioEventoState();
 }
 
 class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
@@ -24,6 +24,7 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
   final _local = TextEditingController();
   final _endereco = TextEditingController();
   final _objetivo = TextEditingController();
+  final _novaClasse = TextEditingController();
   late final EventoFormViewModel _viewModel;
   int? _projetoId;
   int? _classeId;
@@ -33,7 +34,24 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
     super.initState();
     _viewModel = EventoFormViewModel(
       DependenciasApp.instancia.repositorioCatalogo,
-    )..carregarOpcoes();
+    );
+    final eventoId = widget.eventoId;
+    if (widget.edicao && eventoId != null) {
+      _viewModel.carregarEdicao(eventoId).then((_) {
+        final evento = _viewModel.evento;
+        if (!mounted || evento == null) return;
+        _projetoId = evento.projetoId;
+        _classeId = evento.classeEventoId;
+        _nome.text = evento.nome;
+        _data.text = evento.data == null ? '' : _formatarData(evento.data!);
+        _local.text = evento.local;
+        _endereco.text = evento.endereco;
+        _objetivo.text = evento.objetivo;
+        setState(() {});
+      });
+    } else {
+      _viewModel.carregarOpcoes();
+    }
   }
 
   @override
@@ -43,6 +61,7 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
     _local.dispose();
     _endereco.dispose();
     _objetivo.dispose();
+    _novaClasse.dispose();
     _viewModel.dispose();
     super.dispose();
   }
@@ -50,11 +69,13 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
     final data = _parseData(_data.text);
-    if (data == null || _projetoId == null || _classeId == null) return;
+    if (data == null || _projetoId == null) return;
 
     final sucesso = await _viewModel.salvar(
+      eventoId: widget.eventoId,
       projetoId: _projetoId!,
-      classeEventoId: _classeId!,
+      classeEventoId: _classeId,
+      nomeNovaClasse: _novaClasse.text.trim(),
       nome: _nome.text.trim(),
       data: data,
       local: _local.text.trim(),
@@ -63,7 +84,7 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
     );
     if (!mounted) return;
     if (sucesso) {
-      Navigator.of(context).pop(true);
+      context.pop(true);
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
@@ -73,126 +94,144 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
 
   @override
   Widget build(BuildContext context) {
-    return AppShell(
-      secaoAtual: SecaoApp.eventos,
-      titulo: widget.edicao ? 'Editar Evento' : 'Novo Evento',
-      dicaPesquisa: 'Pesquisar eventos...',
-      child: AnimatedBuilder(
-        animation: _viewModel,
-        builder: (context, _) {
-          if (_viewModel.carregando && _viewModel.projetos.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(32),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Cadastrar evento institucional',
-                    style: Tipografia.headlineMedium.copyWith(
-                      color: Cores.textoPrincipal,
-                    ),
+    return AnimatedBuilder(
+      animation: _viewModel,
+      builder: (context, _) {
+        if (_viewModel.carregando && _viewModel.projetos.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(32),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Cadastrar evento institucional',
+                  style: Tipografia.headlineMedium.copyWith(
+                    color: Cores.textoPrincipal,
                   ),
-                  const SizedBox(height: 24),
-                  CartaoConteudo(
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: CampoSelecao(
-                                label: 'Projeto',
-                                valor: _projetoId,
-                                itens: _viewModel.projetos
-                                    .map(
-                                      (item) => DropdownMenuItem(
-                                        value: item.id,
-                                        child: Text(item.nome),
-                                      ),
-                                    )
-                                    .toList(),
-                                onChanged: (value) =>
-                                    setState(() => _projetoId = value),
-                              ),
+                ),
+                const SizedBox(height: 24),
+                CartaoConteudo(
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: CampoSelecao(
+                              label: 'Projeto',
+                              valor: _projetoId,
+                              itens: _viewModel.projetos
+                                  .map(
+                                    (item) => DropdownMenuItem(
+                                      value: item.id,
+                                      child: Text(item.nome),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (value) async {
+                                setState(() {
+                                  _projetoId = value;
+                                  _classeId = null;
+                                });
+                                if (value != null) {
+                                  await _viewModel.carregarClassesProjeto(
+                                    value,
+                                  );
+                                }
+                              },
                             ),
-                            const SizedBox(width: 18),
-                            Expanded(
-                              child: CampoSelecao(
-                                label: 'Classe do Evento',
-                                valor: _classeId,
-                                itens: _viewModel.classes
-                                    .map(
-                                      (item) => DropdownMenuItem(
-                                        value: item.id,
-                                        child: Text(item.nome),
-                                      ),
-                                    )
-                                    .toList(),
-                                onChanged: (value) =>
-                                    setState(() => _classeId = value),
-                              ),
+                          ),
+                          const SizedBox(width: 18),
+                          Expanded(
+                            child: CampoSelecao(
+                              label: 'Classe do Evento',
+                              valor: _classeId,
+                              itens: _viewModel.classes
+                                  .map(
+                                    (item) => DropdownMenuItem(
+                                      value: item.id,
+                                      child: Text(item.nome),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (value) =>
+                                  setState(() => _classeId = value),
+                              validator: (value) =>
+                                  value == null &&
+                                      _novaClasse.text.trim().isEmpty
+                                  ? 'Selecione ou informe uma nova classe'
+                                  : null,
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 18),
-                        CampoFormulario(
-                          label: 'Nome do Evento',
-                          hint: 'Ex: Oficina de Dados Abertos',
-                          icone: LucideIcons.calendar,
-                          controller: _nome,
-                          validator: _obrigatorio,
-                        ),
-                        const SizedBox(height: 18),
-                        CampoFormulario(
-                          label: 'Data',
-                          hint: 'DD/MM/AAAA',
-                          icone: LucideIcons.calendar_days,
-                          controller: _data,
-                          validator: (valor) => _parseData(valor ?? '') == null
-                              ? 'Informe uma data válida'
-                              : null,
-                        ),
-                        const SizedBox(height: 18),
-                        CampoFormulario(
-                          label: 'Local',
-                          hint: 'Local do evento',
-                          icone: LucideIcons.map_pin,
-                          controller: _local,
-                        ),
-                        const SizedBox(height: 18),
-                        CampoFormulario(
-                          label: 'Endereço',
-                          hint: 'Endereço completo',
-                          icone: LucideIcons.map,
-                          controller: _endereco,
-                        ),
-                        const SizedBox(height: 18),
-                        CampoFormulario(
-                          label: 'Objetivo',
-                          hint: 'Descreva o objetivo do evento',
-                          icone: LucideIcons.target,
-                          controller: _objetivo,
-                          maxLines: 4,
-                        ),
-                        const SizedBox(height: 28),
-                        BarraAcoesFormulario(
-                          textoPrimario: _viewModel.carregando
-                              ? 'Salvando...'
-                              : 'Criar Evento',
-                          onSalvar: _viewModel.carregando ? null : _salvar,
-                        ),
-                      ],
-                    ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      CampoFormulario(
+                        label: 'Nova classe de evento',
+                        hint: 'Preencha quando a classe ainda nao existir',
+                        icone: LucideIcons.tags,
+                        controller: _novaClasse,
+                      ),
+                      const SizedBox(height: 18),
+                      CampoFormulario(
+                        label: 'Nome do Evento',
+                        hint: 'Ex: Oficina de Dados Abertos',
+                        icone: LucideIcons.calendar,
+                        controller: _nome,
+                        validator: _obrigatorio,
+                      ),
+                      const SizedBox(height: 18),
+                      CampoFormulario(
+                        label: 'Data',
+                        hint: 'DD/MM/AAAA',
+                        icone: LucideIcons.calendar_days,
+                        controller: _data,
+                        validator: (valor) => _parseData(valor ?? '') == null
+                            ? 'Informe uma data válida'
+                            : null,
+                      ),
+                      const SizedBox(height: 18),
+                      CampoFormulario(
+                        label: 'Local',
+                        hint: 'Local do evento',
+                        icone: LucideIcons.map_pin,
+                        controller: _local,
+                      ),
+                      const SizedBox(height: 18),
+                      CampoFormulario(
+                        label: 'Endereço',
+                        hint: 'Endereço completo',
+                        icone: LucideIcons.map,
+                        controller: _endereco,
+                      ),
+                      const SizedBox(height: 18),
+                      CampoFormulario(
+                        label: 'Objetivo',
+                        hint: 'Descreva o objetivo do evento',
+                        icone: LucideIcons.target,
+                        controller: _objetivo,
+                        maxLines: 4,
+                      ),
+                      const SizedBox(height: 28),
+                      BarraAcoesFormulario(
+                        textoPrimario: _viewModel.carregando
+                            ? 'Salvando...'
+                            : widget.edicao
+                            ? 'Salvar Evento'
+                            : 'Criar Evento',
+                        onSalvar: _viewModel.carregando ? null : _salvar,
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -211,5 +250,11 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
     final data = DateTime(ano, mes, dia);
     if (data.day != dia || data.month != mes || data.year != ano) return null;
     return data;
+  }
+
+  String _formatarData(DateTime data) {
+    final dia = data.day.toString().padLeft(2, '0');
+    final mes = data.month.toString().padLeft(2, '0');
+    return '$dia/$mes/${data.year}';
   }
 }

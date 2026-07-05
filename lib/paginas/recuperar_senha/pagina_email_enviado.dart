@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
-import 'package:gerelat_frontend/paginas/login/pagina_login.dart';
+import 'package:go_router/go_router.dart';
 
 /// Página exibida após o envio do e-mail de recuperação de senha.
 /// Confirma o envio e oferece ação de reenvio e retorno ao login.
@@ -10,10 +10,7 @@ class PaginaEmailEnviado extends StatelessWidget {
 
   /// Navega para o login limpando todo o histórico de navegação
   void _voltarAoLogin(BuildContext context) {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const PaginaLogin()),
-      (rota) => false,
-    );
+    context.go('/login');
   }
 
   @override
@@ -109,7 +106,7 @@ class PaginaEmailEnviado extends StatelessWidget {
               width: 96,
               height: 96,
               decoration: const BoxDecoration(
-                color: Color(0xFFD6E3FF),
+                color: Cores.azulIlustracaoSuave,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -191,17 +188,17 @@ class PaginaEmailEnviado extends StatelessWidget {
               // "Tente reenviar" como link azul — LabelLarge (Roboto SemiBold 14px)
               WidgetSpan(
                 child: MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: GestureDetector(
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Reenvio indisponível até a API oferecer recuperação de senha.',
-                            ),
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Reenvio indisponível até a API oferecer recuperação de senha.',
                           ),
-                        );
-                      },
+                        ),
+                      );
+                    },
                     child: Text(
                       'Tente reenviar',
                       style: Tipografia.labelLarge.copyWith(
