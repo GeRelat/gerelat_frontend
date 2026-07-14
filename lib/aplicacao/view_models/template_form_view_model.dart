@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:typed_data';
 
 import 'package:gerelat_frontend/aplicacao/view_models/base_view_model.dart';
@@ -59,6 +60,18 @@ class TemplateFormViewModel extends BaseViewModel {
     iniciarCarregamento();
     try {
       _projetos = await _eventosRepositorio.listarProjetos();
+      try {
+        developer.log(
+          'template carregarOpcoes: projetos=${_projetos.length}',
+          name: 'TemplateFormViewModel',
+        );
+        for (final projeto in _projetos) {
+          developer.log(
+            'template projeto opcoes id=${projeto.id} nome=${projeto.nome}',
+            name: 'TemplateFormViewModel',
+          );
+        }
+      } catch (_) {}
       finalizarCarregamento();
     } catch (erro) {
       definirErro(erro);
@@ -140,6 +153,18 @@ class TemplateFormViewModel extends BaseViewModel {
     try {
       _template = await _templatesRepositorio.obterTemplate(templateId);
       _projetos = await _eventosRepositorio.listarProjetos();
+      try {
+        developer.log(
+          'template carregarEdicao: templateId=$templateId projetos=${_projetos.length}',
+          name: 'TemplateFormViewModel',
+        );
+        for (final projeto in _projetos) {
+          developer.log(
+            'template projeto edicao id=${projeto.id} nome=${projeto.nome}',
+            name: 'TemplateFormViewModel',
+          );
+        }
+      } catch (_) {}
       final projetoId = _template?.projetoId;
       _classesDisponiveis = projetoId == null
           ? []
@@ -168,7 +193,11 @@ class TemplateFormViewModel extends BaseViewModel {
     }
   }
 
-  Future<bool> salvar({
+  /// Cria/atualiza o template e retorna o id do template salvo (ou `null` em
+  /// caso de erro). O `.docx` é opcional: se informado, é convertido em
+  /// `modelo_json` para semear o editor; caso contrário, o template nasce com
+  /// um documento vazio a ser preenchido no editor.
+  Future<int?> salvar({
     int? templateId,
     required int projetoId,
     required String nomeTemplate,
@@ -177,17 +206,34 @@ class TemplateFormViewModel extends BaseViewModel {
   }) async {
     iniciarCarregamento();
     try {
+      try {
+        developer.log(
+          'template salvar: templateId=$templateId projetoId=$projetoId nomeTemplate=$nomeTemplate arquivo=${arquivoBytes == null ? 'null' : '${arquivoBytes.length} bytes'} nomeArquivo=$nomeArquivo',
+          name: 'TemplateFormViewModel',
+        );
+      } catch (_) {}
       var idTemplate = templateId ?? _idTemplateCriado;
       if (idTemplate == null) {
-        if (arquivoBytes == null || nomeArquivo == null) {
-          throw Exception('Selecione um arquivo .docx para criar o template.');
+        // O `.docx` é opcional: quando presente, vira o documento inicial do
+        // editor; quando ausente, o template nasce vazio.
+        Map<String, dynamic>? modeloJson;
+        if (arquivoBytes != null && nomeArquivo != null) {
+          modeloJson = await _templatesRepositorio.converterDocxParaModelo(
+            arquivoBytes: arquivoBytes,
+            nomeArquivo: nomeArquivo,
+          );
         }
-        idTemplate = await _templatesRepositorio.criarTemplate(
+        idTemplate = await _templatesRepositorio.criarTemplateComModelo(
           projetoId: projetoId,
           nomeTemplate: nomeTemplate,
-          arquivoBytes: arquivoBytes,
-          nomeArquivo: nomeArquivo,
+          modeloJson: modeloJson,
         );
+        try {
+          developer.log(
+            'template salvar: criado idTemplate=$idTemplate',
+            name: 'TemplateFormViewModel',
+          );
+        } catch (_) {}
         _idTemplateCriado = idTemplate;
       } else {
         await _templatesRepositorio.atualizarTemplate(
@@ -218,6 +264,12 @@ class TemplateFormViewModel extends BaseViewModel {
       );
 
       for (final classeId in classesAdicionadas) {
+        try {
+          developer.log(
+            'template salvar: vinculando classe=$classeId ao template=$idTemplate',
+            name: 'TemplateFormViewModel',
+          );
+        } catch (_) {}
         await _templatesRepositorio.vincularTemplateClasse(
           templateId: idTemplate,
           classeEventoId: classeId,
@@ -232,11 +284,24 @@ class TemplateFormViewModel extends BaseViewModel {
 
       await _salvarAssinaturas(idTemplate);
 
+      try {
+        developer.log(
+          'template salvar: finalizado com sucesso template=$idTemplate',
+          name: 'TemplateFormViewModel',
+        );
+      } catch (_) {}
+
       finalizarCarregamento();
-      return true;
+      return idTemplate;
     } catch (erro) {
+      try {
+        developer.log(
+          'template salvar: erro=$erro',
+          name: 'TemplateFormViewModel',
+        );
+      } catch (_) {}
       definirErro(erro);
-      return false;
+      return null;
     }
   }
 
@@ -259,9 +324,9 @@ class TemplateFormViewModel extends BaseViewModel {
     final projetoAdicionados = _equipeProjetoSelecionada.difference(
       assinaturaPorEquipeProjeto.keys.toSet(),
     );
-    final projetoRemovidos = assinaturaPorEquipeProjeto.keys
-        .toSet()
-        .difference(_equipeProjetoSelecionada);
+    final projetoRemovidos = assinaturaPorEquipeProjeto.keys.toSet().difference(
+      _equipeProjetoSelecionada,
+    );
 
     for (final membroId in programaAdicionados) {
       await _templatesRepositorio.criarAssinaturaTemplate(

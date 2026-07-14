@@ -24,7 +24,7 @@ class ClienteHttp {
   /// alterar código via `flutter run/build --dart-define=API_BASE_URL=...`.
   static const String urlBasePadrao = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:8000',
+    defaultValue: 'https://api.gerelat.tech',
   );
 
   ClienteHttp({
@@ -137,9 +137,9 @@ class ClienteHttp {
       return Future.value(false);
     }
 
-    return _renovacaoEmAndamento ??= _executarRenovacao(refreshToken).whenComplete(
-      () => _renovacaoEmAndamento = null,
-    );
+    return _renovacaoEmAndamento ??= _executarRenovacao(
+      refreshToken,
+    ).whenComplete(() => _renovacaoEmAndamento = null);
   }
 
   Future<bool> _executarRenovacao(String refreshToken) async {

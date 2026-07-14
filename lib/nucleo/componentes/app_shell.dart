@@ -9,6 +9,7 @@ enum SecaoApp {
   dashboard,
   clientes,
   programas,
+  variaveis,
   eventos,
   relatorios,
   templates,
@@ -171,6 +172,12 @@ class _SideNav extends StatelessWidget {
                   label: 'Programas',
                   ativo: secaoAtual == SecaoApp.programas,
                   onTap: () => context.go('/programas'),
+                ),
+                _NavItem(
+                  icon: LucideIcons.variable,
+                  label: 'Variaveis',
+                  ativo: secaoAtual == SecaoApp.variaveis,
+                  onTap: () => context.go('/projetos/campos'),
                 ),
                 _NavItem(
                   icon: LucideIcons.calendar,

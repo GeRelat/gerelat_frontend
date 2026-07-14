@@ -321,14 +321,16 @@ class _PaginaCamposProjetoState extends State<PaginaCamposProjeto> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Textos do projeto',
+                'Variáveis do projeto',
                 style: Tipografia.headlineMedium.copyWith(
                   color: Cores.textoPrincipal,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                'Textos fixos, optativos e livres pré-cadastrados, usados na geração de relatórios.',
+                'Textos, tabelas e imagens pré-cadastrados por projeto. Cada variável '
+                'tem uma referência (ex: objetivo_evento) usada nos nós do template e '
+                'resolvida automaticamente na geração de relatórios.',
                 style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
               ),
               const SizedBox(height: 24),

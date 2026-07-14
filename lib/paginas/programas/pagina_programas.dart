@@ -86,8 +86,8 @@ class _PaginaProgramasState extends State<PaginaProgramas> {
         Row(
           children: [
             BotaoPrimario(
-              texto: 'Textos do Projeto',
-              icone: LucideIcons.file_text,
+              texto: 'Variáveis',
+              icone: LucideIcons.variable,
               onPressed: () => context.push('/projetos/campos'),
             ),
             const SizedBox(width: 12),
