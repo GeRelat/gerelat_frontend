@@ -20,10 +20,17 @@ class ClienteHttp {
   /// tentativa usaria um token já invalidado e falharia.
   Future<bool>? _renovacaoEmAndamento;
 
+  /// Valor de build padrão para a URL base da API. Pode ser sobrescrito sem
+  /// alterar código via `flutter run/build --dart-define=API_BASE_URL=...`.
+  static const String urlBasePadrao = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:8000',
+  );
+
   ClienteHttp({
     required ServicoToken servicoToken,
     http.Client? cliente,
-    this.urlBase = 'http://localhost:8000',
+    this.urlBase = urlBasePadrao,
   }) : _servicoToken = servicoToken,
        _cliente = cliente ?? http.Client();
 
@@ -159,8 +166,11 @@ class ClienteHttp {
     }
   }
 
+  /// Só 401 (token ausente/inválido/expirado) significa sessão encerrada.
+  /// 403 é "autenticado, mas sem permissão para esta ação específica" — a
+  /// sessão continua válida, então não deve limpar tokens nem deslogar.
   Future<void> _tratarSessaoExpirada(http.Response resposta) async {
-    if (resposta.statusCode == 401 || resposta.statusCode == 403) {
+    if (resposta.statusCode == 401) {
       await _servicoToken.limpar();
       await onSessaoExpirada?.call();
     }

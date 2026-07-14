@@ -98,7 +98,7 @@ class _PaginaClientesState extends State<PaginaClientes> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_viewModel.mensagemErro != null) {
+    if (_viewModel.mensagemErro != null && _viewModel.clientes.isEmpty) {
       return EstadoVazio(
         icone: LucideIcons.circle_alert,
         titulo: 'Nao foi possivel carregar os clientes',
@@ -140,7 +140,12 @@ class _PaginaClientesState extends State<PaginaClientes> {
               .map(
                 (cliente) => SizedBox(
                   width: largura,
-                  child: _CartaoCliente(cliente, onAlterado: _viewModel.carregar),
+                  child: _CartaoCliente(
+                    cliente,
+                    onAlterado: _viewModel.carregar,
+                    onExcluir: _viewModel.excluir,
+                    obterMensagemErro: () => _viewModel.mensagemErroAcao,
+                  ),
                 ),
               )
               .toList(),
@@ -153,8 +158,15 @@ class _PaginaClientesState extends State<PaginaClientes> {
 class _CartaoCliente extends StatelessWidget {
   final Cliente cliente;
   final Future<void> Function() onAlterado;
+  final Future<bool> Function(int) onExcluir;
+  final String? Function() obterMensagemErro;
 
-  const _CartaoCliente(this.cliente, {required this.onAlterado});
+  const _CartaoCliente(
+    this.cliente, {
+    required this.onAlterado,
+    required this.onExcluir,
+    required this.obterMensagemErro,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -285,16 +297,12 @@ class _CartaoCliente extends StatelessWidget {
     final clienteId = cliente.id;
     if (clienteId == null) return;
 
-    try {
-      await DependenciasApp.instancia.repositorioCatalogo.excluirCliente(
-        clienteId,
-      );
-      await onAlterado();
-    } catch (erro) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Erro ao excluir: $erro')));
-    }
+    final sucesso = await onExcluir(clienteId);
+    if (!context.mounted || sucesso) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(obterMensagemErro() ?? 'Erro ao excluir cliente.'),
+      ),
+    );
   }
 }

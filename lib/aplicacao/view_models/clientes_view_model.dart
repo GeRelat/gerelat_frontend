@@ -6,8 +6,17 @@ class ClientesViewModel extends BaseViewModel {
   final RepositorioClientes _repositorio;
   List<Cliente> _clientes = [];
   String _termoBusca = '';
+  String? _mensagemErroAcao;
 
   ClientesViewModel(this._repositorio);
+
+  // Erro de uma ação pontual (excluir um item), separado de `mensagemErro`
+  // — que é reservado para falha da carga da lista. Ver o mesmo padrão em
+  // TemplatesViewModel/RelatoriosViewModel: reaproveitar
+  // `iniciarCarregamento`/`definirErro` para ações de linha troca a grade
+  // inteira pela tela de erro a cada falha pontual, mesmo com a lista já
+  // carregada.
+  String? get mensagemErroAcao => _mensagemErroAcao;
 
   List<Cliente> get clientes {
     final termo = _termoBusca.trim().toLowerCase();
@@ -40,13 +49,13 @@ class ClientesViewModel extends BaseViewModel {
   }
 
   Future<bool> excluir(int clienteId) async {
-    iniciarCarregamento();
     try {
       await _repositorio.excluirCliente(clienteId);
       await carregar();
       return true;
     } catch (erro) {
-      definirErro(erro);
+      _mensagemErroAcao = erro.toString();
+      notifyListeners();
       return false;
     }
   }

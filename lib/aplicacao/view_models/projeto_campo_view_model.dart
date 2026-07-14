@@ -124,38 +124,46 @@ class ProjetoCampoViewModel extends BaseViewModel {
 
   // ── Conversão texto <-> valor (TEXT e RICHTEXT, tratados como texto simples) ──
 
+  // Cada linha digitada vira um parágrafo, na ordem — inclusive linhas em
+  // branco (parágrafo com `content: []`), para preservar o espaçamento entre
+  // parágrafos que o usuário digitou. Filtrar linhas vazias aqui apagava esse
+  // espaçamento a cada save/reload.
   static Map<String, dynamic> construirValorTexto(String textoMultilinha) {
-    final linhas = textoMultilinha
-        .split('\n')
-        .map((linha) => linha.trim())
-        .where((linha) => linha.isNotEmpty)
-        .toList();
+    final linhas = textoMultilinha.split('\n').map((linha) => linha.trim());
     return {
       'type': 'doc',
       'content': linhas
           .map(
             (linha) => {
               'type': 'paragraph',
-              'content': [
-                {'type': 'text', 'text': linha},
-              ],
+              'content': linha.isEmpty
+                  ? const <Map<String, dynamic>>[]
+                  : [
+                      {'type': 'text', 'text': linha},
+                    ],
             },
           )
           .toList(),
     };
   }
 
+  // Espelha `construirValorTexto`: cada bloco (parágrafo) do documento vira
+  // exatamente uma linha, mesmo quando não tem nós de texto (parágrafo em
+  // branco) — sem isso, o round-trip texto -> valor -> texto perde as linhas
+  // em branco que a construção acima passou a preservar.
   static String extrairTextoDeValor(Map<String, dynamic> valor) {
     final content = valor['content'];
     if (content is! List) return '';
     final linhas = <String>[];
     for (final bloco in content) {
       if (bloco is! Map || bloco['content'] is! List) continue;
+      final buffer = StringBuffer();
       for (final no in bloco['content'] as List) {
         if (no is Map && no['type'] == 'text' && no['text'] is String) {
-          linhas.add(no['text'] as String);
+          buffer.write(no['text'] as String);
         }
       }
+      linhas.add(buffer.toString());
     }
     return linhas.join('\n');
   }

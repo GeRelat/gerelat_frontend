@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
@@ -265,6 +266,7 @@ class CampoFormulario extends StatelessWidget {
   final bool enabled;
   final bool obscureText;
   final Widget? sufixo;
+  final List<TextInputFormatter>? inputFormatters;
 
   const CampoFormulario({
     super.key,
@@ -279,6 +281,7 @@ class CampoFormulario extends StatelessWidget {
     this.enabled = true,
     this.obscureText = false,
     this.sufixo,
+    this.inputFormatters,
   });
 
   @override
@@ -296,6 +299,7 @@ class CampoFormulario extends StatelessWidget {
           focusNode: focusNode,
           validator: validator,
           keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
           enabled: enabled,
           maxLines: obscureText ? 1 : maxLines,
           obscureText: obscureText,
@@ -400,7 +404,13 @@ class BarraAcoesFormulario extends StatelessWidget {
         BotaoPrimario(
           texto: textoPrimario,
           icone: LucideIcons.save,
-          onPressed: onSalvar ?? () {},
+          // `BotaoPrimario.onPressed` já aceita null e desabilita o botão de
+          // verdade (visual + toque bloqueado). O `?? () {}` anterior sempre
+          // entregava um callback não-nulo ao ElevatedButton, então a tela
+          // passando `null` pra "desabilitar durante o salvamento" não tinha
+          // efeito nenhum — o botão continuava clicável, com risco de
+          // duplo-clique/duplo-envio.
+          onPressed: onSalvar,
         ),
       ],
     );

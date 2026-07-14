@@ -124,7 +124,7 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
                   child: Column(
                     children: [
                       CampoSelecao(
-                        label: 'Evento vinculado',
+                        label: 'Evento vinculado (opcional)',
                         valor: _eventoId,
                         itens: _viewModel.eventos
                             .where((evento) => evento.id != null)
@@ -136,6 +136,12 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
                             )
                             .toList(),
                         onChanged: (value) => setState(() => _eventoId = value),
+                        // `eventoId` é nullable em toda a cadeia (ViewModel,
+                        // entidade, repositório) — o relatório pode ser
+                        // gerado sem vínculo a um evento. Sem este
+                        // `validator`, o padrão do CampoSelecao exige seleção
+                        // e tornava esse fluxo inalcançável pela UI.
+                        validator: (_) => null,
                       ),
                       const SizedBox(height: 18),
                       CampoSelecao(

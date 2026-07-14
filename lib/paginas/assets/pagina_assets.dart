@@ -33,7 +33,20 @@ class _PaginaAssetsState extends State<PaginaAssets> {
   }
 
   Future<void> _enviarImagem() async {
-    final arquivo = await selecionarArquivo(accept: '.png,.jpg,.jpeg,.webp');
+    final ArquivoSelecionadoWeb? arquivo;
+    try {
+      arquivo = await selecionarArquivo(
+        accept: '.png,.jpg,.jpeg,.webp',
+        extensoesPermitidas: const ['.png', '.jpg', '.jpeg', '.webp'],
+        tamanhoMaximoBytes: 5 * 1024 * 1024,
+      );
+    } on ArquivoInvalidoException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.mensagem)));
+      return;
+    }
     if (arquivo == null) return;
     if (!mounted) return;
 
@@ -59,31 +72,35 @@ class _PaginaAssetsState extends State<PaginaAssets> {
   Future<String?> _pedirDescricao(
     BuildContext context, {
     required String inicial,
-  }) {
+  }) async {
     final controlador = TextEditingController(text: inicial);
-    return showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Descrição da imagem'),
-        content: TextField(
-          controller: controlador,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'Ex: Logomarca do programa',
+    try {
+      return await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Descrição da imagem'),
+          content: TextField(
+            controller: controlador,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'Ex: Logomarca do programa',
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => context.pop(null),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => context.pop(controlador.text.trim()),
+              child: const Text('Salvar'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => context.pop(null),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => context.pop(controlador.text.trim()),
-            child: const Text('Salvar'),
-          ),
-        ],
-      ),
-    );
+      );
+    } finally {
+      controlador.dispose();
+    }
   }
 
   Future<void> _editarDescricao(Asset asset) async {

@@ -15,6 +15,23 @@ void _renderizarNo(Map<dynamic, dynamic> no, StringBuffer buffer) {
     return;
   }
 
+  if (tipo == 'hard_break') {
+    buffer.write('\n');
+    return;
+  }
+
+  if (tipo == 'image_block') {
+    final attrs = no['attrs'];
+    final legenda = attrs is Map ? attrs['caption'] : null;
+    buffer.write(
+      legenda is String && legenda.trim().isNotEmpty
+          ? '[Imagem: ${legenda.trim()}]'
+          : '[Imagem]',
+    );
+    buffer.write('\n');
+    return;
+  }
+
   final filhos = no['content'];
   if (filhos is List) {
     for (var i = 0; i < filhos.length; i++) {
@@ -22,6 +39,12 @@ void _renderizarNo(Map<dynamic, dynamic> no, StringBuffer buffer) {
       if (filho is Map) _renderizarNo(filho, buffer);
       if (tipo == 'table_row' && i < filhos.length - 1) buffer.write(' | ');
     }
+  } else if (tipo is String) {
+    // Nó sem texto e sem filhos reconhecidos por esta pré-visualização
+    // (ex.: tabela cujos dados ficam em `attrs`, não em `content`). Indica
+    // a omissão em vez de sumir silenciosamente, para o preview não parecer
+    // mais vazio do que o .docx gerado de fato.
+    buffer.write('[$tipo]');
   }
 
   switch (tipo) {

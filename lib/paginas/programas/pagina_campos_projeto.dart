@@ -163,10 +163,23 @@ class _PaginaCamposProjetoState extends State<PaginaCamposProjeto> {
   }
 
   Future<void> _selecionarImagem() async {
-    final arquivo = await selecionarArquivo(accept: '.png,.jpg,.jpeg,.webp');
-    if (arquivo == null) return;
+    final ArquivoSelecionadoWeb? arquivo;
+    try {
+      arquivo = await selecionarArquivo(
+        accept: '.png,.jpg,.jpeg,.webp',
+        extensoesPermitidas: const ['.png', '.jpg', '.jpeg', '.webp'],
+        tamanhoMaximoBytes: 5 * 1024 * 1024,
+      );
+    } on ArquivoInvalidoException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.mensagem)));
+      return;
+    }
+    if (arquivo == null || !mounted) return;
     setState(() {
-      _imagemBytesNova = arquivo.bytes;
+      _imagemBytesNova = arquivo!.bytes;
       _imagemNomeNovo = arquivo.nome;
     });
   }
@@ -279,6 +292,18 @@ class _PaginaCamposProjetoState extends State<PaginaCamposProjeto> {
 
   String? _obrigatorioValidator(String? valor) {
     if (valor == null || valor.trim().isEmpty) return 'Campo obrigatório';
+    return null;
+  }
+
+  // `keyboardType: TextInputType.number` é só dica de teclado, não valida
+  // nada. Sem este validator, texto não numérico passava batido pelo
+  // formulário e `double.tryParse` (em `_salvar`) descartava o valor em
+  // silêncio — o campo virava vazio no payload sem nenhum aviso ao usuário.
+  String? _validarMedidaOpcional(String? valor) {
+    final texto = valor?.trim() ?? '';
+    if (texto.isEmpty) return null;
+    final numero = double.tryParse(texto);
+    if (numero == null || numero <= 0) return 'Informe um número válido';
     return null;
   }
 
@@ -581,7 +606,15 @@ class _PaginaCamposProjetoState extends State<PaginaCamposProjeto> {
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                           child: TextFormField(
-                            key: ValueKey('linha-$i-${coluna.chave}'),
+                            // Chave presa à identidade do mapa da linha (não
+                            // ao índice `i`): ao excluir uma linha do meio,
+                            // `_removerLinha` mantém os mesmos objetos `Map`
+                            // das linhas restantes, só muda a posição delas
+                            // na lista. Com chave por índice, o Flutter
+                            // reaproveitava o TextFormField da posição e
+                            // continuava mostrando o texto da linha excluída
+                            // até o usuário digitar de novo.
+                            key: ValueKey((_linhasTabela[i], coluna.chave)),
                             initialValue: _linhasTabela[i][coluna.chave] ?? '',
                             decoration: InputDecoration(
                               isDense: true,
@@ -657,6 +690,7 @@ class _PaginaCamposProjetoState extends State<PaginaCamposProjeto> {
                   hint: 'Ex: 120',
                   controller: _largura,
                   keyboardType: TextInputType.number,
+                  validator: _validarMedidaOpcional,
                 ),
               ),
               const SizedBox(width: 18),
@@ -666,6 +700,7 @@ class _PaginaCamposProjetoState extends State<PaginaCamposProjeto> {
                   hint: 'Ex: 80',
                   controller: _altura,
                   keyboardType: TextInputType.number,
+                  validator: _validarMedidaOpcional,
                 ),
               ),
             ],

@@ -8,8 +8,16 @@ class RelatoriosViewModel extends BaseViewModel {
   final RepositorioRelatorios _repositorio;
   List<Relatorio> _relatorios = [];
   String _termoBusca = '';
+  String? _mensagemErroAcao;
 
   RelatoriosViewModel(this._repositorio);
+
+  // Erro de uma ação pontual (baixar/renomear/excluir um item), separado de
+  // `mensagemErro` — que é reservado para falha da carga da lista. Antes,
+  // essas ações reaproveitavam `iniciarCarregamento`/`definirErro`, o que
+  // trocava a lista inteira pela tela de erro a cada falha pontual, mesmo com
+  // a lista já carregada.
+  String? get mensagemErroAcao => _mensagemErroAcao;
 
   List<Relatorio> get relatorios {
     final termo = _termoBusca.trim().toLowerCase();
@@ -42,37 +50,35 @@ class RelatoriosViewModel extends BaseViewModel {
   }
 
   Future<Uint8List?> baixar(int relatorioId) async {
-    iniciarCarregamento();
     try {
-      final bytes = await _repositorio.baixarRelatorio(relatorioId);
-      finalizarCarregamento();
-      return bytes;
+      return await _repositorio.baixarRelatorio(relatorioId);
     } catch (erro) {
-      definirErro(erro);
+      _mensagemErroAcao = erro.toString();
+      notifyListeners();
       return null;
     }
   }
 
   Future<bool> renomear({required int relatorioId, required String nome}) async {
-    iniciarCarregamento();
     try {
       await _repositorio.atualizarRelatorio(relatorioId: relatorioId, nome: nome);
       await carregar();
       return true;
     } catch (erro) {
-      definirErro(erro);
+      _mensagemErroAcao = erro.toString();
+      notifyListeners();
       return false;
     }
   }
 
   Future<bool> excluir(int relatorioId) async {
-    iniciarCarregamento();
     try {
       await _repositorio.excluirRelatorio(relatorioId);
       await carregar();
       return true;
     } catch (erro) {
-      definirErro(erro);
+      _mensagemErroAcao = erro.toString();
+      notifyListeners();
       return false;
     }
   }

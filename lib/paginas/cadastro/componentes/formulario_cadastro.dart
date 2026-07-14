@@ -3,6 +3,7 @@ import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/cadastro_view_model.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
+import 'package:gerelat_frontend/nucleo/utils/validadores.dart';
 import 'package:go_router/go_router.dart';
 
 /// Formulário de cadastro de novo usuário.
@@ -184,7 +185,7 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
         // Valida formato básico de e-mail
         validator: (valor) {
           if (valor == null || valor.isEmpty) return 'Informe o e-mail';
-          if (!valor.contains('@')) return 'E-mail inválido';
+          if (!emailValido(valor)) return 'E-mail inválido';
           return null;
         },
       ),

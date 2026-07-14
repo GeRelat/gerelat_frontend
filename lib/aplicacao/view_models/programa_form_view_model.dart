@@ -52,6 +52,7 @@ class ProgramaFormViewModel extends BaseViewModel {
           leiCriacao: leiCriacao,
           convenioDados: convenioDados,
           rodape: rodape,
+          logomarca: logomarca,
           clienteId: clienteId,
         );
       } else {

@@ -62,12 +62,23 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
   }
 
   Future<void> _selecionarArquivo() async {
-    final arquivo = await selecionarArquivo(accept: '.docx');
-    if (arquivo == null) return;
-    setState(() {
-      _nomeArquivo = arquivo.nome;
-      _arquivoBytes = arquivo.bytes;
-    });
+    try {
+      final arquivo = await selecionarArquivo(
+        accept: '.docx',
+        extensoesPermitidas: const ['.docx'],
+        tamanhoMaximoBytes: 10 * 1024 * 1024,
+      );
+      if (arquivo == null) return;
+      setState(() {
+        _nomeArquivo = arquivo.nome;
+        _arquivoBytes = arquivo.bytes;
+      });
+    } on ArquivoInvalidoException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.mensagem)));
+    }
   }
 
   Future<void> _salvar() async {

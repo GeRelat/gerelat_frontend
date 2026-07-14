@@ -98,8 +98,14 @@ class ServicoApiGerelat {
 
   void _validar(http.Response resposta) {
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) return;
-    if (resposta.statusCode == 401 || resposta.statusCode == 403) {
+    if (resposta.statusCode == 401) {
       throw Exception('Sessão expirada. Faça login novamente.');
+    }
+    if (resposta.statusCode == 403) {
+      throw Exception(
+        _detalheErro(resposta) ??
+            'Você não tem permissão para executar esta ação.',
+      );
     }
     final detalhe = _detalheErro(resposta);
     throw Exception(

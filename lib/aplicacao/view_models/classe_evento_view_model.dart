@@ -10,6 +10,12 @@ class ClasseEventoViewModel extends BaseViewModel {
   int? _projetoSelecionadoId;
   List<ClasseEvento> _classes = [];
 
+  // Token da requisição de classes mais recente. Trocar de projeto
+  // rapidamente dispara uma nova chamada antes da anterior responder; sem
+  // isso, uma resposta atrasada do projeto antigo poderia sobrescrever a
+  // lista de classes já correta do projeto atual.
+  int _tokenClasses = 0;
+
   ClasseEventoViewModel(this._repositorio);
 
   List<OpcaoSelecao> get projetos => List.unmodifiable(_projetos);
@@ -29,16 +35,20 @@ class ClasseEventoViewModel extends BaseViewModel {
   Future<void> selecionarProjeto(int? projetoId) async {
     _projetoSelecionadoId = projetoId;
     _classes = [];
+    final token = ++_tokenClasses;
     notifyListeners();
     if (projetoId == null) return;
 
     iniciarCarregamento();
     try {
-      _classes = await _repositorio.listarClassesEventoDetalhadas(
+      final classes = await _repositorio.listarClassesEventoDetalhadas(
         projetoId: projetoId,
       );
+      if (token != _tokenClasses) return;
+      _classes = classes;
       finalizarCarregamento();
     } catch (erro) {
+      if (token != _tokenClasses) return;
       definirErro(erro);
     }
   }

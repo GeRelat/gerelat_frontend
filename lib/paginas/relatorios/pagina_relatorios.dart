@@ -142,7 +142,7 @@ class _PaginaRelatoriosState extends State<PaginaRelatorios> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_viewModel.mensagemErro != null) {
+    if (_viewModel.mensagemErro != null && _viewModel.estaVazio) {
       return EstadoVazio(
         icone: LucideIcons.circle_alert,
         titulo: 'Nao foi possivel carregar os relatorios',
@@ -233,7 +233,7 @@ class _PaginaRelatoriosState extends State<PaginaRelatorios> {
     final bytes = await _viewModel.baixar(relatorioId);
     if (!mounted) return;
     if (bytes == null || bytes.isEmpty) {
-      final mensagemErro = _viewModel.mensagemErro;
+      final mensagemErro = _viewModel.mensagemErroAcao;
       if (mensagemErro != null) {
         ScaffoldMessenger.of(
           context,
@@ -255,23 +255,28 @@ class _PaginaRelatoriosState extends State<PaginaRelatorios> {
     if (relatorioId == null) return;
 
     final controlador = TextEditingController(text: relatorio.titulo);
-    final novoNome = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Renomear relatório'),
-        content: TextField(controller: controlador, autofocus: true),
-        actions: [
-          TextButton(
-            onPressed: () => context.pop(null),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => context.pop(controlador.text.trim()),
-            child: const Text('Salvar'),
-          ),
-        ],
-      ),
-    );
+    final String? novoNome;
+    try {
+      novoNome = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Renomear relatório'),
+          content: TextField(controller: controlador, autofocus: true),
+          actions: [
+            TextButton(
+              onPressed: () => context.pop(null),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => context.pop(controlador.text.trim()),
+              child: const Text('Salvar'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      controlador.dispose();
+    }
     if (novoNome == null || novoNome.isEmpty || !mounted) return;
 
     final sucesso = await _viewModel.renomear(
@@ -281,7 +286,7 @@ class _PaginaRelatoriosState extends State<PaginaRelatorios> {
     if (!mounted || sucesso) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(_viewModel.mensagemErro ?? 'Erro ao renomear.'),
+        content: Text(_viewModel.mensagemErroAcao ?? 'Erro ao renomear.'),
       ),
     );
   }
@@ -319,7 +324,9 @@ class _PaginaRelatoriosState extends State<PaginaRelatorios> {
     if (!mounted || sucesso) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(_viewModel.mensagemErro ?? 'Erro ao excluir relatório.'),
+        content: Text(
+          _viewModel.mensagemErroAcao ?? 'Erro ao excluir relatório.',
+        ),
       ),
     );
   }

@@ -27,6 +27,12 @@ class TemplateFormViewModel extends BaseViewModel {
   Set<int> _equipeProgramaSelecionada = {};
   Set<int> _equipeProjetoSelecionada = {};
 
+  // Guarda o id assim que `criarTemplate` responde com sucesso. Se uma etapa
+  // seguinte de `salvar` (vínculo de classe/assinatura) falhar, o template já
+  // existe no servidor; um novo clique em "Criar Template" deve continuar a
+  // partir daqui (via `atualizarTemplate`), não criar um segundo registro.
+  int? _idTemplateCriado;
+
   TemplateFormViewModel(RepositorioCatalogo repositorio)
     : _eventosRepositorio = repositorio,
       _templatesRepositorio = repositorio,
@@ -171,7 +177,7 @@ class TemplateFormViewModel extends BaseViewModel {
   }) async {
     iniciarCarregamento();
     try {
-      var idTemplate = templateId;
+      var idTemplate = templateId ?? _idTemplateCriado;
       if (idTemplate == null) {
         if (arquivoBytes == null || nomeArquivo == null) {
           throw Exception('Selecione um arquivo .docx para criar o template.');
@@ -182,6 +188,7 @@ class TemplateFormViewModel extends BaseViewModel {
           arquivoBytes: arquivoBytes,
           nomeArquivo: nomeArquivo,
         );
+        _idTemplateCriado = idTemplate;
       } else {
         await _templatesRepositorio.atualizarTemplate(
           templateId: idTemplate,
@@ -190,6 +197,17 @@ class TemplateFormViewModel extends BaseViewModel {
           arquivoBytes: arquivoBytes,
           nomeArquivo: nomeArquivo,
         );
+        // `idTemplate` aqui pode vir de uma edição normal ou de uma
+        // tentativa anterior que criou o template mas falhou num passo
+        // seguinte. Em ambos os casos, relê o que já está vinculado no
+        // servidor antes de calcular o diff abaixo — sem isso, um reenvio
+        // tentaria recriar um vínculo/assinatura que a tentativa anterior já
+        // criou com sucesso, o que viola a constraint de unicidade no
+        // backend e travaria o reenvio para sempre no mesmo erro.
+        _vinculosCarregados = await _templatesRepositorio
+            .listarVinculosClasseTemplate(idTemplate);
+        _assinaturasCarregadas = await _templatesRepositorio
+            .listarAssinaturasTemplate(idTemplate);
       }
 
       final classesAdicionadas = _classesSelecionadas.difference(

@@ -5,6 +5,7 @@ import 'package:gerelat_frontend/aplicacao/view_models/evento_form_view_model.da
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
+import 'package:gerelat_frontend/nucleo/utils/formatadores.dart';
 import 'package:go_router/go_router.dart';
 
 class PaginaFormularioEvento extends StatefulWidget {
@@ -35,6 +36,12 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
     _viewModel = EventoFormViewModel(
       DependenciasApp.instancia.repositorioCatalogo,
     );
+    // Classe existente (dropdown) e nova classe (texto livre) são mutuamente
+    // exclusivas — `EventoFormViewModel.salvar` só cria a classe digitada
+    // quando nenhuma classe foi selecionada. Sem isso, dava pra digitar um
+    // nome aqui com uma classe já selecionada e o texto era descartado sem
+    // aviso nenhum ao salvar.
+    _novaClasse.addListener(_aoDigitarNovaClasse);
     final eventoId = widget.eventoId;
     if (widget.edicao && eventoId != null) {
       _viewModel.carregarEdicao(eventoId).then((_) {
@@ -56,6 +63,7 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
 
   @override
   void dispose() {
+    _novaClasse.removeListener(_aoDigitarNovaClasse);
     _nome.dispose();
     _data.dispose();
     _local.dispose();
@@ -64,6 +72,12 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
     _novaClasse.dispose();
     _viewModel.dispose();
     super.dispose();
+  }
+
+  void _aoDigitarNovaClasse() {
+    if (_classeId != null && _novaClasse.text.trim().isNotEmpty) {
+      setState(() => _classeId = null);
+    }
   }
 
   Future<void> _salvar() async {
@@ -157,8 +171,10 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
                                     ),
                                   )
                                   .toList(),
-                              onChanged: (value) =>
-                                  setState(() => _classeId = value),
+                              onChanged: (value) => setState(() {
+                                _classeId = value;
+                                if (value != null) _novaClasse.clear();
+                              }),
                               validator: (value) =>
                                   value == null &&
                                       _novaClasse.text.trim().isEmpty
@@ -189,6 +205,8 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
                         hint: 'DD/MM/AAAA',
                         icone: LucideIcons.calendar_days,
                         controller: _data,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FormatadorData()],
                         validator: (valor) => _parseData(valor ?? '') == null
                             ? 'Informe uma data válida'
                             : null,

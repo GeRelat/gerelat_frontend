@@ -126,6 +126,7 @@ class RepositorioCatalogoMemoria implements RepositorioCatalogo {
     required String leiCriacao,
     required String convenioDados,
     String rodape = '',
+    String logomarca = '',
     int? clienteId,
   }) async {}
 

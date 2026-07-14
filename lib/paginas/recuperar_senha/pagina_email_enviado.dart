@@ -1,16 +1,51 @@
 import 'package:flutter/material.dart';
+import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:go_router/go_router.dart';
 
 /// Página exibida após o envio do e-mail de recuperação de senha.
 /// Confirma o envio e oferece ação de reenvio e retorno ao login.
-class PaginaEmailEnviado extends StatelessWidget {
-  const PaginaEmailEnviado({super.key});
+class PaginaEmailEnviado extends StatefulWidget {
+  final String? email;
+
+  const PaginaEmailEnviado({super.key, this.email});
+
+  @override
+  State<PaginaEmailEnviado> createState() => _PaginaEmailEnviadoState();
+}
+
+class _PaginaEmailEnviadoState extends State<PaginaEmailEnviado> {
+  bool _reenviando = false;
 
   /// Navega para o login limpando todo o histórico de navegação
-  void _voltarAoLogin(BuildContext context) {
+  void _voltarAoLogin() {
     context.go('/login');
+  }
+
+  Future<void> _reenviar() async {
+    final email = widget.email;
+    if (email == null || email.isEmpty) {
+      context.go('/recuperar-senha');
+      return;
+    }
+    if (_reenviando) return;
+
+    setState(() => _reenviando = true);
+    final resultado = await DependenciasApp.instancia.repositorioAutenticacao
+        .solicitarRecuperacaoSenha(email: email);
+    if (!mounted) return;
+    setState(() => _reenviando = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          resultado.sucesso
+              ? 'E-mail reenviado para $email.'
+              : resultado.mensagemErro ?? 'Erro ao reenviar o e-mail.',
+        ),
+      ),
+    );
   }
 
   @override
@@ -27,7 +62,7 @@ class PaginaEmailEnviado extends StatelessWidget {
                   horizontal: 24,
                   vertical: 40,
                 ),
-                child: _construirCard(context),
+                child: _construirCard(),
               ),
             ),
           ),
@@ -55,7 +90,7 @@ class PaginaEmailEnviado extends StatelessWidget {
   }
 
   /// Card principal branco com ícone, texto e ações
-  Widget _construirCard(BuildContext context) {
+  Widget _construirCard() {
     return Container(
       width: 448,
       padding: const EdgeInsets.all(48),
@@ -77,7 +112,7 @@ class PaginaEmailEnviado extends StatelessWidget {
           const SizedBox(height: 32),
           _construirTextos(),
           const SizedBox(height: 32),
-          _construirAcoes(context),
+          _construirAcoes(),
         ],
       ),
     );
@@ -150,7 +185,7 @@ class PaginaEmailEnviado extends StatelessWidget {
   }
 
   /// Botão principal e texto auxiliar de reenvio
-  Widget _construirAcoes(BuildContext context) {
+  Widget _construirAcoes() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -158,7 +193,7 @@ class PaginaEmailEnviado extends StatelessWidget {
         SizedBox(
           height: 52,
           child: ElevatedButton(
-            onPressed: () => _voltarAoLogin(context),
+            onPressed: _voltarAoLogin,
             style: ElevatedButton.styleFrom(
               backgroundColor: Cores.azulPrimario,
               foregroundColor: Cores.branco,
@@ -190,19 +225,13 @@ class PaginaEmailEnviado extends StatelessWidget {
                 child: MouseRegion(
                   cursor: SystemMouseCursors.click,
                   child: GestureDetector(
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Reenvio indisponível até a API oferecer recuperação de senha.',
-                          ),
-                        ),
-                      );
-                    },
+                    onTap: _reenviando ? null : _reenviar,
                     child: Text(
-                      'Tente reenviar',
+                      _reenviando ? 'Reenviando...' : 'Tente reenviar',
                       style: Tipografia.labelLarge.copyWith(
-                        color: Cores.azulPrimario,
+                        color: _reenviando
+                            ? Cores.cinzaMedio
+                            : Cores.azulPrimario,
                       ),
                     ),
                   ),

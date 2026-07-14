@@ -9,6 +9,12 @@ class EventoFormViewModel extends BaseViewModel {
   List<OpcaoSelecao> _classes = [];
   Evento? _evento;
 
+  // Token da requisição de classes mais recente. Trocar de projeto
+  // rapidamente dispara uma nova chamada antes da anterior responder; sem
+  // isso, uma resposta atrasada do projeto antigo poderia sobrescrever a
+  // lista de classes já correta do projeto atual.
+  int _tokenClasses = 0;
+
   EventoFormViewModel(this._repositorio);
 
   List<OpcaoSelecao> get projetos => List.unmodifiable(_projetos);
@@ -27,11 +33,17 @@ class EventoFormViewModel extends BaseViewModel {
   }
 
   Future<void> carregarClassesProjeto(int projetoId) async {
+    final token = ++_tokenClasses;
     iniciarCarregamento();
     try {
-      _classes = await _repositorio.listarClassesEvento(projetoId: projetoId);
+      final classes = await _repositorio.listarClassesEvento(
+        projetoId: projetoId,
+      );
+      if (token != _tokenClasses) return;
+      _classes = classes;
       finalizarCarregamento();
     } catch (erro) {
+      if (token != _tokenClasses) return;
       definirErro(erro);
     }
   }

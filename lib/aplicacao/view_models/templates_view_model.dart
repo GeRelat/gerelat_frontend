@@ -8,8 +8,17 @@ class TemplatesViewModel extends BaseViewModel {
   final RepositorioTemplates _repositorio;
   List<TemplateRelatorio> _templates = [];
   String _termoBusca = '';
+  String? _mensagemErroAcao;
 
   TemplatesViewModel(this._repositorio);
+
+  // Erro de uma ação pontual (excluir/baixar um item), separado de
+  // `mensagemErro` — que é reservado para falha da carga da lista. Antes,
+  // excluir/baixar reaproveitava `iniciarCarregamento`/`definirErro`, o que
+  // trocava a grade inteira pela tela de erro (ou pelo spinner, derrubando o
+  // card no meio da ação) a cada falha pontual, mesmo com a lista já
+  // carregada.
+  String? get mensagemErroAcao => _mensagemErroAcao;
 
   List<TemplateRelatorio> get templates {
     final termo = _termoBusca.trim().toLowerCase();
@@ -39,25 +48,23 @@ class TemplatesViewModel extends BaseViewModel {
   }
 
   Future<bool> excluir(int templateId) async {
-    iniciarCarregamento();
     try {
       await _repositorio.excluirTemplate(templateId);
       await carregar();
       return true;
     } catch (erro) {
-      definirErro(erro);
+      _mensagemErroAcao = erro.toString();
+      notifyListeners();
       return false;
     }
   }
 
   Future<Uint8List?> baixarArquivo(int templateId) async {
-    iniciarCarregamento();
     try {
-      final bytes = await _repositorio.baixarArquivoTemplate(templateId);
-      finalizarCarregamento();
-      return bytes;
+      return await _repositorio.baixarArquivoTemplate(templateId);
     } catch (erro) {
-      definirErro(erro);
+      _mensagemErroAcao = erro.toString();
+      notifyListeners();
       return null;
     }
   }

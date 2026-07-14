@@ -101,7 +101,7 @@ class _PaginaTemplatesState extends State<PaginaTemplates> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_viewModel.mensagemErro != null) {
+    if (_viewModel.mensagemErro != null && _viewModel.templates.isEmpty) {
       return EstadoVazio(
         icone: LucideIcons.circle_alert,
         titulo: 'Nao foi possivel carregar os templates',
@@ -147,7 +147,7 @@ class _PaginaTemplatesState extends State<PaginaTemplates> {
                     onEditado: _viewModel.carregar,
                     onExcluir: _viewModel.excluir,
                     onBaixar: _viewModel.baixarArquivo,
-                    obterMensagemErro: () => _viewModel.mensagemErro,
+                    obterMensagemErro: () => _viewModel.mensagemErroAcao,
                   ),
                 ),
               )
@@ -310,7 +310,9 @@ class _CartaoTemplate extends StatelessWidget {
     final sucesso = await onExcluir(templateId);
     if (!context.mounted || sucesso) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Erro ao excluir o template.')),
+      SnackBar(
+        content: Text(obterMensagemErro() ?? 'Erro ao excluir o template.'),
+      ),
     );
   }
 

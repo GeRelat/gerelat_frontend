@@ -2,10 +2,16 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'dart:html' as html;
 
-import 'arquivo_web_stub.dart' show ArquivoSelecionadoWeb;
+import 'arquivo_web_stub.dart'
+    show ArquivoSelecionadoWeb, ArquivoInvalidoException;
+
+export 'arquivo_web_stub.dart'
+    show ArquivoSelecionadoWeb, ArquivoInvalidoException;
 
 Future<ArquivoSelecionadoWeb?> selecionarArquivo({
   String accept = '*/*',
+  List<String> extensoesPermitidas = const [],
+  int? tamanhoMaximoBytes,
 }) async {
   final input = html.FileUploadInputElement()
     ..accept = accept
@@ -19,10 +25,41 @@ Future<ArquivoSelecionadoWeb?> selecionarArquivo({
     if (!completer.isCompleted) completer.complete(resultado);
   }
 
+  void finalizarComErro(Object erro) {
+    input.remove();
+    if (!completer.isCompleted) completer.completeError(erro);
+  }
+
   input.onChange.listen((_) {
     final arquivo = input.files?.first;
     if (arquivo == null) {
       finalizar(null);
+      return;
+    }
+
+    if (extensoesPermitidas.isNotEmpty) {
+      final nomeMinusculo = arquivo.name.toLowerCase();
+      final extensaoValida = extensoesPermitidas.any(
+        (extensao) => nomeMinusculo.endsWith(extensao.toLowerCase()),
+      );
+      if (!extensaoValida) {
+        finalizarComErro(
+          ArquivoInvalidoException(
+            'Tipo de arquivo não permitido. Extensões aceitas: '
+            '${extensoesPermitidas.join(', ')}.',
+          ),
+        );
+        return;
+      }
+    }
+
+    if (tamanhoMaximoBytes != null && arquivo.size > tamanhoMaximoBytes) {
+      final limiteMb = (tamanhoMaximoBytes / (1024 * 1024)).toStringAsFixed(1);
+      finalizarComErro(
+        ArquivoInvalidoException(
+          'Arquivo muito grande. Tamanho máximo permitido: ${limiteMb}MB.',
+        ),
+      );
       return;
     }
 

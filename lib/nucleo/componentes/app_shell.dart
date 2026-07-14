@@ -13,6 +13,7 @@ enum SecaoApp {
   relatorios,
   templates,
   assets,
+  configuracoes,
 }
 
 class AppShell extends StatelessWidget {
@@ -206,7 +207,7 @@ class _SideNav extends StatelessWidget {
                 _NavItem(
                   icon: LucideIcons.settings,
                   label: 'Configuracoes',
-                  ativo: false,
+                  ativo: secaoAtual == SecaoApp.configuracoes,
                   onTap: () => context.go('/configuracoes'),
                 ),
                 _NavItem(

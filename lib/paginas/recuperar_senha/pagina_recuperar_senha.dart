@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
+import 'package:gerelat_frontend/nucleo/utils/validadores.dart';
 import 'package:go_router/go_router.dart';
 
 /// Página de recuperação de senha.
@@ -39,7 +40,10 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
     setState(() => _enviando = false);
 
     if (resultado.sucesso) {
-      context.go('/recuperar-senha/enviado');
+      context.go(
+        '/recuperar-senha/enviado',
+        extra: _controladorEmail.text.trim(),
+      );
       return;
     }
 
@@ -318,7 +322,7 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
           // Valida formato básico de e-mail
           validator: (valor) {
             if (valor == null || valor.isEmpty) return 'Informe o e-mail';
-            if (!valor.contains('@')) return 'E-mail inválido';
+            if (!emailValido(valor)) return 'E-mail inválido';
             return null;
           },
         ),

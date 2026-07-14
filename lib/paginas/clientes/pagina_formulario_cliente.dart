@@ -5,6 +5,8 @@ import 'package:gerelat_frontend/aplicacao/view_models/cliente_form_view_model.d
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
+import 'package:gerelat_frontend/nucleo/utils/formatadores.dart';
+import 'package:gerelat_frontend/nucleo/utils/validadores.dart';
 import 'package:go_router/go_router.dart';
 
 class PaginaFormularioCliente extends StatefulWidget {
@@ -140,134 +142,165 @@ class _PaginaFormularioClienteState extends State<PaginaFormularioCliente> {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _viewModel,
-      builder: (context, _) => SingleChildScrollView(
-        padding: const EdgeInsets.all(32),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.edicao ? 'Editar cliente' : 'Cadastrar cliente',
-                      style: Tipografia.headlineMedium.copyWith(
-                        color: Cores.textoPrincipal,
-                      ),
+      builder: (context, _) {
+        // Só se aplica ao carregamento inicial em modo edição: sem essas
+        // duas checagens, uma falha no GET do cliente deixava o formulário
+        // em branco e mudo — indistinguível de um cadastro novo — porque
+        // `build()` nunca lia `mensagemErro`/`carregando` do ViewModel.
+        if (widget.edicao &&
+            _viewModel.carregando &&
+            _viewModel.cliente == null) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (widget.edicao &&
+            _viewModel.mensagemErro != null &&
+            _viewModel.cliente == null) {
+          final clienteId = widget.clienteId;
+          return EstadoVazio(
+            icone: LucideIcons.circle_alert,
+            titulo: 'Não foi possível carregar o cliente',
+            descricao: _viewModel.mensagemErro!,
+            acao: 'Tentar novamente',
+            onAcao: clienteId == null
+                ? null
+                : () => _viewModel.carregar(clienteId),
+          );
+        }
+        return _conteudoFormulario(context);
+      },
+    );
+  }
+
+  Widget _conteudoFormulario(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(32),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.edicao ? 'Editar cliente' : 'Cadastrar cliente',
+                    style: Tipografia.headlineMedium.copyWith(
+                      color: Cores.textoPrincipal,
                     ),
                   ),
-                  if (widget.edicao)
-                    TextButton.icon(
-                      onPressed: _viewModel.carregando ? null : _excluir,
-                      icon: const Icon(
-                        LucideIcons.trash_2,
-                        size: 18,
-                        color: Cores.vermelhoErro,
-                      ),
-                      label: const Text(
-                        'Excluir',
-                        style: TextStyle(color: Cores.vermelhoErro),
-                      ),
+                ),
+                if (widget.edicao)
+                  TextButton.icon(
+                    onPressed: _viewModel.carregando ? null : _excluir,
+                    icon: const Icon(
+                      LucideIcons.trash_2,
+                      size: 18,
+                      color: Cores.vermelhoErro,
                     ),
+                    label: const Text(
+                      'Excluir',
+                      style: TextStyle(color: Cores.vermelhoErro),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            CartaoConteudo(
+              child: Column(
+                children: [
+                  CampoFormulario(
+                    label: 'Nome do Cliente',
+                    hint: 'Ex: Secretaria de Inovação',
+                    icone: LucideIcons.building_2,
+                    controller: _nome,
+                    validator: _obrigatorio,
+                  ),
+                  const SizedBox(height: 18),
+                  CampoFormulario(
+                    label: 'CNPJ',
+                    hint: '00.000.000/0000-00',
+                    icone: LucideIcons.hash,
+                    controller: _cnpj,
+                    validator: _validarCnpj,
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: CampoFormulario(
+                          label: 'Nome do Contato',
+                          hint: 'Nome do responsável',
+                          icone: LucideIcons.user,
+                          controller: _nomeContato,
+                          validator: _obrigatorio,
+                        ),
+                      ),
+                      const SizedBox(width: 18),
+                      Expanded(
+                        child: CampoFormulario(
+                          label: 'E-mail do Contato',
+                          hint: 'contato@cliente.com',
+                          icone: LucideIcons.mail,
+                          controller: _emailContato,
+                          keyboardType: TextInputType.emailAddress,
+                          validator: _validarEmail,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: CampoFormulario(
+                          label: 'Telefone do Contato',
+                          hint: '(00) 0 00.00.00.00',
+                          icone: LucideIcons.phone,
+                          controller: _foneContato,
+                          keyboardType: TextInputType.phone,
+                          inputFormatters: [FormatadorTelefone()],
+                          validator: _validarTelefone,
+                        ),
+                      ),
+                      const SizedBox(width: 18),
+                      Expanded(
+                        child: CampoFormulario(
+                          label: 'Número do Contrato',
+                          hint: 'Ex: 123/2026',
+                          icone: LucideIcons.signature,
+                          controller: _numeroContrato,
+                          validator: _obrigatorio,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  CampoFormulario(
+                    label: 'Término do Contrato',
+                    hint: 'DD/MM/AAAA',
+                    icone: LucideIcons.calendar_days,
+                    controller: _dataTerminoContrato,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FormatadorData()],
+                    validator: (valor) => _parseData(valor ?? '') == null
+                        ? 'Informe uma data válida'
+                        : null,
+                  ),
+                  const SizedBox(height: 28),
+                  BarraAcoesFormulario(
+                    textoPrimario: _viewModel.carregando
+                        ? 'Salvando...'
+                        : widget.edicao
+                        ? 'Salvar Cliente'
+                        : 'Criar Cliente',
+                    onSalvar: _viewModel.carregando ? null : _salvar,
+                  ),
                 ],
               ),
-              const SizedBox(height: 24),
-              CartaoConteudo(
-                child: Column(
-                  children: [
-                    CampoFormulario(
-                      label: 'Nome do Cliente',
-                      hint: 'Ex: Secretaria de Inovação',
-                      icone: LucideIcons.building_2,
-                      controller: _nome,
-                      validator: _obrigatorio,
-                    ),
-                    const SizedBox(height: 18),
-                    CampoFormulario(
-                      label: 'CNPJ',
-                      hint: '00.000.000/0000-00',
-                      icone: LucideIcons.hash,
-                      controller: _cnpj,
-                      validator: _obrigatorio,
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: CampoFormulario(
-                            label: 'Nome do Contato',
-                            hint: 'Nome do responsável',
-                            icone: LucideIcons.user,
-                            controller: _nomeContato,
-                            validator: _obrigatorio,
-                          ),
-                        ),
-                        const SizedBox(width: 18),
-                        Expanded(
-                          child: CampoFormulario(
-                            label: 'E-mail do Contato',
-                            hint: 'contato@cliente.com',
-                            icone: LucideIcons.mail,
-                            controller: _emailContato,
-                            keyboardType: TextInputType.emailAddress,
-                            validator: _obrigatorio,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: CampoFormulario(
-                            label: 'Telefone do Contato',
-                            hint: '(00) 00000-0000',
-                            icone: LucideIcons.phone,
-                            controller: _foneContato,
-                            keyboardType: TextInputType.phone,
-                            validator: _obrigatorio,
-                          ),
-                        ),
-                        const SizedBox(width: 18),
-                        Expanded(
-                          child: CampoFormulario(
-                            label: 'Número do Contrato',
-                            hint: 'Ex: 123/2026',
-                            icone: LucideIcons.signature,
-                            controller: _numeroContrato,
-                            validator: _obrigatorio,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    CampoFormulario(
-                      label: 'Término do Contrato',
-                      hint: 'DD/MM/AAAA',
-                      icone: LucideIcons.calendar_days,
-                      controller: _dataTerminoContrato,
-                      validator: (valor) =>
-                          _parseData(valor ?? '') == null
-                          ? 'Informe uma data válida'
-                          : null,
-                    ),
-                    const SizedBox(height: 28),
-                    BarraAcoesFormulario(
-                      textoPrimario: _viewModel.carregando
-                          ? 'Salvando...'
-                          : widget.edicao
-                          ? 'Salvar Cliente'
-                          : 'Criar Cliente',
-                      onSalvar: _viewModel.carregando ? null : _salvar,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -275,6 +308,27 @@ class _PaginaFormularioClienteState extends State<PaginaFormularioCliente> {
 
   String? _obrigatorio(String? valor) {
     if (valor == null || valor.trim().isEmpty) return 'Campo obrigatório';
+    return null;
+  }
+
+  String? _validarCnpj(String? valor) {
+    final erro = _obrigatorio(valor);
+    if (erro != null) return erro;
+    if (!cnpjValido(valor!)) return 'CNPJ inválido';
+    return null;
+  }
+
+  String? _validarEmail(String? valor) {
+    final erro = _obrigatorio(valor);
+    if (erro != null) return erro;
+    if (!emailValido(valor!)) return 'E-mail inválido';
+    return null;
+  }
+
+  String? _validarTelefone(String? valor) {
+    final erro = _obrigatorio(valor);
+    if (erro != null) return erro;
+    if (!telefoneValido(valor!)) return 'Telefone inválido';
     return null;
   }
 

@@ -178,12 +178,30 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
       nomeCliente = _texto(cliente['nome']);
     }
 
+    // A API não filtra por query param, então contamos como em
+    // `listarProgramas`: projetos ligados a este programa e eventos ligados
+    // a esses projetos.
+    final projetos = await _getLista('/projetos/');
+    final idsProjetosDoPrograma = projetos
+        .where((projeto) => _inteiro(projeto['programa']) == programaId)
+        .map((projeto) => _inteiro(projeto['id_projeto']))
+        .whereType<int>()
+        .toSet();
+
+    final eventos = await _getLista('/eventos/');
+    final totalEventos = eventos
+        .where(
+          (evento) =>
+              idsProjetosDoPrograma.contains(_inteiro(evento['projeto'])),
+        )
+        .length;
+
     return Programa(
       id: _inteiro(programa['id_programa']),
       nome: _texto(programa['nome'], fallback: 'Programa sem nome'),
       descricao: _descricaoPrograma(programa),
-      projetos: 0,
-      eventos: 0,
+      projetos: idsProjetosDoPrograma.length,
+      eventos: totalEventos,
       status: 'Ativo',
       leiCriacao: _texto(programa['lei_criacao']),
       convenioDados: _texto(programa['convenio_dados']),
@@ -367,6 +385,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
     required String leiCriacao,
     required String convenioDados,
     String rodape = '',
+    String logomarca = '',
     int? clienteId,
   }) async {
     await _api.criar('/programas/', {
@@ -374,7 +393,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
       'lei_criacao': leiCriacao,
       'convenio_dados': convenioDados,
       'rodape': rodape,
-      'logomarca': '',
+      'logomarca': logomarca,
       'cliente': clienteId,
     });
   }
@@ -629,7 +648,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
       'projeto': projetoId,
       'nome_classe': nomeClasse,
     });
-    return _inteiro(resposta['id_classe']) ?? 0;
+    return _idCriado(resposta, 'id_classe', 'classe de evento');
   }
 
   @override
@@ -736,7 +755,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
       'projeto': projetoId,
       'modelo_json': modeloJson,
     });
-    return _inteiro(resposta['id_template']) ?? 0;
+    return _idCriado(resposta, 'id_template', 'template');
   }
 
   @override
@@ -1006,7 +1025,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
       nomeArquivo: nomeArquivo,
       contentType: _mimeImagem(nomeArquivo),
     );
-    return _inteiro(resposta['id']) ?? 0;
+    return _idCriado(resposta, 'id', 'asset');
   }
 
   @override
@@ -1068,6 +1087,19 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
     if (valor is int) return valor;
     if (valor is String) return int.tryParse(valor);
     return null;
+  }
+
+  /// Extrai o id retornado ao criar um recurso, ou lança um erro claro
+  /// se a API responder algo inesperado (em vez de mascarar com um id `0`
+  /// silencioso, que só apareceria depois como um 404 confuso).
+  int _idCriado(Map<String, dynamic> resposta, String chave, String recurso) {
+    final id = _inteiro(resposta[chave]);
+    if (id == null) {
+      throw Exception(
+        'Resposta inesperada da API ao criar $recurso: campo "$chave" ausente.',
+      );
+    }
+    return id;
   }
 
   String _texto(Object? valor, {String fallback = ''}) {

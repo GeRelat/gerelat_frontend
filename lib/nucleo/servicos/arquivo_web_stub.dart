@@ -7,8 +7,21 @@ class ArquivoSelecionadoWeb {
   const ArquivoSelecionadoWeb({required this.nome, required this.bytes});
 }
 
+/// Lançada quando o arquivo escolhido pelo usuário não passa na validação
+/// client-side de extensão ou tamanho.
+class ArquivoInvalidoException implements Exception {
+  final String mensagem;
+
+  const ArquivoInvalidoException(this.mensagem);
+
+  @override
+  String toString() => mensagem;
+}
+
 Future<ArquivoSelecionadoWeb?> selecionarArquivo({
   String accept = '*/*',
+  List<String> extensoesPermitidas = const [],
+  int? tamanhoMaximoBytes,
 }) {
   throw UnsupportedError(
     'selecionarArquivo só está disponível na plataforma web.',

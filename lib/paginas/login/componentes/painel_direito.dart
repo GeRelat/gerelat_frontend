@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/login_view_model.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
+import 'package:gerelat_frontend/nucleo/utils/validadores.dart';
 import 'package:go_router/go_router.dart';
 
 class PainelDireito extends StatefulWidget {
@@ -160,7 +161,7 @@ class _PainelDireitoState extends State<PainelDireito> {
       ),
       validator: (valor) {
         if (valor == null || valor.isEmpty) return 'Informe o e-mail';
-        if (!valor.contains('@')) return 'E-mail invalido';
+        if (!emailValido(valor)) return 'E-mail invalido';
         return null;
       },
     );

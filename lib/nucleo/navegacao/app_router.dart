@@ -29,6 +29,15 @@ import 'package:gerelat_frontend/paginas/templates/pagina_formulario_template.da
 import 'package:gerelat_frontend/paginas/templates/pagina_templates.dart';
 import 'package:go_router/go_router.dart';
 
+/// Faz o parse seguro de um parâmetro numérico de rota (`:id` etc.).
+/// Retorna `null` quando o parâmetro está ausente ou não é um inteiro válido,
+/// em vez de lançar [FormatException] dentro do `builder` — uma exceção ali
+/// não é interceptada pelo `errorBuilder` do [GoRouter], que só trata falhas
+/// de matching de rota.
+int? _idDaRota(GoRouterState state, [String parametro = 'id']) {
+  return int.tryParse(state.pathParameters[parametro] ?? '');
+}
+
 const _rotasPublicas = <String>[
   '/login',
   '/cadastro',
@@ -99,7 +108,7 @@ const _rotasPublicas = <String>[
     return (secao: SecaoApp.assets, titulo: 'Galeria de Imagens');
   }
   if (caminho.startsWith('/configuracoes')) {
-    return (secao: SecaoApp.dashboard, titulo: 'Configuracoes');
+    return (secao: SecaoApp.configuracoes, titulo: 'Configuracoes');
   }
   return (secao: SecaoApp.dashboard, titulo: 'Dashboard');
 }
@@ -114,7 +123,17 @@ final appRouter = GoRouter(
     );
 
     if (!autenticado && !indoParaRotaPublica) return '/login';
-    if (autenticado && indoParaRotaPublica) return '/dashboard';
+
+    // `/redefinir-senha` precisa funcionar mesmo com uma sessão válida no
+    // navegador: o link do e-mail de recuperação não sabe se quem clicou
+    // está logado, e há motivo legítimo para seguir o fluxo mesmo
+    // autenticado (ex.: sessão antiga ainda válida em outra aba). Sem essa
+    // exceção, o redirect abaixo descartava `uid`/`token` da URL e mandava
+    // direto para `/dashboard`, quebrando o link do e-mail em silêncio.
+    final indoParaRedefinirSenha = state.matchedLocation == '/redefinir-senha';
+    if (autenticado && indoParaRotaPublica && !indoParaRedefinirSenha) {
+      return '/dashboard';
+    }
     return null;
   },
   errorBuilder: (context, state) {
@@ -139,7 +158,8 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/recuperar-senha/enviado',
-      builder: (context, state) => const PaginaEmailEnviado(),
+      builder: (context, state) =>
+          PaginaEmailEnviado(email: state.extra as String?),
     ),
     GoRoute(
       path: '/redefinir-senha',
@@ -176,10 +196,16 @@ final appRouter = GoRouter(
         ),
         GoRoute(
           path: '/clientes/:id/editar',
-          builder: (context, state) => PaginaFormularioCliente(
-            edicao: true,
-            clienteId: int.parse(state.pathParameters['id']!),
-          ),
+          builder: (context, state) {
+            final clienteId = _idDaRota(state);
+            if (clienteId == null) {
+              return const PaginaNaoEncontrada(rotaDestino: '/clientes');
+            }
+            return PaginaFormularioCliente(
+              edicao: true,
+              clienteId: clienteId,
+            );
+          },
         ),
         GoRoute(
           path: '/programas',
@@ -191,10 +217,16 @@ final appRouter = GoRouter(
         ),
         GoRoute(
           path: '/programas/:id/editar',
-          builder: (context, state) => PaginaFormularioPrograma(
-            edicao: true,
-            programaId: int.parse(state.pathParameters['id']!),
-          ),
+          builder: (context, state) {
+            final programaId = _idDaRota(state);
+            if (programaId == null) {
+              return const PaginaNaoEncontrada(rotaDestino: '/programas');
+            }
+            return PaginaFormularioPrograma(
+              edicao: true,
+              programaId: programaId,
+            );
+          },
         ),
         GoRoute(
           path: '/programas/projetos/novo',
@@ -204,22 +236,33 @@ final appRouter = GoRouter(
         ),
         GoRoute(
           path: '/programas/projetos/:id/editar',
-          builder: (context, state) => PaginaFormularioProjeto(
-            edicao: true,
-            projetoId: int.parse(state.pathParameters['id']!),
-          ),
+          builder: (context, state) {
+            final projetoId = _idDaRota(state);
+            if (projetoId == null) {
+              return const PaginaNaoEncontrada(rotaDestino: '/programas');
+            }
+            return PaginaFormularioProjeto(edicao: true, projetoId: projetoId);
+          },
         ),
         GoRoute(
           path: '/programas/:id/projetos',
-          builder: (context, state) => PaginaProjetosPrograma(
-            programaId: int.parse(state.pathParameters['id']!),
-          ),
+          builder: (context, state) {
+            final programaId = _idDaRota(state);
+            if (programaId == null) {
+              return const PaginaNaoEncontrada(rotaDestino: '/programas');
+            }
+            return PaginaProjetosPrograma(programaId: programaId);
+          },
         ),
         GoRoute(
           path: '/programas/:id/equipe',
-          builder: (context, state) => PaginaEquipePrograma(
-            programaId: int.parse(state.pathParameters['id']!),
-          ),
+          builder: (context, state) {
+            final programaId = _idDaRota(state);
+            if (programaId == null) {
+              return const PaginaNaoEncontrada(rotaDestino: '/programas');
+            }
+            return PaginaEquipePrograma(programaId: programaId);
+          },
         ),
         GoRoute(
           path: '/projetos/equipe',
@@ -243,10 +286,13 @@ final appRouter = GoRouter(
         ),
         GoRoute(
           path: '/eventos/:id/editar',
-          builder: (context, state) => PaginaFormularioEvento(
-            edicao: true,
-            eventoId: int.parse(state.pathParameters['id']!),
-          ),
+          builder: (context, state) {
+            final eventoId = _idDaRota(state);
+            if (eventoId == null) {
+              return const PaginaNaoEncontrada(rotaDestino: '/eventos');
+            }
+            return PaginaFormularioEvento(edicao: true, eventoId: eventoId);
+          },
         ),
         GoRoute(
           path: '/templates',
@@ -258,10 +304,16 @@ final appRouter = GoRouter(
         ),
         GoRoute(
           path: '/templates/:id/editar',
-          builder: (context, state) => PaginaFormularioTemplate(
-            edicao: true,
-            templateId: int.parse(state.pathParameters['id']!),
-          ),
+          builder: (context, state) {
+            final templateId = _idDaRota(state);
+            if (templateId == null) {
+              return const PaginaNaoEncontrada(rotaDestino: '/templates');
+            }
+            return PaginaFormularioTemplate(
+              edicao: true,
+              templateId: templateId,
+            );
+          },
         ),
         GoRoute(
           path: '/relatorios',

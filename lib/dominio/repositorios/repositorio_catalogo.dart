@@ -58,6 +58,7 @@ abstract interface class RepositorioProgramas {
     required String leiCriacao,
     required String convenioDados,
     String rodape = '',
+    String logomarca = '',
     int? clienteId,
   });
 

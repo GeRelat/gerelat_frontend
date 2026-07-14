@@ -101,6 +101,7 @@ class _PaginaClassesEventoState extends State<PaginaClassesEvento> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_viewModel.mensagemErro ?? 'Erro ao remover.')),
       );
+      return;
     }
     if (_classeEmEdicaoId == classeId) {
       _cancelarEdicao();
