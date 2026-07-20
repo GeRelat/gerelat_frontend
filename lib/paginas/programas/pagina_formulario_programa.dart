@@ -11,15 +11,10 @@ class PaginaFormularioPrograma extends StatefulWidget {
   final bool edicao;
   final int? programaId;
 
-  const PaginaFormularioPrograma({
-    super.key,
-    this.edicao = false,
-    this.programaId,
-  });
+  const PaginaFormularioPrograma({super.key, this.edicao = false, this.programaId});
 
   @override
-  State<PaginaFormularioPrograma> createState() =>
-      _PaginaFormularioProgramaState();
+  State<PaginaFormularioPrograma> createState() => _PaginaFormularioProgramaState();
 }
 
 class _PaginaFormularioProgramaState extends State<PaginaFormularioPrograma> {
@@ -81,9 +76,7 @@ class _PaginaFormularioProgramaState extends State<PaginaFormularioPrograma> {
       context.pop(true);
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_viewModel.mensagemErro ?? 'Erro ao salvar.')),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_viewModel.mensagemErro ?? 'Erro ao salvar.')));
   }
 
   @override
@@ -97,69 +90,28 @@ class _PaginaFormularioProgramaState extends State<PaginaFormularioPrograma> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Cadastrar programa institucional',
-                style: Tipografia.headlineMedium.copyWith(
-                  color: Cores.textoPrincipal,
-                ),
-              ),
+              Text('Cadastrar programa institucional', style: Tipografia.headlineMedium.copyWith(color: Cores.textoPrincipal)),
               const SizedBox(height: 24),
               CartaoConteudo(
                 child: Column(
                   children: [
-                    CampoFormulario(
-                      label: 'Nome do Programa',
-                      hint: 'Ex: Programa de Inovação Institucional',
-                      icone: LucideIcons.folder_kanban,
-                      controller: _nome,
-                      validator: _obrigatorio,
-                    ),
+                    CampoFormulario(label: 'Nome do Programa', hint: 'Ex: Programa de Inovação Institucional', icone: LucideIcons.folder_kanban, controller: _nome, validator: _obrigatorio),
                     const SizedBox(height: 18),
                     CampoSelecao(
                       label: 'Cliente (opcional)',
                       valor: _clienteId,
-                      itens: _viewModel.clientes
-                          .map(
-                            (item) => DropdownMenuItem(
-                              value: item.id,
-                              child: Text(item.nome),
-                            ),
-                          )
-                          .toList(),
+                      itens: _viewModel.clientes.map((item) => DropdownMenuItem(value: item.id, child: Text(item.nome))).toList(),
                       onChanged: (value) => setState(() => _clienteId = value),
                       validator: (_) => null,
                     ),
                     const SizedBox(height: 18),
-                    CampoFormulario(
-                      label: 'Lei de Criação',
-                      hint: 'Ex: Lei Municipal nº 123/2026',
-                      icone: LucideIcons.landmark,
-                      controller: _leiCriacao,
-                      validator: _obrigatorio,
-                    ),
+                    CampoFormulario(label: 'Lei de Criação', hint: 'Ex: Lei Municipal nº 123/2026', icone: LucideIcons.landmark, controller: _leiCriacao, validator: _obrigatorio),
                     const SizedBox(height: 18),
-                    CampoFormulario(
-                      label: 'Dados do Convênio',
-                      hint: 'Informe o convênio relacionado',
-                      icone: LucideIcons.handshake,
-                      controller: _convenio,
-                      validator: _obrigatorio,
-                    ),
+                    CampoFormulario(label: 'Dados do Convênio', hint: 'Informe o convênio relacionado', icone: LucideIcons.handshake, controller: _convenio, validator: _obrigatorio),
                     const SizedBox(height: 18),
-                    CampoFormulario(
-                      label: 'Logomarca',
-                      hint: 'URL ou caminho da logomarca do programa',
-                      icone: LucideIcons.image,
-                      controller: _logomarca,
-                    ),
+                    CampoFormulario(label: 'Logomarca', hint: 'URL ou caminho da logomarca do programa', icone: LucideIcons.image, controller: _logomarca),
                     const SizedBox(height: 18),
-                    CampoFormulario(
-                      label: 'Rodapé',
-                      hint: 'Texto opcional usado nos documentos',
-                      icone: LucideIcons.file_text,
-                      controller: _rodape,
-                      maxLines: 3,
-                    ),
+                    CampoFormulario(label: 'Rodapé', hint: 'Texto opcional usado nos documentos', icone: LucideIcons.file_text, controller: _rodape, maxLines: 3),
                     const SizedBox(height: 28),
                     BarraAcoesFormulario(
                       textoPrimario: _viewModel.carregando

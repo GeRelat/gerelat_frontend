@@ -25,9 +25,7 @@ class _PaginaTemplatesState extends State<PaginaTemplates> {
   @override
   void initState() {
     super.initState();
-    _viewModel = TemplatesViewModel(
-      DependenciasApp.instancia.repositorioCatalogo,
-    )..carregar();
+    _viewModel = TemplatesViewModel(DependenciasApp.instancia.repositorioCatalogo)..carregar();
   }
 
   @override
@@ -49,11 +47,7 @@ class _PaginaTemplatesState extends State<PaginaTemplates> {
             children: [
               _cabecalho(context),
               const SizedBox(height: 20),
-              CampoBusca(
-                controlador: _controladorBusca,
-                dica: 'Pesquisar templates...',
-                aoAlterar: _viewModel.definirBusca,
-              ),
+              CampoBusca(controlador: _controladorBusca, dica: 'Pesquisar templates...', aoAlterar: _viewModel.definirBusca),
               const SizedBox(height: 24),
               _conteudo(),
             ],
@@ -70,17 +64,9 @@ class _PaginaTemplatesState extends State<PaginaTemplates> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Templates prontos',
-                style: Tipografia.headlineMedium.copyWith(
-                  color: Cores.textoPrincipal,
-                ),
-              ),
+              Text('Templates prontos', style: Tipografia.headlineMedium.copyWith(color: Cores.textoPrincipal)),
               const SizedBox(height: 6),
-              Text(
-                'Gerencie modelos DOCX usados para gerar relatorios automaticamente.',
-                style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
-              ),
+              Text('Gerencie modelos DOCX usados para gerar relatórios automaticamente.', style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro)),
             ],
           ),
         ),
@@ -102,13 +88,7 @@ class _PaginaTemplatesState extends State<PaginaTemplates> {
     }
 
     if (_viewModel.mensagemErro != null && _viewModel.templates.isEmpty) {
-      return EstadoVazio(
-        icone: LucideIcons.circle_alert,
-        titulo: 'Nao foi possivel carregar os templates',
-        descricao: _viewModel.mensagemErro!,
-        acao: 'Tentar novamente',
-        onAcao: _viewModel.carregar,
-      );
+      return EstadoVazio(icone: LucideIcons.circle_alert, titulo: 'Não foi possivel carregar os templates', descricao: _viewModel.mensagemErro!, acao: 'Tentar novamente', onAcao: _viewModel.carregar);
     }
 
     if (_viewModel.templates.isEmpty) {
@@ -132,8 +112,7 @@ class _PaginaTemplatesState extends State<PaginaTemplates> {
       builder: (context, constraints) {
         final colunas = constraints.maxWidth < 900 ? 1 : 2;
         const espaco = 24.0;
-        final largura =
-            (constraints.maxWidth - espaco * (colunas - 1)) / colunas;
+        final largura = (constraints.maxWidth - espaco * (colunas - 1)) / colunas;
 
         return Wrap(
           spacing: espaco,
@@ -142,13 +121,7 @@ class _PaginaTemplatesState extends State<PaginaTemplates> {
               .map(
                 (template) => SizedBox(
                   width: largura,
-                  child: _CartaoTemplate(
-                    template,
-                    onEditado: _viewModel.carregar,
-                    onExcluir: _viewModel.excluir,
-                    onBaixar: _viewModel.baixarArquivo,
-                    obterMensagemErro: () => _viewModel.mensagemErroAcao,
-                  ),
+                  child: _CartaoTemplate(template, onEditado: _viewModel.carregar, onExcluir: _viewModel.excluir, onBaixar: _viewModel.baixarArquivo, obterMensagemErro: () => _viewModel.mensagemErroAcao),
                 ),
               )
               .toList(),
@@ -165,13 +138,7 @@ class _CartaoTemplate extends StatelessWidget {
   final Future<Uint8List?> Function(int) onBaixar;
   final String? Function() obterMensagemErro;
 
-  const _CartaoTemplate(
-    this.template, {
-    required this.onEditado,
-    required this.onExcluir,
-    required this.onBaixar,
-    required this.obterMensagemErro,
-  });
+  const _CartaoTemplate(this.template, {required this.onEditado, required this.onExcluir, required this.onBaixar, required this.obterMensagemErro});
 
   @override
   Widget build(BuildContext context) {
@@ -184,47 +151,27 @@ class _CartaoTemplate extends StatelessWidget {
               Container(
                 width: 48,
                 height: 48,
-                decoration: BoxDecoration(
-                  color: Cores.azulAcao.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                decoration: BoxDecoration(color: Cores.azulAcao.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                 child: const Icon(LucideIcons.file_text, color: Cores.azulAcao),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: Text(
-                  template.nome,
-                  style: Tipografia.titleLarge.copyWith(
-                    color: Cores.textoPrincipal,
-                  ),
-                ),
+                child: Text(template.nome, style: Tipografia.titleLarge.copyWith(color: Cores.textoPrincipal)),
               ),
               _tag(template.tipo),
             ],
           ),
           const SizedBox(height: 18),
-          Text(
-            template.descricao,
-            style: Tipografia.bodyMedium.copyWith(
-              color: Cores.cinzaEscuro,
-              height: 1.45,
-            ),
-          ),
+          Text(template.descricao, style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro, height: 1.45)),
           const SizedBox(height: 22),
           Row(
             children: [
               _status(template.status),
               const Spacer(),
-              IconButton(
-                tooltip: 'Baixar arquivo original (.docx)',
-                onPressed: () => _baixarArquivo(context),
-                icon: const Icon(LucideIcons.download, size: 18),
-              ),
+              IconButton(tooltip: 'Baixar arquivo original (.docx)', onPressed: () => _baixarArquivo(context), icon: const Icon(LucideIcons.download, size: 18)),
               TextButton.icon(
                 onPressed: () async {
-                  final alterado = await context.push<bool>(
-                    '/templates/${template.id}/editar',
-                  );
+                  final alterado = await context.push<bool>('/templates/${template.id}/editar');
                   if (alterado == true) {
                     await onEditado();
                   }
@@ -235,11 +182,7 @@ class _CartaoTemplate extends StatelessWidget {
               IconButton(
                 tooltip: 'Excluir template',
                 onPressed: () => _confirmarExclusao(context),
-                icon: const Icon(
-                  LucideIcons.trash_2,
-                  size: 18,
-                  color: Cores.vermelhoErro,
-                ),
+                icon: const Icon(LucideIcons.trash_2, size: 18, color: Cores.vermelhoErro),
               ),
             ],
           ),
@@ -256,23 +199,11 @@ class _CartaoTemplate extends StatelessWidget {
     if (!context.mounted) return;
 
     if (bytes == null || bytes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            obterMensagemErro() ??
-                'Este template não possui arquivo .docx original armazenado.',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(obterMensagemErro() ?? 'Este template não possui arquivo .docx original armazenado.')));
       return;
     }
 
-    baixarArquivo(
-      bytes: bytes,
-      nomeArquivo: '${template.nome}.docx',
-      mimeType:
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    );
+    baixarArquivo(bytes: bytes, nomeArquivo: '${template.nome}.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
   }
 
   Future<void> _confirmarExclusao(BuildContext context) async {
@@ -288,16 +219,10 @@ class _CartaoTemplate extends StatelessWidget {
           'relacionados sejam removidos. Esta ação não pode ser desfeita.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => context.pop(false),
-            child: const Text('Cancelar'),
-          ),
+          TextButton(onPressed: () => context.pop(false), child: const Text('Cancelar')),
           TextButton(
             onPressed: () => context.pop(true),
-            child: const Text(
-              'Excluir',
-              style: TextStyle(color: Cores.vermelhoErro),
-            ),
+            child: const Text('Excluir', style: TextStyle(color: Cores.vermelhoErro)),
           ),
         ],
       ),
@@ -309,33 +234,18 @@ class _CartaoTemplate extends StatelessWidget {
 
     final sucesso = await onExcluir(templateId);
     if (!context.mounted || sucesso) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(obterMensagemErro() ?? 'Erro ao excluir o template.'),
-      ),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(obterMensagemErro() ?? 'Erro ao excluir o template.')));
   }
 
   Widget _tag(String texto) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Cores.fundoDestaqueSutil,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        texto,
-        style: Tipografia.labelMedium.copyWith(color: Cores.cinzaEscuro),
-      ),
+      decoration: BoxDecoration(color: Cores.fundoDestaqueSutil, borderRadius: BorderRadius.circular(8)),
+      child: Text(texto, style: Tipografia.labelMedium.copyWith(color: Cores.cinzaEscuro)),
     );
   }
 
   Widget _status(String texto) {
-    return Text(
-      texto,
-      style: Tipografia.labelLarge.copyWith(
-        color: texto == 'Ativo' ? Cores.verdeSucesso : Cores.azulAcao,
-      ),
-    );
+    return Text(texto, style: Tipografia.labelLarge.copyWith(color: texto == 'Ativo' ? Cores.verdeSucesso : Cores.azulAcao));
   }
 }

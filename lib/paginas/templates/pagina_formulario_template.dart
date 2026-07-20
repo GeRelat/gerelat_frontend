@@ -14,15 +14,10 @@ class PaginaFormularioTemplate extends StatefulWidget {
   final bool edicao;
   final int? templateId;
 
-  const PaginaFormularioTemplate({
-    super.key,
-    this.edicao = false,
-    this.templateId,
-  });
+  const PaginaFormularioTemplate({super.key, this.edicao = false, this.templateId});
 
   @override
-  State<PaginaFormularioTemplate> createState() =>
-      _PaginaFormularioTemplateState();
+  State<PaginaFormularioTemplate> createState() => _PaginaFormularioTemplateState();
 }
 
 class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
@@ -36,9 +31,7 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
   @override
   void initState() {
     super.initState();
-    _viewModel = TemplateFormViewModel(
-      DependenciasApp.instancia.repositorioCatalogo,
-    );
+    _viewModel = TemplateFormViewModel(DependenciasApp.instancia.repositorioCatalogo);
     final templateId = widget.templateId;
     if (widget.edicao && templateId != null) {
       _viewModel.carregarEdicao(templateId).then((_) {
@@ -63,11 +56,7 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
 
   Future<void> _selecionarArquivo() async {
     try {
-      final arquivo = await selecionarArquivo(
-        accept: '.docx',
-        extensoesPermitidas: const ['.docx'],
-        tamanhoMaximoBytes: 10 * 1024 * 1024,
-      );
+      final arquivo = await selecionarArquivo(accept: '.docx', extensoesPermitidas: const ['.docx'], tamanhoMaximoBytes: 10 * 1024 * 1024);
       if (arquivo == null) return;
       setState(() {
         _nomeArquivo = arquivo.nome;
@@ -75,40 +64,25 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
       });
     } on ArquivoInvalidoException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.mensagem)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.mensagem)));
     }
   }
 
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
     final exigeArquivo = !widget.edicao;
-    if (_projetoId == null ||
-        (exigeArquivo && (_arquivoBytes == null || _nomeArquivo == null))) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione projeto e arquivo .docx.')),
-      );
+    if (_projetoId == null || (exigeArquivo && (_arquivoBytes == null || _nomeArquivo == null))) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecione projeto e arquivo .docx.')));
       return;
     }
 
-    final sucesso = await _viewModel.salvar(
-      templateId: widget.templateId,
-      projetoId: _projetoId!,
-      nomeTemplate: _nome.text.trim(),
-      arquivoBytes: _arquivoBytes,
-      nomeArquivo: _nomeArquivo,
-    );
+    final sucesso = await _viewModel.salvar(templateId: widget.templateId, projetoId: _projetoId!, nomeTemplate: _nome.text.trim(), arquivoBytes: _arquivoBytes, nomeArquivo: _nomeArquivo);
     if (!mounted) return;
     if (sucesso) {
       context.pop(true);
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(_viewModel.mensagemErro ?? 'Erro ao salvar template.'),
-      ),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_viewModel.mensagemErro ?? 'Erro ao salvar template.')));
   }
 
   @override
@@ -126,12 +100,7 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Cadastrar template DOCX',
-                  style: Tipografia.headlineMedium.copyWith(
-                    color: Cores.textoPrincipal,
-                  ),
-                ),
+                Text('Cadastrar template DOCX', style: Tipografia.headlineMedium.copyWith(color: Cores.textoPrincipal)),
                 const SizedBox(height: 24),
                 CartaoConteudo(
                   child: Column(
@@ -139,27 +108,14 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
                       CampoSelecao(
                         label: 'Projeto',
                         valor: _projetoId,
-                        itens: _viewModel.projetos
-                            .map(
-                              (item) => DropdownMenuItem(
-                                value: item.id,
-                                child: Text(item.nome),
-                              ),
-                            )
-                            .toList(),
+                        itens: _viewModel.projetos.map((item) => DropdownMenuItem(value: item.id, child: Text(item.nome))).toList(),
                         onChanged: (value) {
                           setState(() => _projetoId = value);
                           _viewModel.carregarClasses(value);
                         },
                       ),
                       const SizedBox(height: 18),
-                      CampoFormulario(
-                        label: 'Nome do Template',
-                        hint: 'Ex: Relatorio padrao de visita tecnica',
-                        icone: LucideIcons.file_text,
-                        controller: _nome,
-                        validator: _obrigatorio,
-                      ),
+                      CampoFormulario(label: 'Nome do Template', hint: 'Ex: Relatório padrão de visita tecnica', icone: LucideIcons.file_text, controller: _nome, validator: _obrigatorio),
                       const SizedBox(height: 18),
                       _campoClassesEvento(),
                       const SizedBox(height: 18),
@@ -176,29 +132,11 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Arquivo base (.docx)',
-                              style: Tipografia.labelLarge.copyWith(
-                                color: Cores.textoPrincipal,
-                              ),
-                            ),
+                            Text('Arquivo base (.docx)', style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal)),
                             const SizedBox(height: 8),
-                            Text(
-                              _nomeArquivo ?? 'Nenhum arquivo selecionado.',
-                              style: Tipografia.bodyMedium.copyWith(
-                                color: Cores.cinzaEscuro,
-                              ),
-                            ),
+                            Text(_nomeArquivo ?? 'Nenhum arquivo selecionado.', style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro)),
                             const SizedBox(height: 14),
-                            BotaoPrimario(
-                              texto: widget.edicao
-                                  ? 'Substituir Arquivo'
-                                  : 'Selecionar Arquivo',
-                              icone: widget.edicao
-                                  ? LucideIcons.refresh_cw
-                                  : LucideIcons.upload,
-                              onPressed: _selecionarArquivo,
-                            ),
+                            BotaoPrimario(texto: widget.edicao ? 'Substituir Arquivo' : 'Selecionar Arquivo', icone: widget.edicao ? LucideIcons.refresh_cw : LucideIcons.upload, onPressed: _selecionarArquivo),
                           ],
                         ),
                       ),
@@ -234,47 +172,27 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Classes de Evento',
-            style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
-          ),
+          Text('Classes de Evento', style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal)),
           const SizedBox(height: 4),
-          Text(
-            'Indique a quais classes de evento este template se relaciona.',
-            style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
-          ),
+          Text('Indique a quais classes de evento este template se relaciona.', style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio)),
           const SizedBox(height: 8),
           if (_projetoId == null)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                'Selecione um projeto para ver as classes disponíveis.',
-                style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
-              ),
+              child: Text('Selecione um projeto para ver as classes disponíveis.', style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio)),
             )
           else if (_viewModel.classesDisponiveis.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                'Nenhuma classe cadastrada para este projeto.',
-                style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
-              ),
+              child: Text('Nenhuma classe cadastrada para este projeto.', style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio)),
             )
           else
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: _viewModel.classesDisponiveis.map((classe) {
-                final marcada = _viewModel.classesSelecionadas.contains(
-                  classe.id,
-                );
-                return FilterChip(
-                  label: Text(classe.nome),
-                  selected: marcada,
-                  onSelected: (_) => _viewModel.alternarClasse(classe.id),
-                  selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
-                  checkmarkColor: Cores.azulAcao,
-                );
+                final marcada = _viewModel.classesSelecionadas.contains(classe.id);
+                return FilterChip(label: Text(classe.nome), selected: marcada, onSelected: (_) => _viewModel.alternarClasse(classe.id), selectedColor: Cores.azulAcao.withValues(alpha: 0.16), checkmarkColor: Cores.azulAcao);
               }).toList(),
             ),
         ],
@@ -294,41 +212,22 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Assinaturas do documento',
-            style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
-          ),
+          Text('Assinaturas do documento', style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal)),
           const SizedBox(height: 4),
-          Text(
-            'Selecione quem deve assinar os relatórios gerados a partir deste template.',
-            style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
-          ),
+          Text('Selecione quem deve assinar os relatórios gerados a partir deste template.', style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio)),
           const SizedBox(height: 8),
           if (_projetoId == null)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                'Selecione um projeto para ver os possíveis signatários.',
-                style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
-              ),
+              child: Text('Selecione um projeto para ver os possíveis signatários.', style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio)),
             )
           else ...[
-            Text(
-              'Equipe fixa do programa',
-              style: Tipografia.labelMedium.copyWith(
-                color: Cores.cinzaEscuro,
-              ),
-            ),
+            Text('Equipe fixa do programa', style: Tipografia.labelMedium.copyWith(color: Cores.cinzaEscuro)),
             const SizedBox(height: 8),
             if (_viewModel.membrosPrograma.isEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Text(
-                  'Nenhum membro cadastrado na equipe fixa do programa.',
-                  style: Tipografia.bodyMedium.copyWith(
-                    color: Cores.cinzaMedio,
-                  ),
-                ),
+                child: Text('Nenhum membro cadastrado na equipe fixa do programa.', style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio)),
               )
             else
               Padding(
@@ -337,48 +236,31 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
                   spacing: 8,
                   runSpacing: 8,
                   children: _viewModel.membrosPrograma.map((membro) {
-                    final marcado = _viewModel.equipeProgramaSelecionada
-                        .contains(membro.id);
+                    final marcado = _viewModel.equipeProgramaSelecionada.contains(membro.id);
                     return FilterChip(
                       label: Text('${membro.nome} (${membro.cargo})'),
                       selected: marcado,
-                      onSelected: (_) => _viewModel.alternarSignatarioPrograma(
-                        membro.id!,
-                      ),
+                      onSelected: (_) => _viewModel.alternarSignatarioPrograma(membro.id!),
                       selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
                       checkmarkColor: Cores.azulAcao,
                     );
                   }).toList(),
                 ),
               ),
-            Text(
-              'Equipe do projeto',
-              style: Tipografia.labelMedium.copyWith(
-                color: Cores.cinzaEscuro,
-              ),
-            ),
+            Text('Equipe do projeto', style: Tipografia.labelMedium.copyWith(color: Cores.cinzaEscuro)),
             const SizedBox(height: 8),
             if (_viewModel.membrosProjeto.isEmpty)
-              Text(
-                'Nenhum membro cadastrado na equipe deste projeto.',
-                style: Tipografia.bodyMedium.copyWith(
-                  color: Cores.cinzaMedio,
-                ),
-              )
+              Text('Nenhum membro cadastrado na equipe deste projeto.', style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio))
             else
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: _viewModel.membrosProjeto.map((membro) {
-                  final marcado = _viewModel.equipeProjetoSelecionada.contains(
-                    membro.id,
-                  );
+                  final marcado = _viewModel.equipeProjetoSelecionada.contains(membro.id);
                   return FilterChip(
                     label: Text('${membro.nome} (${membro.cargo})'),
                     selected: marcado,
-                    onSelected: (_) => _viewModel.alternarSignatarioProjeto(
-                      membro.id!,
-                    ),
+                    onSelected: (_) => _viewModel.alternarSignatarioProjeto(membro.id!),
                     selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
                     checkmarkColor: Cores.azulAcao,
                   );

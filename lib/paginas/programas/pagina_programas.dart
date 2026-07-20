@@ -22,9 +22,7 @@ class _PaginaProgramasState extends State<PaginaProgramas> {
   @override
   void initState() {
     super.initState();
-    _viewModel = ProgramasViewModel(
-      DependenciasApp.instancia.repositorioCatalogo,
-    )..carregar();
+    _viewModel = ProgramasViewModel(DependenciasApp.instancia.repositorioCatalogo)..carregar();
   }
 
   @override
@@ -46,11 +44,7 @@ class _PaginaProgramasState extends State<PaginaProgramas> {
             children: [
               _cabecalho(context),
               const SizedBox(height: 20),
-              CampoBusca(
-                controlador: _controladorBusca,
-                dica: 'Pesquisar programas...',
-                aoAlterar: _viewModel.definirBusca,
-              ),
+              CampoBusca(controlador: _controladorBusca, dica: 'Pesquisar programas...', aoAlterar: _viewModel.definirBusca),
               const SizedBox(height: 24),
               _resumo(),
               const SizedBox(height: 32),
@@ -69,41 +63,23 @@ class _PaginaProgramasState extends State<PaginaProgramas> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Programas institucionais',
-                style: Tipografia.headlineMedium.copyWith(
-                  color: Cores.textoPrincipal,
-                ),
-              ),
+              Text('Programas institucionais', style: Tipografia.headlineMedium.copyWith(color: Cores.textoPrincipal)),
               const SizedBox(height: 6),
-              Text(
-                'Organize programas, projetos relacionados e equipes responsaveis.',
-                style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
-              ),
+              Text('Organize programas, projetos relacionados e equipes responsáveis.', style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro)),
             ],
           ),
         ),
         Row(
           children: [
-            BotaoPrimario(
-              texto: 'Textos do Projeto',
-              icone: LucideIcons.file_text,
-              onPressed: () => context.push('/projetos/campos'),
-            ),
+            BotaoPrimario(texto: 'Textos do Projeto', icone: LucideIcons.file_text, onPressed: () => context.push('/projetos/campos')),
             const SizedBox(width: 12),
-            BotaoPrimario(
-              texto: 'Equipe da Parceira',
-              icone: LucideIcons.users,
-              onPressed: () => context.push('/projetos/equipe'),
-            ),
+            BotaoPrimario(texto: 'Equipe da Parceira', icone: LucideIcons.users, onPressed: () => context.push('/projetos/equipe')),
             const SizedBox(width: 12),
             BotaoPrimario(
               texto: 'Novo Projeto',
               icone: LucideIcons.git_branch_plus,
               onPressed: () async {
-                final criado = await context.push<bool>(
-                  '/programas/projetos/novo',
-                );
+                final criado = await context.push<bool>('/programas/projetos/novo');
                 if (criado == true) await _viewModel.carregar();
               },
             ),
@@ -127,8 +103,7 @@ class _PaginaProgramasState extends State<PaginaProgramas> {
       builder: (context, constraints) {
         final colunas = constraints.maxWidth < 820 ? 1 : 3;
         const espaco = 24.0;
-        final largura =
-            (constraints.maxWidth - espaco * (colunas - 1)) / colunas;
+        final largura = (constraints.maxWidth - espaco * (colunas - 1)) / colunas;
 
         return Wrap(
           spacing: espaco,
@@ -136,31 +111,15 @@ class _PaginaProgramasState extends State<PaginaProgramas> {
           children: [
             SizedBox(
               width: largura,
-              child: CartaoInfo(
-                titulo: 'Programas',
-                valor: '${_viewModel.totalProgramas}',
-                descricao: 'Ativos ou em planejamento',
-                icone: LucideIcons.folder_kanban,
-              ),
+              child: CartaoInfo(titulo: 'Programas', valor: '${_viewModel.totalProgramas}', descricao: 'Ativos ou em planejamento', icone: LucideIcons.folder_kanban),
             ),
             SizedBox(
               width: largura,
-              child: CartaoInfo(
-                titulo: 'Projetos',
-                valor: '${_viewModel.totalProjetos}',
-                descricao: 'Vinculados aos programas',
-                icone: LucideIcons.git_branch,
-              ),
+              child: CartaoInfo(titulo: 'Projetos', valor: '${_viewModel.totalProjetos}', descricao: 'Vinculados aos programas', icone: LucideIcons.git_branch),
             ),
             SizedBox(
               width: largura,
-              child: CartaoInfo(
-                titulo: 'Eventos',
-                valor: '${_viewModel.totalEventos}',
-                descricao: 'Mapeados no ciclo atual',
-                icone: LucideIcons.calendar,
-                cor: Cores.verdeSucesso,
-              ),
+              child: CartaoInfo(titulo: 'Eventos', valor: '${_viewModel.totalEventos}', descricao: 'Mapeados no ciclo atual', icone: LucideIcons.calendar, cor: Cores.verdeSucesso),
             ),
           ],
         );
@@ -174,21 +133,14 @@ class _PaginaProgramasState extends State<PaginaProgramas> {
     }
 
     if (_viewModel.mensagemErro != null) {
-      return EstadoVazio(
-        icone: LucideIcons.circle_alert,
-        titulo: 'Nao foi possivel carregar os programas',
-        descricao: _viewModel.mensagemErro!,
-        acao: 'Tentar novamente',
-        onAcao: _viewModel.carregar,
-      );
+      return EstadoVazio(icone: LucideIcons.circle_alert, titulo: 'Nao foi possivel carregar os programas', descricao: _viewModel.mensagemErro!, acao: 'Tentar novamente', onAcao: _viewModel.carregar);
     }
 
     if (_viewModel.programas.isEmpty) {
       return EstadoVazio(
         icone: LucideIcons.search_x,
         titulo: 'Nenhum programa encontrado',
-        descricao:
-            'A lista atual não contém programas compatíveis com a busca informada.',
+        descricao: 'A lista atual não contém programas compatíveis com a busca informada.',
         acao: 'Limpar busca',
         onAcao: () {
           _controladorBusca.clear();
@@ -204,9 +156,7 @@ class _PaginaProgramasState extends State<PaginaProgramas> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final duasColunas = constraints.maxWidth >= 900;
-        final largura = duasColunas
-            ? (constraints.maxWidth - 24) / 2
-            : constraints.maxWidth;
+        final largura = duasColunas ? (constraints.maxWidth - 24) / 2 : constraints.maxWidth;
 
         return Wrap(
           spacing: 24,
@@ -215,11 +165,7 @@ class _PaginaProgramasState extends State<PaginaProgramas> {
               .map(
                 (programa) => SizedBox(
                   width: largura,
-                  child: _CartaoPrograma(
-                    programa,
-                    onEditado: _viewModel.carregar,
-                    onExcluir: _viewModel.excluir,
-                  ),
+                  child: _CartaoPrograma(programa, onEditado: _viewModel.carregar, onExcluir: _viewModel.excluir),
                 ),
               )
               .toList(),
@@ -234,11 +180,7 @@ class _CartaoPrograma extends StatelessWidget {
   final Future<void> Function() onEditado;
   final Future<bool> Function(int) onExcluir;
 
-  const _CartaoPrograma(
-    this.programa, {
-    required this.onEditado,
-    required this.onExcluir,
-  });
+  const _CartaoPrograma(this.programa, {required this.onEditado, required this.onExcluir});
 
   @override
   Widget build(BuildContext context) {
@@ -252,50 +194,24 @@ class _CartaoPrograma extends StatelessWidget {
               Container(
                 width: 48,
                 height: 48,
-                decoration: BoxDecoration(
-                  color: Cores.azulAcao.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  LucideIcons.folder_kanban,
-                  color: Cores.azulAcao,
-                ),
+                decoration: BoxDecoration(color: Cores.azulAcao.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                child: const Icon(LucideIcons.folder_kanban, color: Cores.azulAcao),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      programa.nome,
-                      style: Tipografia.titleLarge.copyWith(
-                        color: Cores.textoPrincipal,
-                      ),
-                    ),
+                    Text(programa.nome, style: Tipografia.titleLarge.copyWith(color: Cores.textoPrincipal)),
                     const SizedBox(height: 6),
-                    Text(
-                      programa.descricao,
-                      style: Tipografia.bodyMedium.copyWith(
-                        color: Cores.cinzaEscuro,
-                        height: 1.45,
-                      ),
-                    ),
+                    Text(programa.descricao, style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro, height: 1.45)),
                     if (programa.clienteNome.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          const Icon(
-                            LucideIcons.building_2,
-                            size: 14,
-                            color: Cores.cinzaMedio,
-                          ),
+                          const Icon(LucideIcons.building_2, size: 14, color: Cores.cinzaMedio),
                           const SizedBox(width: 6),
-                          Text(
-                            programa.clienteNome,
-                            style: Tipografia.bodySmall.copyWith(
-                              color: Cores.cinzaMedio,
-                            ),
-                          ),
+                          Text(programa.clienteNome, style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio)),
                         ],
                       ),
                     ],
@@ -321,18 +237,11 @@ class _CartaoPrograma extends StatelessWidget {
                 },
                 icon: const Icon(LucideIcons.git_branch, size: 18),
               ),
-              IconButton(
-                tooltip: 'Equipe fixa do programa',
-                onPressed: () =>
-                    context.push('/programas/${programa.id}/equipe'),
-                icon: const Icon(LucideIcons.users, size: 18),
-              ),
+              IconButton(tooltip: 'Equipe fixa do programa', onPressed: () => context.push('/programas/${programa.id}/equipe'), icon: const Icon(LucideIcons.users, size: 18)),
               IconButton(
                 tooltip: 'Editar programa',
                 onPressed: () async {
-                  final alterado = await context.push<bool>(
-                    '/programas/${programa.id}/editar',
-                  );
+                  final alterado = await context.push<bool>('/programas/${programa.id}/editar');
                   if (alterado == true) {
                     await onEditado();
                   }
@@ -342,11 +251,7 @@ class _CartaoPrograma extends StatelessWidget {
               IconButton(
                 tooltip: 'Excluir programa',
                 onPressed: () => _confirmarExclusao(context),
-                icon: const Icon(
-                  LucideIcons.trash_2,
-                  size: 18,
-                  color: Cores.vermelhoErro,
-                ),
+                icon: const Icon(LucideIcons.trash_2, size: 18, color: Cores.vermelhoErro),
               ),
             ],
           ),
@@ -366,16 +271,10 @@ class _CartaoPrograma extends StatelessWidget {
           'este programa também serão excluídos. Esta ação não pode ser desfeita.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => context.pop(false),
-            child: const Text('Cancelar'),
-          ),
+          TextButton(onPressed: () => context.pop(false), child: const Text('Cancelar')),
           TextButton(
             onPressed: () => context.pop(true),
-            child: const Text(
-              'Excluir',
-              style: TextStyle(color: Cores.vermelhoErro),
-            ),
+            child: const Text('Excluir', style: TextStyle(color: Cores.vermelhoErro)),
           ),
         ],
       ),
@@ -388,23 +287,15 @@ class _CartaoPrograma extends StatelessWidget {
     final sucesso = await onExcluir(programaId);
     if (!context.mounted || sucesso) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Erro ao excluir o programa.')),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao excluir o programa.')));
   }
 
   Widget _metrica(String valor, String label) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          valor,
-          style: Tipografia.titleLarge.copyWith(color: Cores.textoPrincipal),
-        ),
-        Text(
-          label,
-          style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
-        ),
+        Text(valor, style: Tipografia.titleLarge.copyWith(color: Cores.textoPrincipal)),
+        Text(label, style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio)),
       ],
     );
   }
@@ -413,18 +304,8 @@ class _CartaoPrograma extends StatelessWidget {
     final ativo = texto == 'Ativo';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: (ativo ? Cores.verdeSucesso : Cores.azulAcao).withValues(
-          alpha: 0.1,
-        ),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        texto,
-        style: Tipografia.labelMedium.copyWith(
-          color: ativo ? Cores.verdeSucesso : Cores.azulAcao,
-        ),
-      ),
+      decoration: BoxDecoration(color: (ativo ? Cores.verdeSucesso : Cores.azulAcao).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(999)),
+      child: Text(texto, style: Tipografia.labelMedium.copyWith(color: ativo ? Cores.verdeSucesso : Cores.azulAcao)),
     );
   }
 }

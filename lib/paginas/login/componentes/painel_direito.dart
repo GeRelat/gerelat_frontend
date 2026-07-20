@@ -24,9 +24,7 @@ class _PainelDireitoState extends State<PainelDireito> {
   @override
   void initState() {
     super.initState();
-    _viewModel = LoginViewModel(
-      DependenciasApp.instancia.repositorioAutenticacao,
-    );
+    _viewModel = LoginViewModel(DependenciasApp.instancia.repositorioAutenticacao);
   }
 
   @override
@@ -40,10 +38,7 @@ class _PainelDireitoState extends State<PainelDireito> {
   Future<void> _realizarLogin() async {
     if (!_chaveFormulario.currentState!.validate()) return;
 
-    final sucesso = await _viewModel.login(
-      email: _controladorEmail.text.trim(),
-      senha: _controladorSenha.text,
-    );
+    final sucesso = await _viewModel.login(email: _controladorEmail.text.trim(), senha: _controladorSenha.text);
 
     if (!mounted) return;
 
@@ -53,12 +48,7 @@ class _PainelDireitoState extends State<PainelDireito> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(_viewModel.mensagemErro ?? 'Erro ao fazer login.'),
-        backgroundColor: Cores.vermelhoErro,
-      ),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_viewModel.mensagemErro ?? 'Erro ao fazer login.'), backgroundColor: Cores.vermelhoErro));
   }
 
   @override
@@ -105,17 +95,10 @@ class _PainelDireitoState extends State<PainelDireito> {
       children: [
         Text(
           'Bem-vindo de volta',
-          style: TextStyle(
-            color: Cores.pretoProfundo,
-            fontSize: 26,
-            fontWeight: FontWeight.w700,
-          ),
+          style: TextStyle(color: Cores.pretoProfundo, fontSize: 26, fontWeight: FontWeight.w700),
         ),
         SizedBox(height: 6),
-        Text(
-          'Acesse sua conta para gerenciar seus relatorios.',
-          style: TextStyle(color: Cores.cinzaMedio, fontSize: 14),
-        ),
+        Text('Acesse sua conta para gerenciar seus relatorios.', style: TextStyle(color: Cores.cinzaMedio, fontSize: 14)),
       ],
     );
   }
@@ -143,11 +126,7 @@ class _PainelDireitoState extends State<PainelDireito> {
   Widget _construirLabelCampo(String texto) {
     return Text(
       texto,
-      style: const TextStyle(
-        color: Cores.cinzaEscuro,
-        fontSize: 13,
-        fontWeight: FontWeight.w500,
-      ),
+      style: const TextStyle(color: Cores.cinzaEscuro, fontSize: 13, fontWeight: FontWeight.w500),
     );
   }
 
@@ -155,10 +134,7 @@ class _PainelDireitoState extends State<PainelDireito> {
     return TextFormField(
       controller: _controladorEmail,
       keyboardType: TextInputType.emailAddress,
-      decoration: _decoracaoCampo(
-        dica: 'nome@empresa.com.br',
-        icone: Icons.mail_outline,
-      ),
+      decoration: _decoracaoCampo(dica: 'nome@empresa.com.br', icone: Icons.mail_outline),
       validator: (valor) {
         if (valor == null || valor.isEmpty) return 'Informe o e-mail';
         if (!emailValido(valor)) return 'E-mail invalido';
@@ -178,11 +154,7 @@ class _PainelDireitoState extends State<PainelDireito> {
             onTap: () => context.push('/recuperar-senha'),
             child: const Text(
               'Esqueci a senha',
-              style: TextStyle(
-                color: Cores.azulPrimario,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(color: Cores.azulPrimario, fontSize: 13, fontWeight: FontWeight.w600),
             ),
           ),
         ),
@@ -201,13 +173,7 @@ class _PainelDireitoState extends State<PainelDireito> {
           cursor: SystemMouseCursors.click,
           child: GestureDetector(
             onTap: () => setState(() => _senhaVisivel = !_senhaVisivel),
-            child: Icon(
-              _senhaVisivel
-                  ? Icons.visibility_outlined
-                  : Icons.visibility_off_outlined,
-              color: Cores.cinzaMedio,
-              size: 20,
-            ),
+            child: Icon(_senhaVisivel ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: Cores.cinzaMedio, size: 20),
           ),
         ),
       ),
@@ -228,19 +194,14 @@ class _PainelDireitoState extends State<PainelDireito> {
           child: Checkbox(
             value: _manterConectado,
             activeColor: Cores.azulPrimario,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(4),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
             onChanged: (valor) {
               setState(() => _manterConectado = valor ?? false);
             },
           ),
         ),
         const SizedBox(width: 10),
-        const Text(
-          'Manter conectado',
-          style: TextStyle(color: Cores.cinzaEscuro, fontSize: 14),
-        ),
+        const Text('Manter conectado', style: TextStyle(color: Cores.cinzaEscuro, fontSize: 14)),
       ],
     );
   }
@@ -258,18 +219,8 @@ class _PainelDireitoState extends State<PainelDireito> {
           elevation: 0,
         ),
         child: _viewModel.carregando
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: Cores.branco,
-                  strokeWidth: 2,
-                ),
-              )
-            : const Text(
-                'Entrar na Plataforma',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-              ),
+            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Cores.branco, strokeWidth: 2))
+            : const Text('Entrar na Plataforma', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
       ),
     );
   }
@@ -291,21 +242,14 @@ class _PainelDireitoState extends State<PainelDireito> {
       alignment: WrapAlignment.center,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        const Text(
-          'Nao possui uma conta? ',
-          style: TextStyle(color: Cores.cinzaMedio, fontSize: 14),
-        ),
+        const Text('Não possui uma conta? ', style: TextStyle(color: Cores.cinzaMedio, fontSize: 14)),
         MouseRegion(
           cursor: SystemMouseCursors.click,
           child: GestureDetector(
             onTap: () => context.push('/cadastro'),
             child: const Text(
               'Cadastrar-se',
-              style: TextStyle(
-                color: Cores.azulPrimario,
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(color: Cores.azulPrimario, fontSize: 14, fontWeight: FontWeight.w700),
             ),
           ),
         ),
@@ -315,18 +259,11 @@ class _PainelDireitoState extends State<PainelDireito> {
 
   Widget _construirRodape() {
     return const Center(
-      child: Text(
-        '2026 GeRelat Intelligence Solutions. Todos os direitos reservados.',
-        style: TextStyle(color: Cores.cinzaMedio, fontSize: 12),
-      ),
+      child: Text('2026 GeRelat Intelligence Solutions. Todos os direitos reservados.', style: TextStyle(color: Cores.cinzaMedio, fontSize: 12)),
     );
   }
 
-  InputDecoration _decoracaoCampo({
-    required String dica,
-    required IconData icone,
-    Widget? sufixo,
-  }) {
+  InputDecoration _decoracaoCampo({required String dica, required IconData icone, Widget? sufixo}) {
     return InputDecoration(
       hintText: dica,
       hintStyle: const TextStyle(color: Cores.cinzaAzulado, fontSize: 14),

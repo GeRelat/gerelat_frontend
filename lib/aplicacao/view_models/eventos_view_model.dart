@@ -16,26 +16,18 @@ class EventosViewModel extends BaseViewModel {
     final termo = _termoBusca.trim().toLowerCase();
 
     if (termo.isNotEmpty) {
-      resultado = resultado.where(
-        (evento) =>
-            evento.nome.toLowerCase().contains(termo) ||
-            evento.programa.toLowerCase().contains(termo) ||
-            evento.local.toLowerCase().contains(termo) ||
-            evento.objetivo.toLowerCase().contains(termo),
-      );
+      resultado = resultado.where((evento) => evento.nome.toLowerCase().contains(termo) || evento.programa.toLowerCase().contains(termo) || evento.local.toLowerCase().contains(termo) || evento.objetivo.toLowerCase().contains(termo));
     }
 
     if (_filtroStatus == 'Confirmados') {
       resultado = resultado.where((evento) => evento.status == 'Confirmado');
     }
 
-    if (_filtroPeriodo == 'Este mes') {
+    if (_filtroPeriodo == 'Este mês') {
       final agora = DateTime.now();
       resultado = resultado.where((evento) {
         final data = evento.data;
-        return data != null &&
-            data.month == agora.month &&
-            data.year == agora.year;
+        return data != null && data.month == agora.month && data.year == agora.year;
       });
     }
 
