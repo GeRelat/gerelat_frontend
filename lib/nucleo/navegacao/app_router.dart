@@ -40,14 +40,7 @@ int? _idDaRota(GoRouterState state, [String parametro = 'id']) {
   return int.tryParse(state.pathParameters[parametro] ?? '');
 }
 
-const _rotasPublicas = <String>[
-  '/login',
-  '/cadastro',
-  '/cadastro/sucesso',
-  '/recuperar-senha',
-  '/recuperar-senha/enviado',
-  '/redefinir-senha',
-];
+const _rotasPublicas = <String>['/login', '/cadastro', '/cadastro/sucesso', '/recuperar-senha', '/recuperar-senha/enviado', '/redefinir-senha'];
 
 /// Deriva o que o [AppShell] precisa mostrar (seção ativa do menu + título)
 /// a partir do caminho da rota, evitando repetir essa informação em cada página.
@@ -57,7 +50,7 @@ const _rotasPublicas = <String>[
         ? 'Editar Cliente'
         : caminho.endsWith('/novo')
         ? 'Novo Cliente'
-        : 'Gestao de Clientes';
+        : 'Gestão de Clientes';
     return (secao: SecaoApp.clientes, titulo: titulo);
   }
   if (caminho.startsWith('/programas')) {
@@ -73,7 +66,7 @@ const _rotasPublicas = <String>[
         ? 'Equipe do Programa'
         : caminho.endsWith('/novo')
         ? 'Novo Programa'
-        : 'Gestao de Programas';
+        : 'Gestão de Programas';
     return (secao: SecaoApp.programas, titulo: titulo);
   }
   if (caminho.startsWith('/projetos/campos')) {
@@ -89,7 +82,7 @@ const _rotasPublicas = <String>[
         ? 'Editar Evento'
         : caminho.endsWith('/novo')
         ? 'Novo Evento'
-        : 'Gestao de Eventos';
+        : 'Gestão de Eventos';
     return (secao: SecaoApp.eventos, titulo: titulo);
   }
   if (caminho.startsWith('/templates')) {
@@ -101,9 +94,7 @@ const _rotasPublicas = <String>[
     return (secao: SecaoApp.templates, titulo: titulo);
   }
   if (caminho.startsWith('/relatorios')) {
-    final titulo = caminho.endsWith('/gerar')
-        ? 'Gerar Relatório'
-        : 'Relatorios';
+    final titulo = caminho.endsWith('/gerar') ? 'Gerar Relatório' : 'Relatórios';
     return (secao: SecaoApp.relatorios, titulo: titulo);
   }
   if (caminho.startsWith('/assets')) {
@@ -120,9 +111,7 @@ final appRouter = GoRouter(
   refreshListenable: DependenciasApp.instancia.sessao,
   redirect: (context, state) {
     final autenticado = DependenciasApp.instancia.sessao.estaAutenticado;
-    final indoParaRotaPublica = _rotasPublicas.any(
-      (rota) => state.matchedLocation == rota,
-    );
+    final indoParaRotaPublica = _rotasPublicas.any((rota) => state.matchedLocation == rota);
 
     if (!autenticado && !indoParaRotaPublica) return '/login';
 
@@ -140,28 +129,16 @@ final appRouter = GoRouter(
   },
   errorBuilder: (context, state) {
     final autenticado = DependenciasApp.instancia.sessao.estaAutenticado;
-    return PaginaNaoEncontrada(
-      rotaDestino: autenticado ? '/dashboard' : '/login',
-    );
+    return PaginaNaoEncontrada(rotaDestino: autenticado ? '/dashboard' : '/login');
   },
   routes: [
     GoRoute(path: '/login', builder: (context, state) => const PaginaLogin()),
-    GoRoute(
-      path: '/cadastro',
-      builder: (context, state) => const PaginaCadastro(),
-    ),
-    GoRoute(
-      path: '/cadastro/sucesso',
-      builder: (context, state) => const PaginaSucessoCadastro(),
-    ),
-    GoRoute(
-      path: '/recuperar-senha',
-      builder: (context, state) => const PaginaRecuperarSenha(),
-    ),
+    GoRoute(path: '/cadastro', builder: (context, state) => const PaginaCadastro()),
+    GoRoute(path: '/cadastro/sucesso', builder: (context, state) => const PaginaSucessoCadastro()),
+    GoRoute(path: '/recuperar-senha', builder: (context, state) => const PaginaRecuperarSenha()),
     GoRoute(
       path: '/recuperar-senha/enviado',
-      builder: (context, state) =>
-          PaginaEmailEnviado(email: state.extra as String?),
+      builder: (context, state) => PaginaEmailEnviado(email: state.extra as String?),
     ),
     GoRoute(
       path: '/redefinir-senha',
@@ -199,25 +176,12 @@ final appRouter = GoRouter(
     ShellRoute(
       builder: (context, state, child) {
         final chrome = _chromeParaRota(state.matchedLocation);
-        return AppShell(
-          secaoAtual: chrome.secao,
-          titulo: chrome.titulo,
-          child: child,
-        );
+        return AppShell(secaoAtual: chrome.secao, titulo: chrome.titulo, child: child);
       },
       routes: [
-        GoRoute(
-          path: '/dashboard',
-          builder: (context, state) => const DashboardPage(),
-        ),
-        GoRoute(
-          path: '/clientes',
-          builder: (context, state) => const PaginaClientes(),
-        ),
-        GoRoute(
-          path: '/clientes/novo',
-          builder: (context, state) => const PaginaFormularioCliente(),
-        ),
+        GoRoute(path: '/dashboard', builder: (context, state) => const DashboardPage()),
+        GoRoute(path: '/clientes', builder: (context, state) => const PaginaClientes()),
+        GoRoute(path: '/clientes/novo', builder: (context, state) => const PaginaFormularioCliente()),
         GoRoute(
           path: '/clientes/:id/editar',
           builder: (context, state) {
@@ -225,20 +189,11 @@ final appRouter = GoRouter(
             if (clienteId == null) {
               return const PaginaNaoEncontrada(rotaDestino: '/clientes');
             }
-            return PaginaFormularioCliente(
-              edicao: true,
-              clienteId: clienteId,
-            );
+            return PaginaFormularioCliente(edicao: true, clienteId: clienteId);
           },
         ),
-        GoRoute(
-          path: '/programas',
-          builder: (context, state) => const PaginaProgramas(),
-        ),
-        GoRoute(
-          path: '/programas/novo',
-          builder: (context, state) => const PaginaFormularioPrograma(),
-        ),
+        GoRoute(path: '/programas', builder: (context, state) => const PaginaProgramas()),
+        GoRoute(path: '/programas/novo', builder: (context, state) => const PaginaFormularioPrograma()),
         GoRoute(
           path: '/programas/:id/editar',
           builder: (context, state) {
@@ -246,17 +201,12 @@ final appRouter = GoRouter(
             if (programaId == null) {
               return const PaginaNaoEncontrada(rotaDestino: '/programas');
             }
-            return PaginaFormularioPrograma(
-              edicao: true,
-              programaId: programaId,
-            );
+            return PaginaFormularioPrograma(edicao: true, programaId: programaId);
           },
         ),
         GoRoute(
           path: '/programas/projetos/novo',
-          builder: (context, state) => PaginaFormularioProjeto(
-            programaIdInicial: state.extra as int?,
-          ),
+          builder: (context, state) => PaginaFormularioProjeto(programaIdInicial: state.extra as int?),
         ),
         GoRoute(
           path: '/programas/projetos/:id/editar',
@@ -288,26 +238,11 @@ final appRouter = GoRouter(
             return PaginaEquipePrograma(programaId: programaId);
           },
         ),
-        GoRoute(
-          path: '/projetos/equipe',
-          builder: (context, state) => const PaginaEquipeProjeto(),
-        ),
-        GoRoute(
-          path: '/projetos/campos',
-          builder: (context, state) => const PaginaCamposProjeto(),
-        ),
-        GoRoute(
-          path: '/eventos',
-          builder: (context, state) => const PaginaEventos(),
-        ),
-        GoRoute(
-          path: '/eventos/classes-evento',
-          builder: (context, state) => const PaginaClassesEvento(),
-        ),
-        GoRoute(
-          path: '/eventos/novo',
-          builder: (context, state) => const PaginaFormularioEvento(),
-        ),
+        GoRoute(path: '/projetos/equipe', builder: (context, state) => const PaginaEquipeProjeto()),
+        GoRoute(path: '/projetos/campos', builder: (context, state) => const PaginaCamposProjeto()),
+        GoRoute(path: '/eventos', builder: (context, state) => const PaginaEventos()),
+        GoRoute(path: '/eventos/classes-evento', builder: (context, state) => const PaginaClassesEvento()),
+        GoRoute(path: '/eventos/novo', builder: (context, state) => const PaginaFormularioEvento()),
         GoRoute(
           path: '/eventos/:id/editar',
           builder: (context, state) {
@@ -318,14 +253,8 @@ final appRouter = GoRouter(
             return PaginaFormularioEvento(edicao: true, eventoId: eventoId);
           },
         ),
-        GoRoute(
-          path: '/templates',
-          builder: (context, state) => const PaginaTemplates(),
-        ),
-        GoRoute(
-          path: '/templates/novo',
-          builder: (context, state) => const PaginaFormularioTemplate(),
-        ),
+        GoRoute(path: '/templates', builder: (context, state) => const PaginaTemplates()),
+        GoRoute(path: '/templates/novo', builder: (context, state) => const PaginaFormularioTemplate()),
         GoRoute(
           path: '/templates/:id/editar',
           builder: (context, state) {
@@ -333,28 +262,13 @@ final appRouter = GoRouter(
             if (templateId == null) {
               return const PaginaNaoEncontrada(rotaDestino: '/templates');
             }
-            return PaginaFormularioTemplate(
-              edicao: true,
-              templateId: templateId,
-            );
+            return PaginaFormularioTemplate(edicao: true, templateId: templateId);
           },
         ),
-        GoRoute(
-          path: '/relatorios',
-          builder: (context, state) => const PaginaRelatorios(),
-        ),
-        GoRoute(
-          path: '/relatorios/gerar',
-          builder: (context, state) => const PaginaGerarRelatorio(),
-        ),
-        GoRoute(
-          path: '/assets',
-          builder: (context, state) => const PaginaAssets(),
-        ),
-        GoRoute(
-          path: '/configuracoes',
-          builder: (context, state) => const PaginaConfiguracoes(),
-        ),
+        GoRoute(path: '/relatorios', builder: (context, state) => const PaginaRelatorios()),
+        GoRoute(path: '/relatorios/gerar', builder: (context, state) => const PaginaGerarRelatorio()),
+        GoRoute(path: '/assets', builder: (context, state) => const PaginaAssets()),
+        GoRoute(path: '/configuracoes', builder: (context, state) => const PaginaConfiguracoes()),
       ],
     ),
   ],

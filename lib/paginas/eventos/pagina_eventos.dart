@@ -22,8 +22,7 @@ class _PaginaEventosState extends State<PaginaEventos> {
   @override
   void initState() {
     super.initState();
-    _viewModel = EventosViewModel(DependenciasApp.instancia.repositorioCatalogo)
-      ..carregar();
+    _viewModel = EventosViewModel(DependenciasApp.instancia.repositorioCatalogo)..carregar();
   }
 
   @override
@@ -45,11 +44,7 @@ class _PaginaEventosState extends State<PaginaEventos> {
             children: [
               _cabecalho(context),
               const SizedBox(height: 20),
-              CampoBusca(
-                controlador: _controladorBusca,
-                dica: 'Pesquisar eventos...',
-                aoAlterar: _viewModel.definirBusca,
-              ),
+              CampoBusca(controlador: _controladorBusca, dica: 'Pesquisar eventos...', aoAlterar: _viewModel.definirBusca),
               const SizedBox(height: 24),
               _filtros(),
               const SizedBox(height: 24),
@@ -65,20 +60,11 @@ class _PaginaEventosState extends State<PaginaEventos> {
     return Row(
       children: [
         Expanded(
-          child: Text(
-            'Eventos cadastrados',
-            style: Tipografia.headlineMedium.copyWith(
-              color: Cores.textoPrincipal,
-            ),
-          ),
+          child: Text('Eventos cadastrados', style: Tipografia.headlineMedium.copyWith(color: Cores.textoPrincipal)),
         ),
         Row(
           children: [
-            BotaoPrimario(
-              texto: 'Classes de Evento',
-              icone: LucideIcons.tags,
-              onPressed: () => context.push('/eventos/classes-evento'),
-            ),
+            BotaoPrimario(texto: 'Classes de Evento', icone: LucideIcons.tags, onPressed: () => context.push('/eventos/classes-evento')),
             const SizedBox(width: 12),
             BotaoPrimario(
               texto: 'Novo Evento',
@@ -101,32 +87,13 @@ class _PaginaEventosState extends State<PaginaEventos> {
           const Icon(LucideIcons.sliders_horizontal, color: Cores.azulAcao),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              'Filtre por programa, classe de evento, data ou status.',
-              style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
-            ),
+            child: Text('Filtre por programa, classe de evento, data ou status.', style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro)),
           ),
-          _chip(
-            'Todos',
-            ativo: _viewModel.filtroPeriodo == 'Todos',
-            onTap: () => _viewModel.definirFiltroPeriodo('Todos'),
-          ),
+          _chip('Todos', ativo: _viewModel.filtroPeriodo == 'Todos', onTap: () => _viewModel.definirFiltroPeriodo('Todos')),
           const SizedBox(width: 8),
-          _chip(
-            'Este mes',
-            ativo: _viewModel.filtroPeriodo == 'Este mes',
-            onTap: () => _viewModel.definirFiltroPeriodo('Este mes'),
-          ),
+          _chip('Este mês', ativo: _viewModel.filtroPeriodo == 'Este mês', onTap: () => _viewModel.definirFiltroPeriodo('Este mês')),
           const SizedBox(width: 8),
-          _chip(
-            'Confirmados',
-            ativo: _viewModel.filtroStatus == 'Confirmados',
-            onTap: () => _viewModel.definirFiltroStatus(
-              _viewModel.filtroStatus == 'Confirmados'
-                  ? 'Todos'
-                  : 'Confirmados',
-            ),
-          ),
+          _chip('Confirmados', ativo: _viewModel.filtroStatus == 'Confirmados', onTap: () => _viewModel.definirFiltroStatus(_viewModel.filtroStatus == 'Confirmados' ? 'Todos' : 'Confirmados')),
         ],
       ),
     );
@@ -138,13 +105,7 @@ class _PaginaEventosState extends State<PaginaEventos> {
     }
 
     if (_viewModel.mensagemErro != null) {
-      return EstadoVazio(
-        icone: LucideIcons.circle_alert,
-        titulo: 'Nao foi possivel carregar os eventos',
-        descricao: _viewModel.mensagemErro!,
-        acao: 'Tentar novamente',
-        onAcao: _viewModel.carregar,
-      );
+      return EstadoVazio(icone: LucideIcons.circle_alert, titulo: 'Nao foi possivel carregar os eventos', descricao: _viewModel.mensagemErro!, acao: 'Tentar novamente', onAcao: _viewModel.carregar);
     }
 
     if (_viewModel.eventos.isEmpty) {
@@ -168,12 +129,7 @@ class _PaginaEventosState extends State<PaginaEventos> {
   Widget _listaEventos(BuildContext context, List<Evento> eventos) {
     return CartaoConteudo(
       padding: EdgeInsets.zero,
-      child: Column(
-        children: [
-          _cabecalhoTabela(),
-          for (final evento in eventos) _linha(context, evento),
-        ],
-      ),
+      child: Column(children: [_cabecalhoTabela(), for (final evento in eventos) _linha(context, evento)]),
     );
   }
 
@@ -185,14 +141,7 @@ class _PaginaEventosState extends State<PaginaEventos> {
         color: Cores.fundoSecao,
         border: Border(bottom: BorderSide(color: Cores.bordaSutil)),
       ),
-      child: Row(
-        children: [
-          _celulaCabecalho('Evento', flex: 3),
-          _celulaCabecalho('Programa', flex: 2),
-          _celulaCabecalho('Data'),
-          _celulaCabecalho('Status'),
-        ],
-      ),
+      child: Row(children: [_celulaCabecalho('Evento', flex: 3), _celulaCabecalho('Programa', flex: 2), _celulaCabecalho('Data'), _celulaCabecalho('Status')]),
     );
   }
 
@@ -206,25 +155,14 @@ class _PaginaEventosState extends State<PaginaEventos> {
         children: [
           Expanded(
             flex: 3,
-            child: Text(
-              evento.nome,
-              style: Tipografia.labelLarge.copyWith(
-                color: Cores.textoPrincipal,
-              ),
-            ),
+            child: Text(evento.nome, style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal)),
           ),
           Expanded(
             flex: 2,
-            child: Text(
-              evento.programa,
-              style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
-            ),
+            child: Text(evento.programa, style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro)),
           ),
           Expanded(
-            child: Text(
-              _formatarData(evento.data),
-              style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
-            ),
+            child: Text(_formatarData(evento.data), style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro)),
           ),
           Expanded(
             child: Row(
@@ -234,9 +172,7 @@ class _PaginaEventosState extends State<PaginaEventos> {
                 IconButton(
                   tooltip: 'Editar evento',
                   onPressed: () async {
-                    final alterado = await context.push<bool>(
-                      '/eventos/${evento.id}/editar',
-                    );
+                    final alterado = await context.push<bool>('/eventos/${evento.id}/editar');
                     if (alterado == true) {
                       await _viewModel.carregar();
                     }
@@ -246,11 +182,7 @@ class _PaginaEventosState extends State<PaginaEventos> {
                 IconButton(
                   tooltip: 'Excluir evento',
                   onPressed: () => _confirmarExclusao(context, evento),
-                  icon: const Icon(
-                    LucideIcons.trash_2,
-                    size: 18,
-                    color: Cores.vermelhoErro,
-                  ),
+                  icon: const Icon(LucideIcons.trash_2, size: 18, color: Cores.vermelhoErro),
                 ),
               ],
             ),
@@ -271,16 +203,10 @@ class _PaginaEventosState extends State<PaginaEventos> {
           'o vínculo com ele. Esta ação não pode ser desfeita.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => context.pop(false),
-            child: const Text('Cancelar'),
-          ),
+          TextButton(onPressed: () => context.pop(false), child: const Text('Cancelar')),
           TextButton(
             onPressed: () => context.pop(true),
-            child: const Text(
-              'Excluir',
-              style: TextStyle(color: Cores.vermelhoErro),
-            ),
+            child: const Text('Excluir', style: TextStyle(color: Cores.vermelhoErro)),
           ),
         ],
       ),
@@ -292,46 +218,24 @@ class _PaginaEventosState extends State<PaginaEventos> {
 
     final sucesso = await _viewModel.excluir(eventoId);
     if (!context.mounted || sucesso) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(_viewModel.mensagemErro ?? 'Erro ao excluir evento.'),
-      ),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_viewModel.mensagemErro ?? 'Erro ao excluir evento.')));
   }
 
   Widget _celulaCabecalho(String texto, {int flex = 1}) {
     return Expanded(
       flex: flex,
-      child: Text(
-        texto.toUpperCase(),
-        style: Tipografia.labelMedium.copyWith(
-          color: Cores.cinzaMedio,
-          letterSpacing: 0.6,
-        ),
-      ),
+      child: Text(texto.toUpperCase(), style: Tipografia.labelMedium.copyWith(color: Cores.cinzaMedio, letterSpacing: 0.6)),
     );
   }
 
-  Widget _chip(
-    String texto, {
-    required bool ativo,
-    required VoidCallback onTap,
-  }) {
+  Widget _chip(String texto, {required bool ativo, required VoidCallback onTap}) {
     return InkWell(
       borderRadius: BorderRadius.circular(999),
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: ativo
-              ? Cores.azulAcao.withValues(alpha: 0.16)
-              : Cores.azulAcao.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Text(
-          texto,
-          style: Tipografia.labelMedium.copyWith(color: Cores.azulAcao),
-        ),
+        decoration: BoxDecoration(color: ativo ? Cores.azulAcao.withValues(alpha: 0.16) : Cores.azulAcao.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(999)),
+        child: Text(texto, style: Tipografia.labelMedium.copyWith(color: Cores.azulAcao)),
       ),
     );
   }
@@ -339,14 +243,8 @@ class _PaginaEventosState extends State<PaginaEventos> {
   Widget _status(String texto) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Cores.azulAcao.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        texto,
-        style: Tipografia.labelMedium.copyWith(color: Cores.azulAcao),
-      ),
+      decoration: BoxDecoration(color: Cores.azulAcao.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(999)),
+      child: Text(texto, style: Tipografia.labelMedium.copyWith(color: Cores.azulAcao)),
     );
   }
 

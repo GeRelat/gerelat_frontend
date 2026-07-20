@@ -22,9 +22,7 @@ class _PaginaClientesState extends State<PaginaClientes> {
   @override
   void initState() {
     super.initState();
-    _viewModel = ClientesViewModel(
-      DependenciasApp.instancia.repositorioCatalogo,
-    )..carregar();
+    _viewModel = ClientesViewModel(DependenciasApp.instancia.repositorioCatalogo)..carregar();
   }
 
   @override
@@ -46,11 +44,7 @@ class _PaginaClientesState extends State<PaginaClientes> {
             children: [
               _cabecalho(context),
               const SizedBox(height: 20),
-              CampoBusca(
-                controlador: _controladorBusca,
-                dica: 'Pesquisar clientes...',
-                aoAlterar: _viewModel.definirBusca,
-              ),
+              CampoBusca(controlador: _controladorBusca, dica: 'Pesquisar clientes...', aoAlterar: _viewModel.definirBusca),
               const SizedBox(height: 24),
               _conteudo(),
             ],
@@ -67,17 +61,9 @@ class _PaginaClientesState extends State<PaginaClientes> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Clientes',
-                style: Tipografia.headlineMedium.copyWith(
-                  color: Cores.textoPrincipal,
-                ),
-              ),
+              Text('Clientes', style: Tipografia.headlineMedium.copyWith(color: Cores.textoPrincipal)),
               const SizedBox(height: 6),
-              Text(
-                'Cadastre os clientes contratantes e vincule-os aos programas institucionais.',
-                style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
-              ),
+              Text('Cadastre os clientes contratantes e vincule-os aos programas institucionais.', style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro)),
             ],
           ),
         ),
@@ -99,21 +85,14 @@ class _PaginaClientesState extends State<PaginaClientes> {
     }
 
     if (_viewModel.mensagemErro != null && _viewModel.clientes.isEmpty) {
-      return EstadoVazio(
-        icone: LucideIcons.circle_alert,
-        titulo: 'Nao foi possivel carregar os clientes',
-        descricao: _viewModel.mensagemErro!,
-        acao: 'Tentar novamente',
-        onAcao: _viewModel.carregar,
-      );
+      return EstadoVazio(icone: LucideIcons.circle_alert, titulo: 'Não foi possivel carregar os clientes', descricao: _viewModel.mensagemErro!, acao: 'Tentar novamente', onAcao: _viewModel.carregar);
     }
 
     if (_viewModel.clientes.isEmpty) {
       return EstadoVazio(
         icone: LucideIcons.search_x,
         titulo: 'Nenhum cliente encontrado',
-        descricao:
-            'A lista atual não contém clientes compatíveis com a busca informada.',
+        descricao: 'A lista atual não contém clientes compatíveis com a busca informada.',
         acao: 'Limpar busca',
         onAcao: () {
           _controladorBusca.clear();
@@ -129,9 +108,7 @@ class _PaginaClientesState extends State<PaginaClientes> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final duasColunas = constraints.maxWidth >= 900;
-        final largura = duasColunas
-            ? (constraints.maxWidth - 24) / 2
-            : constraints.maxWidth;
+        final largura = duasColunas ? (constraints.maxWidth - 24) / 2 : constraints.maxWidth;
 
         return Wrap(
           spacing: 24,
@@ -140,12 +117,7 @@ class _PaginaClientesState extends State<PaginaClientes> {
               .map(
                 (cliente) => SizedBox(
                   width: largura,
-                  child: _CartaoCliente(
-                    cliente,
-                    onAlterado: _viewModel.carregar,
-                    onExcluir: _viewModel.excluir,
-                    obterMensagemErro: () => _viewModel.mensagemErroAcao,
-                  ),
+                  child: _CartaoCliente(cliente, onAlterado: _viewModel.carregar, onExcluir: _viewModel.excluir, obterMensagemErro: () => _viewModel.mensagemErroAcao),
                 ),
               )
               .toList(),
@@ -161,12 +133,7 @@ class _CartaoCliente extends StatelessWidget {
   final Future<bool> Function(int) onExcluir;
   final String? Function() obterMensagemErro;
 
-  const _CartaoCliente(
-    this.cliente, {
-    required this.onAlterado,
-    required this.onExcluir,
-    required this.obterMensagemErro,
-  });
+  const _CartaoCliente(this.cliente, {required this.onAlterado, required this.onExcluir, required this.obterMensagemErro});
 
   @override
   Widget build(BuildContext context) {
@@ -180,10 +147,7 @@ class _CartaoCliente extends StatelessWidget {
               Container(
                 width: 48,
                 height: 48,
-                decoration: BoxDecoration(
-                  color: Cores.azulAcao.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                decoration: BoxDecoration(color: Cores.azulAcao.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                 child: const Icon(LucideIcons.building_2, color: Cores.azulAcao),
               ),
               const SizedBox(width: 16),
@@ -191,19 +155,9 @@ class _CartaoCliente extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      cliente.nome,
-                      style: Tipografia.titleLarge.copyWith(
-                        color: Cores.textoPrincipal,
-                      ),
-                    ),
+                    Text(cliente.nome, style: Tipografia.titleLarge.copyWith(color: Cores.textoPrincipal)),
                     const SizedBox(height: 4),
-                    Text(
-                      cliente.cnpj.isEmpty ? 'CNPJ não informado' : cliente.cnpj,
-                      style: Tipografia.bodySmall.copyWith(
-                        color: Cores.cinzaMedio,
-                      ),
-                    ),
+                    Text(cliente.cnpj.isEmpty ? 'CNPJ não informado' : cliente.cnpj, style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio)),
                   ],
                 ),
               ),
@@ -216,12 +170,7 @@ class _CartaoCliente extends StatelessWidget {
           const SizedBox(height: 6),
           _linhaInfo(LucideIcons.phone, cliente.foneContato),
           const SizedBox(height: 6),
-          _linhaInfo(
-            LucideIcons.signature,
-            cliente.numeroContrato.isEmpty
-                ? 'Contrato não informado'
-                : 'Contrato ${cliente.numeroContrato}',
-          ),
+          _linhaInfo(LucideIcons.signature, cliente.numeroContrato.isEmpty ? 'Contrato não informado' : 'Contrato ${cliente.numeroContrato}'),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
@@ -229,9 +178,7 @@ class _CartaoCliente extends StatelessWidget {
               IconButton(
                 tooltip: 'Editar cliente',
                 onPressed: () async {
-                  final alterado = await context.push<bool>(
-                    '/clientes/${cliente.id}/editar',
-                  );
+                  final alterado = await context.push<bool>('/clientes/${cliente.id}/editar');
                   if (alterado == true) await onAlterado();
                 },
                 icon: const Icon(LucideIcons.pencil, size: 18),
@@ -239,11 +186,7 @@ class _CartaoCliente extends StatelessWidget {
               IconButton(
                 tooltip: 'Excluir cliente',
                 onPressed: () => _confirmarExclusao(context),
-                icon: const Icon(
-                  LucideIcons.trash_2,
-                  size: 18,
-                  color: Cores.vermelhoErro,
-                ),
+                icon: const Icon(LucideIcons.trash_2, size: 18, color: Cores.vermelhoErro),
               ),
             ],
           ),
@@ -274,20 +217,12 @@ class _CartaoCliente extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Excluir cliente'),
-        content: Text(
-          'Tem certeza de que deseja excluir "${cliente.nome}"? Esta ação não pode ser desfeita.',
-        ),
+        content: Text('Tem certeza de que deseja excluir "${cliente.nome}"? Esta ação não pode ser desfeita.'),
         actions: [
-          TextButton(
-            onPressed: () => context.pop(false),
-            child: const Text('Cancelar'),
-          ),
+          TextButton(onPressed: () => context.pop(false), child: const Text('Cancelar')),
           TextButton(
             onPressed: () => context.pop(true),
-            child: const Text(
-              'Excluir',
-              style: TextStyle(color: Cores.vermelhoErro),
-            ),
+            child: const Text('Excluir', style: TextStyle(color: Cores.vermelhoErro)),
           ),
         ],
       ),
@@ -299,10 +234,6 @@ class _CartaoCliente extends StatelessWidget {
 
     final sucesso = await onExcluir(clienteId);
     if (!context.mounted || sucesso) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(obterMensagemErro() ?? 'Erro ao excluir cliente.'),
-      ),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(obterMensagemErro() ?? 'Erro ao excluir cliente.')));
   }
 }

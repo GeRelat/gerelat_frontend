@@ -51,15 +51,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<void> criarCliente({
-    required String nome,
-    String cnpj = '',
-    String nomeContato = '',
-    String emailContato = '',
-    String foneContato = '',
-    String numeroContrato = '',
-    required DateTime dataTerminoContrato,
-  }) async {
+  Future<void> criarCliente({required String nome, String cnpj = '', String nomeContato = '', String emailContato = '', String foneContato = '', String numeroContrato = '', required DateTime dataTerminoContrato}) async {
     await _api.criar('/clientes/', {
       'nome': nome,
       'cnpj': cnpj,
@@ -107,9 +99,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
       emailContato: _texto(cliente['email_contato']),
       foneContato: _texto(cliente['fone_contato']),
       numeroContrato: _texto(cliente['numero_contrato']),
-      dataTerminoContrato: DateTime.tryParse(
-        _texto(cliente['data_termino_contrato']),
-      ),
+      dataTerminoContrato: DateTime.tryParse(_texto(cliente['data_termino_contrato'])),
     );
   }
 
@@ -129,8 +119,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
       if (idProjeto == null || idPrograma == null) continue;
 
       programaPorProjeto[idProjeto] = idPrograma;
-      projetosPorPrograma[idPrograma] =
-          (projetosPorPrograma[idPrograma] ?? 0) + 1;
+      projetosPorPrograma[idPrograma] = (projetosPorPrograma[idPrograma] ?? 0) + 1;
     }
 
     final eventosPorPrograma = <int, int>{};
@@ -138,8 +127,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
       final idProjeto = _inteiro(evento['projeto']);
       final idPrograma = programaPorProjeto[idProjeto];
       if (idPrograma == null) continue;
-      eventosPorPrograma[idPrograma] =
-          (eventosPorPrograma[idPrograma] ?? 0) + 1;
+      eventosPorPrograma[idPrograma] = (eventosPorPrograma[idPrograma] ?? 0) + 1;
     }
 
     final nomeClientePorId = {
@@ -163,9 +151,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
         rodape: _texto(programa['rodape']),
         logomarca: _texto(programa['logomarca']),
         clienteId: idCliente,
-        clienteNome: idCliente == null
-            ? ''
-            : (nomeClientePorId[idCliente] ?? ''),
+        clienteNome: idCliente == null ? '' : (nomeClientePorId[idCliente] ?? ''),
       );
     }).toList();
   }
@@ -191,12 +177,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
         .toSet();
 
     final eventos = await _getLista('/eventos/');
-    final totalEventos = eventos
-        .where(
-          (evento) =>
-              idsProjetosDoPrograma.contains(_inteiro(evento['projeto'])),
-        )
-        .length;
+    final totalEventos = eventos.where((evento) => idsProjetosDoPrograma.contains(_inteiro(evento['projeto']))).length;
 
     return Programa(
       id: _inteiro(programa['id']),
@@ -231,8 +212,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
       final idProjeto = _inteiro(projeto['id']);
       final idPrograma = _inteiro(projeto['programa']);
       if (idProjeto == null || idPrograma == null) continue;
-      programaPorProjeto[idProjeto] =
-          programaPorId[idPrograma] ?? 'Programa nao informado';
+      programaPorProjeto[idProjeto] = programaPorId[idPrograma] ?? 'Programa nao informado';
     }
 
     return eventos.map((evento) {
@@ -371,10 +351,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
 
     return ResumoDashboard(
       programas: programas.length,
-      projetos: programas.fold(
-        0,
-        (total, programa) => total + programa.projetos,
-      ),
+      projetos: programas.fold(0, (total, programa) => total + programa.projetos),
       eventos: programas.fold(0, (total, programa) => total + programa.eventos),
       templates: templates.length,
       relatorios: relatorios.length,
@@ -382,42 +359,13 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<void> criarPrograma({
-    required String nome,
-    required String leiCriacao,
-    required String convenioDados,
-    String rodape = '',
-    String logomarca = '',
-    int? clienteId,
-  }) async {
-    await _api.criar('/programas/', {
-      'nome': nome,
-      'lei_criacao': leiCriacao,
-      'convenio_dados': convenioDados,
-      'rodape': rodape,
-      'logomarca': logomarca,
-      'cliente': clienteId,
-    });
+  Future<void> criarPrograma({required String nome, required String leiCriacao, required String convenioDados, String rodape = '', String logomarca = '', int? clienteId}) async {
+    await _api.criar('/programas/', {'nome': nome, 'lei_criacao': leiCriacao, 'convenio_dados': convenioDados, 'rodape': rodape, 'logomarca': logomarca, 'cliente': clienteId});
   }
 
   @override
-  Future<void> atualizarPrograma({
-    required int programaId,
-    required String nome,
-    required String leiCriacao,
-    required String convenioDados,
-    String rodape = '',
-    String logomarca = '',
-    int? clienteId,
-  }) async {
-    await _api.atualizar('/programas/$programaId/', {
-      'nome': nome,
-      'lei_criacao': leiCriacao,
-      'convenio_dados': convenioDados,
-      'rodape': rodape,
-      'logomarca': logomarca,
-      'cliente': clienteId,
-    });
+  Future<void> atualizarPrograma({required int programaId, required String nome, required String leiCriacao, required String convenioDados, String rodape = '', String logomarca = '', int? clienteId}) async {
+    await _api.atualizar('/programas/$programaId/', {'nome': nome, 'lei_criacao': leiCriacao, 'convenio_dados': convenioDados, 'rodape': rodape, 'logomarca': logomarca, 'cliente': clienteId});
   }
 
   @override
@@ -426,9 +374,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<List<MembroEquipePrograma>> listarEquipePrograma({
-    required int programaId,
-  }) async {
+  Future<List<MembroEquipePrograma>> listarEquipePrograma({required int programaId}) async {
     final membros = await _getLista('/equipes-programa/');
     return membros
         .where((membro) => _inteiro(membro['programa']) == programaId)
@@ -444,28 +390,13 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<void> criarMembroEquipe({
-    required int programaId,
-    required String nome,
-    required String cargo,
-  }) async {
-    await _api.criar('/equipes-programa/', {
-      'programa': programaId,
-      'nome': nome,
-      'cargo': cargo,
-    });
+  Future<void> criarMembroEquipe({required int programaId, required String nome, required String cargo}) async {
+    await _api.criar('/equipes-programa/', {'programa': programaId, 'nome': nome, 'cargo': cargo});
   }
 
   @override
-  Future<void> atualizarMembroEquipe({
-    required int membroId,
-    required String nome,
-    required String cargo,
-  }) async {
-    await _api.atualizar('/equipes-programa/$membroId/', {
-      'nome': nome,
-      'cargo': cargo,
-    });
+  Future<void> atualizarMembroEquipe({required int membroId, required String nome, required String cargo}) async {
+    await _api.atualizar('/equipes-programa/$membroId/', {'nome': nome, 'cargo': cargo});
   }
 
   @override
@@ -474,9 +405,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<List<MembroEquipeProjeto>> listarEquipeProjeto({
-    required int projetoId,
-  }) async {
+  Future<List<MembroEquipeProjeto>> listarEquipeProjeto({required int projetoId}) async {
     final membros = await _getLista('/equipes-projeto/');
     return membros
         .where((membro) => _inteiro(membro['projeto']) == projetoId)
@@ -493,32 +422,13 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<void> criarMembroEquipeProjeto({
-    required int projetoId,
-    required String nomeEquipe,
-    required String nome,
-    required String cargo,
-  }) async {
-    await _api.criar('/equipes-projeto/', {
-      'projeto': projetoId,
-      'nome_equipe': nomeEquipe,
-      'nome': nome,
-      'cargo': cargo,
-    });
+  Future<void> criarMembroEquipeProjeto({required int projetoId, required String nomeEquipe, required String nome, required String cargo}) async {
+    await _api.criar('/equipes-projeto/', {'projeto': projetoId, 'nome_equipe': nomeEquipe, 'nome': nome, 'cargo': cargo});
   }
 
   @override
-  Future<void> atualizarMembroEquipeProjeto({
-    required int membroId,
-    required String nomeEquipe,
-    required String nome,
-    required String cargo,
-  }) async {
-    await _api.atualizar('/equipes-projeto/$membroId/', {
-      'nome_equipe': nomeEquipe,
-      'nome': nome,
-      'cargo': cargo,
-    });
+  Future<void> atualizarMembroEquipeProjeto({required int membroId, required String nomeEquipe, required String nome, required String cargo}) async {
+    await _api.atualizar('/equipes-projeto/$membroId/', {'nome_equipe': nomeEquipe, 'nome': nome, 'cargo': cargo});
   }
 
   @override
@@ -541,32 +451,14 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<void> criarProjeto({
-    required int programaId,
-    required String nome,
-    String parceira = '',
-    String sigla = '',
-    String logomarca = '',
-  }) async {
-    await _api.criar('/projetos/', {
-      'programa': programaId,
-      'nome': nome,
-      'parceira': parceira,
-      'sigla': sigla,
-      'logomarca': logomarca,
-    });
+  Future<void> criarProjeto({required int programaId, required String nome, String parceira = '', String sigla = '', String logomarca = ''}) async {
+    await _api.criar('/projetos/', {'programa': programaId, 'nome': nome, 'parceira': parceira, 'sigla': sigla, 'logomarca': logomarca});
   }
 
   @override
   Future<List<Projeto>> listarProjetosDetalhados({int? programaId}) async {
     final projetos = await _getLista('/projetos/');
-    return projetos
-        .where(
-          (projeto) =>
-              programaId == null || _inteiro(projeto['programa']) == programaId,
-        )
-        .map(_projetoDeMapa)
-        .toList();
+    return projetos.where((projeto) => programaId == null || _inteiro(projeto['programa']) == programaId).map(_projetoDeMapa).toList();
   }
 
   @override
@@ -576,21 +468,8 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<void> atualizarProjeto({
-    required int projetoId,
-    required int programaId,
-    required String nome,
-    String parceira = '',
-    String sigla = '',
-    String logomarca = '',
-  }) async {
-    await _api.atualizar('/projetos/$projetoId/', {
-      'programa': programaId,
-      'nome': nome,
-      'parceira': parceira,
-      'sigla': sigla,
-      'logomarca': logomarca,
-    });
+  Future<void> atualizarProjeto({required int projetoId, required int programaId, required String nome, String parceira = '', String sigla = '', String logomarca = ''}) async {
+    await _api.atualizar('/projetos/$projetoId/', {'programa': programaId, 'nome': nome, 'parceira': parceira, 'sigla': sigla, 'logomarca': logomarca});
   }
 
   @override
@@ -627,10 +506,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   Future<List<OpcaoSelecao>> listarClassesEvento({int? projetoId}) async {
     final classes = await _getLista('/classes-evento/');
     return classes
-        .where(
-          (classe) =>
-              projetoId == null || _inteiro(classe['projeto']) == projetoId,
-        )
+        .where((classe) => projetoId == null || _inteiro(classe['projeto']) == projetoId)
         .map(
           (classe) => OpcaoSelecao(
             id: _inteiro(classe['id']) ?? 0,
@@ -654,9 +530,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<List<ClasseEvento>> listarClassesEventoDetalhadas({
-    required int projetoId,
-  }) async {
+  Future<List<ClasseEvento>> listarClassesEventoDetalhadas({required int projetoId}) async {
     final classes = await _getLista('/classes-evento/');
     return classes
         .where((classe) => _inteiro(classe['projeto']) == projetoId)
@@ -674,13 +548,8 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<void> atualizarClasseEvento({
-    required int classeId,
-    required String nomeClasse,
-  }) async {
-    await _api.atualizar('/classes-evento/$classeId/', {
-      'nome_classe': nomeClasse,
-    });
+  Future<void> atualizarClasseEvento({required int classeId, required String nomeClasse}) async {
+    await _api.atualizar('/classes-evento/$classeId/', {'nome_classe': nomeClasse});
   }
 
   @override
@@ -689,46 +558,13 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<void> criarEvento({
-    required int projetoId,
-    required int classeEventoId,
-    required String nome,
-    required DateTime data,
-    String local = '',
-    String endereco = '',
-    String objetivo = '',
-  }) async {
-    await _api.criar('/eventos/', {
-      'projeto': projetoId,
-      'classe_evento': classeEventoId,
-      'nome': nome,
-      'data': _dataApi(data),
-      'local': local,
-      'endereco': endereco,
-      'objetivo': objetivo,
-    });
+  Future<void> criarEvento({required int projetoId, required int classeEventoId, required String nome, required DateTime data, String local = '', String endereco = '', String objetivo = ''}) async {
+    await _api.criar('/eventos/', {'projeto': projetoId, 'classe_evento': classeEventoId, 'nome': nome, 'data': _dataApi(data), 'local': local, 'endereco': endereco, 'objetivo': objetivo});
   }
 
   @override
-  Future<void> atualizarEvento({
-    required int eventoId,
-    required int projetoId,
-    required int classeEventoId,
-    required String nome,
-    required DateTime data,
-    String local = '',
-    String endereco = '',
-    String objetivo = '',
-  }) async {
-    await _api.atualizar('/eventos/$eventoId/', {
-      'projeto': projetoId,
-      'classe_evento': classeEventoId,
-      'nome': nome,
-      'data': _dataApi(data),
-      'local': local,
-      'endereco': endereco,
-      'objetivo': objetivo,
-    });
+  Future<void> atualizarEvento({required int eventoId, required int projetoId, required int classeEventoId, required String nome, required DateTime data, String local = '', String endereco = '', String objetivo = ''}) async {
+    await _api.atualizar('/eventos/$eventoId/', {'projeto': projetoId, 'classe_evento': classeEventoId, 'nome': nome, 'data': _dataApi(data), 'local': local, 'endereco': endereco, 'objetivo': objetivo});
   }
 
   @override
@@ -835,14 +671,9 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
 
     if (arquivoBytes == null || nomeArquivo == null) return;
 
-    final modeloJson = await _converterDocxParaJson(
-      arquivoBytes: arquivoBytes,
-      nomeArquivo: nomeArquivo,
-    );
+    final modeloJson = await _converterDocxParaJson(arquivoBytes: arquivoBytes, nomeArquivo: nomeArquivo);
 
-    await _api.atualizar('/templates/$templateId/update-json/', {
-      'modelo_json': modeloJson,
-    });
+    await _api.atualizar('/templates/$templateId/update-json/', {'modelo_json': modeloJson});
   }
 
   @override
@@ -914,18 +745,14 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   /// Converte um .docx em ProseMirror JSON via `/templates/convert-docx/`,
   /// o mesmo formato usado por `Template.modelo_json` para resolver
   /// variáveis e gerar o relatório final (ver document_engine no gerelat-api).
-  Future<Map<String, dynamic>> _converterDocxParaJson({
-    required Uint8List arquivoBytes,
-    required String nomeArquivo,
-  }) async {
+  Future<Map<String, dynamic>> _converterDocxParaJson({required Uint8List arquivoBytes, required String nomeArquivo}) async {
     final conversao = await _api.criarMultipart(
       caminho: '/templates/convert-docx/',
       campos: const {},
       campoArquivo: 'arquivo',
       arquivoBytes: arquivoBytes,
       nomeArquivo: nomeArquivo,
-      contentType:
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     );
 
     final modeloJson = conversao['modelo_json'];
@@ -950,14 +777,8 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<void> vincularTemplateClasse({
-    required int templateId,
-    required int classeEventoId,
-  }) async {
-    await _api.criar('/template-classes-evento/', {
-      'template': templateId,
-      'classe_evento': classeEventoId,
-    });
+  Future<void> vincularTemplateClasse({required int templateId, required int classeEventoId}) async {
+    await _api.criar('/template-classes-evento/', {'template': templateId, 'classe_evento': classeEventoId});
   }
 
   @override
@@ -971,29 +792,15 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<List<AssinaturaTemplate>> listarAssinaturasTemplate(
-    int templateId,
-  ) async {
+  Future<List<AssinaturaTemplate>> listarAssinaturasTemplate(int templateId) async {
     final assinaturas = await _getLista('/assinaturas-template/');
-    final relevantes = assinaturas
-        .where((assinatura) => _inteiro(assinatura['template']) == templateId)
-        .toList();
+    final relevantes = assinaturas.where((assinatura) => _inteiro(assinatura['template']) == templateId).toList();
 
-    final idsEquipePrograma = relevantes
-        .map((assinatura) => _inteiro(assinatura['equipe_programa']))
-        .whereType<int>()
-        .toSet();
-    final idsEquipeProjeto = relevantes
-        .map((assinatura) => _inteiro(assinatura['equipe_projeto']))
-        .whereType<int>()
-        .toSet();
+    final idsEquipePrograma = relevantes.map((assinatura) => _inteiro(assinatura['equipe_programa'])).whereType<int>().toSet();
+    final idsEquipeProjeto = relevantes.map((assinatura) => _inteiro(assinatura['equipe_projeto'])).whereType<int>().toSet();
 
-    final membrosPrograma = idsEquipePrograma.isEmpty
-        ? <Map<String, dynamic>>[]
-        : await _getLista('/equipes-programa/');
-    final membrosProjeto = idsEquipeProjeto.isEmpty
-        ? <Map<String, dynamic>>[]
-        : await _getLista('/equipes-projeto/');
+    final membrosPrograma = idsEquipePrograma.isEmpty ? <Map<String, dynamic>>[] : await _getLista('/equipes-programa/');
+    final membrosProjeto = idsEquipeProjeto.isEmpty ? <Map<String, dynamic>>[] : await _getLista('/equipes-projeto/');
 
     final dadosPorEquipePrograma = {
       for (final membro in membrosPrograma)
@@ -1015,12 +822,8 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
     return relevantes.map((assinatura) {
       final idEquipePrograma = _inteiro(assinatura['equipe_programa']);
       final idEquipeProjeto = _inteiro(assinatura['equipe_projeto']);
-      final dadosPrograma = idEquipePrograma == null
-          ? null
-          : dadosPorEquipePrograma[idEquipePrograma];
-      final dadosProjeto = idEquipeProjeto == null
-          ? null
-          : dadosPorEquipeProjeto[idEquipeProjeto];
+      final dadosPrograma = idEquipePrograma == null ? null : dadosPorEquipePrograma[idEquipePrograma];
+      final dadosProjeto = idEquipeProjeto == null ? null : dadosPorEquipeProjeto[idEquipeProjeto];
 
       return AssinaturaTemplate(
         id: _inteiro(assinatura['id']),
@@ -1034,16 +837,8 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<void> criarAssinaturaTemplate({
-    required int templateId,
-    int? equipeProgramaId,
-    int? equipeProjetoId,
-  }) async {
-    await _api.criar('/assinaturas-template/', {
-      'template': templateId,
-      'equipe_programa': equipeProgramaId,
-      'equipe_projeto': equipeProjetoId,
-    });
+  Future<void> criarAssinaturaTemplate({required int templateId, int? equipeProgramaId, int? equipeProjetoId}) async {
+    await _api.criar('/assinaturas-template/', {'template': templateId, 'equipe_programa': equipeProgramaId, 'equipe_projeto': equipeProjetoId});
   }
 
   @override
@@ -1057,27 +852,18 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<Map<String, dynamic>> previsualizarTemplate({
-    required int templateId,
-    int? eventoId,
-  }) async {
-    final caminho = eventoId == null
-        ? '/templates/$templateId/preview/'
-        : '/templates/$templateId/preview/?evento_id=$eventoId';
+  Future<Map<String, dynamic>> previsualizarTemplate({required int templateId, int? eventoId}) async {
+    final caminho = eventoId == null ? '/templates/$templateId/preview/' : '/templates/$templateId/preview/?evento_id=$eventoId';
     final resposta = await _api.obter(caminho);
     final documento = resposta['documento_json'];
     if (documento is! Map) {
-      throw Exception(
-        'Não foi possível carregar a pré-visualização do template.',
-      );
+      throw Exception('Não foi possível carregar a pré-visualização do template.');
     }
     return Map<String, dynamic>.from(documento);
   }
 
   @override
-  Future<List<ProjetoCampo>> listarCamposProjeto({
-    required int projetoId,
-  }) async {
+  Future<List<ProjetoCampo>> listarCamposProjeto({required int projetoId}) async {
     final campos = await _getLista('/projeto-campos/');
     return campos
         .where((campo) => _inteiro(campo['projeto']) == projetoId)
@@ -1089,49 +875,20 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
             descricao: _texto(campo['descricao']),
             tipo: TipoCampoProjeto.porValorApi(_texto(campo['tipo'])),
             obrigatorio: campo['obrigatorio'] == true,
-            valor: campo['valor'] is Map
-                ? Map<String, dynamic>.from(campo['valor'] as Map)
-                : const {},
+            valor: campo['valor'] is Map ? Map<String, dynamic>.from(campo['valor'] as Map) : const {},
           ),
         )
         .toList();
   }
 
   @override
-  Future<void> criarCampoProjeto({
-    required int projetoId,
-    required String referencia,
-    required String descricao,
-    required TipoCampoProjeto tipo,
-    required bool obrigatorio,
-    required Map<String, dynamic> valor,
-  }) async {
-    await _api.criar('/projeto-campos/', {
-      'projeto': projetoId,
-      'referencia': referencia,
-      'descricao': descricao,
-      'tipo': tipo.valorApi,
-      'obrigatorio': obrigatorio,
-      'valor': valor,
-    });
+  Future<void> criarCampoProjeto({required int projetoId, required String referencia, required String descricao, required TipoCampoProjeto tipo, required bool obrigatorio, required Map<String, dynamic> valor}) async {
+    await _api.criar('/projeto-campos/', {'projeto': projetoId, 'referencia': referencia, 'descricao': descricao, 'tipo': tipo.valorApi, 'obrigatorio': obrigatorio, 'valor': valor});
   }
 
   @override
-  Future<void> atualizarCampoProjeto({
-    required int campoId,
-    required String referencia,
-    required String descricao,
-    required TipoCampoProjeto tipo,
-    required bool obrigatorio,
-    required Map<String, dynamic> valor,
-  }) async {
-    await _api.atualizar('/projeto-campos/$campoId/', {
-      'referencia': referencia,
-      'descricao': descricao,
-      'tipo': tipo.valorApi,
-      'obrigatorio': obrigatorio,
-      'valor': valor,
-    });
+  Future<void> atualizarCampoProjeto({required int campoId, required String referencia, required String descricao, required TipoCampoProjeto tipo, required bool obrigatorio, required Map<String, dynamic> valor}) async {
+    await _api.atualizar('/projeto-campos/$campoId/', {'referencia': referencia, 'descricao': descricao, 'tipo': tipo.valorApi, 'obrigatorio': obrigatorio, 'valor': valor});
   }
 
   @override
@@ -1140,19 +897,8 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<int> criarAsset({
-    required Uint8List arquivoBytes,
-    required String nomeArquivo,
-    String descricao = '',
-  }) async {
-    final resposta = await _api.criarMultipart(
-      caminho: '/assets/',
-      campos: {'descricao': descricao},
-      campoArquivo: 'arquivo',
-      arquivoBytes: arquivoBytes,
-      nomeArquivo: nomeArquivo,
-      contentType: _mimeImagem(nomeArquivo),
-    );
+  Future<int> criarAsset({required Uint8List arquivoBytes, required String nomeArquivo, String descricao = ''}) async {
+    final resposta = await _api.criarMultipart(caminho: '/assets/', campos: {'descricao': descricao}, campoArquivo: 'arquivo', arquivoBytes: arquivoBytes, nomeArquivo: nomeArquivo, contentType: _mimeImagem(nomeArquivo));
     return _idCriado(resposta, 'id', 'asset');
   }
 
@@ -1169,10 +915,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<void> atualizarAsset({
-    required int assetId,
-    required String descricao,
-  }) async {
+  Future<void> atualizarAsset({required int assetId, required String descricao}) async {
     await _api.atualizar('/assets/$assetId/', {'descricao': descricao});
   }
 
@@ -1182,11 +925,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   Asset _assetDeMapa(Map<String, dynamic> asset) {
-    return Asset(
-      id: _inteiro(asset['id']),
-      descricao: _texto(asset['descricao']),
-      urlArquivo: _texto(asset['arquivo']),
-    );
+    return Asset(id: _inteiro(asset['id']), descricao: _texto(asset['descricao']), urlArquivo: _texto(asset['arquivo']));
   }
 
   @override
@@ -1195,10 +934,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<void> atualizarRelatorio({
-    required int relatorioId,
-    required String nome,
-  }) async {
+  Future<void> atualizarRelatorio({required int relatorioId, required String nome}) async {
     await _api.atualizar('/relatorios/$relatorioId/', {'nome': nome});
   }
 
@@ -1243,9 +979,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   int _idCriado(Map<String, dynamic> resposta, String chave, String recurso) {
     final id = _inteiro(resposta[chave]);
     if (id == null) {
-      throw Exception(
-        'Resposta inesperada da API ao criar $recurso: campo "$chave" ausente.',
-      );
+      throw Exception('Resposta inesperada da API ao criar $recurso: campo "$chave" ausente.');
     }
     return id;
   }
@@ -1281,10 +1015,10 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
 
     if (rodape.isNotEmpty) return rodape;
     if (lei.isNotEmpty && convenio.isNotEmpty) {
-      return 'Lei de criacao: $lei. Convenio: $convenio.';
+      return 'Lei de criação: $lei. Convênio: $convenio.';
     }
-    if (lei.isNotEmpty) return 'Lei de criacao: $lei.';
-    if (convenio.isNotEmpty) return 'Convenio: $convenio.';
+    if (lei.isNotEmpty) return 'Lei de criação: $lei.';
+    if (convenio.isNotEmpty) return 'Convênio: $convenio.';
     return 'Programa cadastrado na API GeRelat.';
   }
 

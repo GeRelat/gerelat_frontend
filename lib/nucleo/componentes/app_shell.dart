@@ -22,12 +22,7 @@ class AppShell extends StatelessWidget {
   final String titulo;
   final Widget child;
 
-  const AppShell({
-    super.key,
-    required this.secaoAtual,
-    required this.titulo,
-    required this.child,
-  });
+  const AppShell({super.key, required this.secaoAtual, required this.titulo, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -76,18 +71,13 @@ class _TopAppBar extends StatelessWidget {
                 color: Cores.textoPrincipal,
                 style: IconButton.styleFrom(
                   backgroundColor: Cores.fundoSecao,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),
             ),
           Text(
             titulo,
-            style: Tipografia.headlineSmall.copyWith(
-              color: Cores.textoPrincipal,
-              fontWeight: FontWeight.w800,
-            ),
+            style: Tipografia.headlineSmall.copyWith(color: Cores.textoPrincipal, fontWeight: FontWeight.w800),
           ),
           const Spacer(),
           const Icon(LucideIcons.bell, size: 20, color: Cores.cinzaEscuro),
@@ -97,16 +87,8 @@ class _TopAppBar extends StatelessWidget {
           Container(
             width: 32,
             height: 32,
-            decoration: BoxDecoration(
-              color: Cores.cinzaCampo,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: ClipOval(
-              child: Image.asset(
-                'assets/images/logo_brisa.png',
-                fit: BoxFit.contain,
-              ),
-            ),
+            decoration: BoxDecoration(color: Cores.cinzaCampo, borderRadius: BorderRadius.circular(999)),
+            child: ClipOval(child: Image.asset('assets/images/logo_brisa.png', fit: BoxFit.contain)),
           ),
         ],
       ),
@@ -134,19 +116,13 @@ class _SideNav extends StatelessWidget {
                 Container(
                   width: 40,
                   height: 40,
-                  decoration: BoxDecoration(
-                    color: Cores.azulAcao,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  decoration: BoxDecoration(color: Cores.azulAcao, borderRadius: BorderRadius.circular(12)),
                   child: const Icon(LucideIcons.chart_bar, color: Cores.branco),
                 ),
                 const SizedBox(width: 12),
                 Text(
                   'GeRelat',
-                  style: Tipografia.titleLarge.copyWith(
-                    color: Cores.textoPrincipal,
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Tipografia.titleLarge.copyWith(color: Cores.textoPrincipal, fontWeight: FontWeight.w800),
                 ),
               ],
             ),
@@ -211,18 +187,8 @@ class _SideNav extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
             child: Column(
               children: [
-                _NavItem(
-                  icon: LucideIcons.settings,
-                  label: 'Configuracoes',
-                  ativo: secaoAtual == SecaoApp.configuracoes,
-                  onTap: () => context.go('/configuracoes'),
-                ),
-                _NavItem(
-                  icon: LucideIcons.log_out,
-                  label: 'Sair',
-                  ativo: false,
-                  onTap: () => _sair(context),
-                ),
+                _NavItem(icon: LucideIcons.settings, label: 'Configurações', ativo: secaoAtual == SecaoApp.configuracoes, onTap: () => context.go('/configuracoes')),
+                _NavItem(icon: LucideIcons.log_out, label: 'Sair', ativo: false, onTap: () => _sair(context)),
               ],
             ),
           ),
@@ -245,12 +211,7 @@ class _NavItem extends StatelessWidget {
   final bool ativo;
   final VoidCallback onTap;
 
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.ativo,
-    required this.onTap,
-  });
+  const _NavItem({required this.icon, required this.label, required this.ativo, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -267,19 +228,12 @@ class _NavItem extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: Row(
               children: [
-                Icon(
-                  icon,
-                  size: 19,
-                  color: ativo ? Cores.azulAcao : const Color(0xFF64748B),
-                ),
+                Icon(icon, size: 19, color: ativo ? Cores.azulAcao : const Color(0xFF64748B)),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     label,
-                    style: Tipografia.bodyMedium.copyWith(
-                      color: ativo ? Cores.azulAcao : const Color(0xFF475569),
-                      fontWeight: ativo ? FontWeight.w700 : FontWeight.w500,
-                    ),
+                    style: Tipografia.bodyMedium.copyWith(color: ativo ? Cores.azulAcao : const Color(0xFF475569), fontWeight: ativo ? FontWeight.w700 : FontWeight.w500),
                   ),
                 ),
               ],

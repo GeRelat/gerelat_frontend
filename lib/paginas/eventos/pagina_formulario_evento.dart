@@ -33,9 +33,7 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
   @override
   void initState() {
     super.initState();
-    _viewModel = EventoFormViewModel(
-      DependenciasApp.instancia.repositorioCatalogo,
-    );
+    _viewModel = EventoFormViewModel(DependenciasApp.instancia.repositorioCatalogo);
     // Classe existente (dropdown) e nova classe (texto livre) são mutuamente
     // exclusivas — `EventoFormViewModel.salvar` só cria a classe digitada
     // quando nenhuma classe foi selecionada. Sem isso, dava pra digitar um
@@ -101,9 +99,7 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
       context.pop(true);
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_viewModel.mensagemErro ?? 'Erro ao salvar.')),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_viewModel.mensagemErro ?? 'Erro ao salvar.')));
   }
 
   @override
@@ -121,12 +117,7 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Cadastrar evento institucional',
-                  style: Tipografia.headlineMedium.copyWith(
-                    color: Cores.textoPrincipal,
-                  ),
-                ),
+                Text('Cadastrar evento institucional', style: Tipografia.headlineMedium.copyWith(color: Cores.textoPrincipal)),
                 const SizedBox(height: 24),
                 CartaoConteudo(
                   child: Column(
@@ -137,23 +128,14 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
                             child: CampoSelecao(
                               label: 'Projeto',
                               valor: _projetoId,
-                              itens: _viewModel.projetos
-                                  .map(
-                                    (item) => DropdownMenuItem(
-                                      value: item.id,
-                                      child: Text(item.nome),
-                                    ),
-                                  )
-                                  .toList(),
+                              itens: _viewModel.projetos.map((item) => DropdownMenuItem(value: item.id, child: Text(item.nome))).toList(),
                               onChanged: (value) async {
                                 setState(() {
                                   _projetoId = value;
                                   _classeId = null;
                                 });
                                 if (value != null) {
-                                  await _viewModel.carregarClassesProjeto(
-                                    value,
-                                  );
+                                  await _viewModel.carregarClassesProjeto(value);
                                 }
                               },
                             ),
@@ -163,42 +145,20 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
                             child: CampoSelecao(
                               label: 'Classe do Evento',
                               valor: _classeId,
-                              itens: _viewModel.classes
-                                  .map(
-                                    (item) => DropdownMenuItem(
-                                      value: item.id,
-                                      child: Text(item.nome),
-                                    ),
-                                  )
-                                  .toList(),
+                              itens: _viewModel.classes.map((item) => DropdownMenuItem(value: item.id, child: Text(item.nome))).toList(),
                               onChanged: (value) => setState(() {
                                 _classeId = value;
                                 if (value != null) _novaClasse.clear();
                               }),
-                              validator: (value) =>
-                                  value == null &&
-                                      _novaClasse.text.trim().isEmpty
-                                  ? 'Selecione ou informe uma nova classe'
-                                  : null,
+                              validator: (value) => value == null && _novaClasse.text.trim().isEmpty ? 'Selecione ou informe uma nova classe' : null,
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 18),
-                      CampoFormulario(
-                        label: 'Nova classe de evento',
-                        hint: 'Preencha quando a classe ainda nao existir',
-                        icone: LucideIcons.tags,
-                        controller: _novaClasse,
-                      ),
+                      CampoFormulario(label: 'Nova classe de evento', hint: 'Preencha quando a classe ainda não existir', icone: LucideIcons.tags, controller: _novaClasse),
                       const SizedBox(height: 18),
-                      CampoFormulario(
-                        label: 'Nome do Evento',
-                        hint: 'Ex: Oficina de Dados Abertos',
-                        icone: LucideIcons.calendar,
-                        controller: _nome,
-                        validator: _obrigatorio,
-                      ),
+                      CampoFormulario(label: 'Nome do Evento', hint: 'Ex: Oficina de Dados Abertos', icone: LucideIcons.calendar, controller: _nome, validator: _obrigatorio),
                       const SizedBox(height: 18),
                       CampoFormulario(
                         label: 'Data',
@@ -207,32 +167,14 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
                         controller: _data,
                         keyboardType: TextInputType.number,
                         inputFormatters: [FormatadorData()],
-                        validator: (valor) => _parseData(valor ?? '') == null
-                            ? 'Informe uma data válida'
-                            : null,
+                        validator: (valor) => _parseData(valor ?? '') == null ? 'Informe uma data válida' : null,
                       ),
                       const SizedBox(height: 18),
-                      CampoFormulario(
-                        label: 'Local',
-                        hint: 'Local do evento',
-                        icone: LucideIcons.map_pin,
-                        controller: _local,
-                      ),
+                      CampoFormulario(label: 'Local', hint: 'Local do evento', icone: LucideIcons.map_pin, controller: _local),
                       const SizedBox(height: 18),
-                      CampoFormulario(
-                        label: 'Endereço',
-                        hint: 'Endereço completo',
-                        icone: LucideIcons.map,
-                        controller: _endereco,
-                      ),
+                      CampoFormulario(label: 'Endereço', hint: 'Endereço completo', icone: LucideIcons.map, controller: _endereco),
                       const SizedBox(height: 18),
-                      CampoFormulario(
-                        label: 'Objetivo',
-                        hint: 'Descreva o objetivo do evento',
-                        icone: LucideIcons.target,
-                        controller: _objetivo,
-                        maxLines: 4,
-                      ),
+                      CampoFormulario(label: 'Objetivo', hint: 'Descreva o objetivo do evento', icone: LucideIcons.target, controller: _objetivo, maxLines: 4),
                       const SizedBox(height: 28),
                       BarraAcoesFormulario(
                         textoPrimario: _viewModel.carregando
