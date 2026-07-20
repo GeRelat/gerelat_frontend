@@ -5,7 +5,17 @@ import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:go_router/go_router.dart';
 
-enum SecaoApp { dashboard, clientes, programas, eventos, relatorios, templates, assets, configuracoes }
+enum SecaoApp {
+  dashboard,
+  clientes,
+  programas,
+  variaveis,
+  eventos,
+  relatorios,
+  templates,
+  assets,
+  configuracoes,
+}
 
 class AppShell extends StatelessWidget {
   final SecaoApp secaoAtual;
@@ -121,13 +131,54 @@ class _SideNav extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               children: [
-                _NavItem(icon: LucideIcons.house, label: 'Dashboard', ativo: secaoAtual == SecaoApp.dashboard, onTap: () => context.go('/dashboard')),
-                _NavItem(icon: LucideIcons.building_2, label: 'Clientes', ativo: secaoAtual == SecaoApp.clientes, onTap: () => context.go('/clientes')),
-                _NavItem(icon: LucideIcons.folder_kanban, label: 'Programas', ativo: secaoAtual == SecaoApp.programas, onTap: () => context.go('/programas')),
-                _NavItem(icon: LucideIcons.calendar, label: 'Eventos', ativo: secaoAtual == SecaoApp.eventos, onTap: () => context.go('/eventos')),
-                _NavItem(icon: LucideIcons.file_text, label: 'Relatórios', ativo: secaoAtual == SecaoApp.relatorios, onTap: () => context.go('/relatorios')),
-                _NavItem(icon: LucideIcons.copy, label: 'Templates', ativo: secaoAtual == SecaoApp.templates, onTap: () => context.go('/templates')),
-                _NavItem(icon: LucideIcons.image, label: 'Imagens', ativo: secaoAtual == SecaoApp.assets, onTap: () => context.go('/assets')),
+                _NavItem(
+                  icon: LucideIcons.house,
+                  label: 'Dashboard',
+                  ativo: secaoAtual == SecaoApp.dashboard,
+                  onTap: () => context.go('/dashboard'),
+                ),
+                _NavItem(
+                  icon: LucideIcons.building_2,
+                  label: 'Clientes',
+                  ativo: secaoAtual == SecaoApp.clientes,
+                  onTap: () => context.go('/clientes'),
+                ),
+                _NavItem(
+                  icon: LucideIcons.folder_kanban,
+                  label: 'Programas',
+                  ativo: secaoAtual == SecaoApp.programas,
+                  onTap: () => context.go('/programas'),
+                ),
+                _NavItem(
+                  icon: LucideIcons.variable,
+                  label: 'Variaveis',
+                  ativo: secaoAtual == SecaoApp.variaveis,
+                  onTap: () => context.go('/projetos/campos'),
+                ),
+                _NavItem(
+                  icon: LucideIcons.calendar,
+                  label: 'Eventos',
+                  ativo: secaoAtual == SecaoApp.eventos,
+                  onTap: () => context.go('/eventos'),
+                ),
+                _NavItem(
+                  icon: LucideIcons.file_text,
+                  label: 'Relatorios',
+                  ativo: secaoAtual == SecaoApp.relatorios,
+                  onTap: () => context.go('/relatorios'),
+                ),
+                _NavItem(
+                  icon: LucideIcons.copy,
+                  label: 'Templates',
+                  ativo: secaoAtual == SecaoApp.templates,
+                  onTap: () => context.go('/templates'),
+                ),
+                _NavItem(
+                  icon: LucideIcons.image,
+                  label: 'Imagens',
+                  ativo: secaoAtual == SecaoApp.assets,
+                  onTap: () => context.go('/assets'),
+                ),
               ],
             ),
           ),

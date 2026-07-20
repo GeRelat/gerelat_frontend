@@ -171,7 +171,21 @@ class _CartaoTemplate extends StatelessWidget {
               IconButton(tooltip: 'Baixar arquivo original (.docx)', onPressed: () => _baixarArquivo(context), icon: const Icon(LucideIcons.download, size: 18)),
               TextButton.icon(
                 onPressed: () async {
-                  final alterado = await context.push<bool>('/templates/${template.id}/editar');
+                  final alterado = await context.push<bool>(
+                    '/templates/${template.id}/editor',
+                  );
+                  if (alterado == true) {
+                    await onEditado();
+                  }
+                },
+                icon: const Icon(LucideIcons.pen_line, size: 16),
+                label: const Text('Conteúdo'),
+              ),
+              TextButton.icon(
+                onPressed: () async {
+                  final alterado = await context.push<bool>(
+                    '/templates/${template.id}/editar',
+                  );
                   if (alterado == true) {
                     await onEditado();
                   }

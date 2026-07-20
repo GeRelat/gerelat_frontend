@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/gerar_relatorio_view_model.dart';
+import 'package:gerelat_frontend/dominio/entidades/evento.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
+import 'package:gerelat_frontend/paginas/relatorios/pagina_editor_relatorio.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:go_router/go_router.dart';
@@ -16,6 +18,7 @@ class PaginaGerarRelatorio extends StatefulWidget {
 
 class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
   final _formKey = GlobalKey<FormState>();
+  final _nome = TextEditingController();
   late final GerarRelatorioViewModel _viewModel;
   int? _eventoId;
   int? _templateId;
@@ -30,41 +33,40 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
 
   @override
   void dispose() {
+    _nome.dispose();
     _viewModel.dispose();
     super.dispose();
   }
 
-  Future<void> _gerar() async {
-    if (!_formKey.currentState!.validate() || _templateId == null) return;
-    final sucesso = await _viewModel.gerar(
-      templateId: _templateId!,
-      eventoId: _eventoId,
-    );
-    if (!mounted) return;
-    if (sucesso) {
-      context.pop(true);
-      return;
+  /// Eventos elegíveis para o template selecionado: apenas os do mesmo projeto
+  /// do template (as variáveis são resolvidas pelo projeto do evento). Sem
+  /// template selecionado, retorna vazio.
+  Iterable<Evento> _eventosDoTemplate() {
+    if (_templateId == null) return const [];
+    int? projetoId;
+    for (final t in _viewModel.templates) {
+      if (t.id == _templateId) {
+        projetoId = t.projetoId;
+        break;
+      }
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_viewModel.mensagemErro ?? 'Erro ao gerar.')),
+    return _viewModel.eventos.where(
+      (evento) =>
+          evento.id != null &&
+          (projetoId == null || evento.projetoId == projetoId),
     );
   }
 
-  Future<void> _previsualizar() async {
-    if (_templateId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione um template para pré-visualizar.')),
-      );
-      return;
-    }
+  Future<void> _previsualizarEEditar() async {
+    if (!_formKey.currentState!.validate() || _templateId == null) return;
 
-    final texto = await _viewModel.previsualizar(
+    final documento = await _viewModel.obterDocumentoPreview(
       templateId: _templateId!,
       eventoId: _eventoId,
     );
     if (!mounted) return;
 
-    if (texto == null) {
+    if (documento == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -75,27 +77,17 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
       return;
     }
 
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Pré-visualização do relatório'),
-        content: SizedBox(
-          width: 560,
-          child: SingleChildScrollView(
-            child: Text(
-              texto.isEmpty ? '(Documento sem conteúdo textual.)' : texto,
-              style: Tipografia.bodyMedium.copyWith(color: Cores.textoPrincipal),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => context.pop(),
-            child: const Text('Fechar'),
-          ),
-        ],
+    final gerado = await context.push<bool>(
+      '/relatorios/editor',
+      extra: ArgumentosEditorRelatorio(
+        templateId: _templateId!,
+        eventoId: _eventoId,
+        nome: _nome.text.trim().isEmpty ? null : _nome.text.trim(),
+        documento: documento,
       ),
     );
+    if (!mounted) return;
+    if (gerado == true) context.pop(true);
   }
 
   @override
@@ -119,31 +111,17 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
                     color: Cores.textoPrincipal,
                   ),
                 ),
+                const SizedBox(height: 6),
+                Text(
+                  'Selecione o template e o evento. Você verá o documento com as '
+                  'variáveis preenchidas e poderá editar os blocos manuais antes '
+                  'de gerar o relatório definitivo.',
+                  style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
+                ),
                 const SizedBox(height: 24),
                 CartaoConteudo(
                   child: Column(
                     children: [
-                      CampoSelecao(
-                        label: 'Evento vinculado (opcional)',
-                        valor: _eventoId,
-                        itens: _viewModel.eventos
-                            .where((evento) => evento.id != null)
-                            .map(
-                              (evento) => DropdownMenuItem(
-                                value: evento.id,
-                                child: Text(evento.nome),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) => setState(() => _eventoId = value),
-                        // `eventoId` é nullable em toda a cadeia (ViewModel,
-                        // entidade, repositório) — o relatório pode ser
-                        // gerado sem vínculo a um evento. Sem este
-                        // `validator`, o padrão do CampoSelecao exige seleção
-                        // e tornava esse fluxo inalcançável pela UI.
-                        validator: (_) => null,
-                      ),
-                      const SizedBox(height: 18),
                       CampoSelecao(
                         label: 'Template',
                         valor: _templateId,
@@ -156,28 +134,52 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
                               ),
                             )
                             .toList(),
-                        onChanged: (value) =>
-                            setState(() => _templateId = value),
+                        onChanged: (value) => setState(() {
+                          _templateId = value;
+                          // Ao trocar de template, o evento anterior pode ser de
+                          // outro projeto — zera a seleção.
+                          _eventoId = null;
+                        }),
+                      ),
+                      const SizedBox(height: 18),
+                      CampoSelecao(
+                        label: 'Evento vinculado (opcional)',
+                        valor: _eventoId,
+                        itens: _eventosDoTemplate()
+                            .map(
+                              (evento) => DropdownMenuItem(
+                                value: evento.id,
+                                child: Text(evento.nome),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) => setState(() => _eventoId = value),
+                        // `eventoId` é nullable em toda a cadeia — o relatório
+                        // pode ser gerado sem vínculo a um evento.
+                        validator: (_) => null,
+                      ),
+                      const SizedBox(height: 18),
+                      CampoFormulario(
+                        label: 'Nome do relatório (opcional)',
+                        hint: 'Ex: Relatório da Oficina de Informática',
+                        icone: LucideIcons.file_text,
+                        controller: _nome,
                       ),
                       const SizedBox(height: 28),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          TextButton.icon(
-                            onPressed: _viewModel.carregando || _templateId == null
+                          BotaoPrimario(
+                            texto: _viewModel.carregando
+                                ? 'Carregando...'
+                                : 'Pré-visualizar e editar',
+                            icone: LucideIcons.eye,
+                            onPressed:
+                                _viewModel.carregando || _templateId == null
                                 ? null
-                                : _previsualizar,
-                            icon: const Icon(LucideIcons.eye, size: 18),
-                            label: const Text('Pré-visualizar'),
+                                : _previsualizarEEditar,
                           ),
-                          const SizedBox(width: 12),
                         ],
-                      ),
-                      BarraAcoesFormulario(
-                        textoPrimario: _viewModel.carregando
-                            ? 'Gerando...'
-                            : 'Gerar Documento',
-                        onSalvar: _viewModel.carregando ? null : _gerar,
                       ),
                     ],
                   ),

@@ -159,6 +159,32 @@ abstract interface class RepositorioTemplates {
     required String nomeArquivo,
   });
 
+  /// Cria um template a partir de um documento ProseMirror já pronto (ou de um
+  /// documento vazio quando [modeloJson] é `null`). Usado pelo fluxo do editor,
+  /// no qual o upload de `.docx` é opcional. Retorna o id do template criado.
+  Future<int> criarTemplateComModelo({
+    required int projetoId,
+    required String nomeTemplate,
+    Map<String, dynamic>? modeloJson,
+  });
+
+  /// Converte um `.docx` em documento ProseMirror (`modelo_json`) via
+  /// `/templates/convert-docx/`, sem criar nada. Serve para semear o editor.
+  Future<Map<String, dynamic>> converterDocxParaModelo({
+    required Uint8List arquivoBytes,
+    required String nomeArquivo,
+  });
+
+  /// Lê o `modelo_json` (documento ProseMirror do template) para edição no
+  /// editor. Retorna um documento vazio se o template ainda não tiver conteúdo.
+  Future<Map<String, dynamic>> obterModeloTemplate(int templateId);
+
+  /// Persiste o `modelo_json` editado no editor (PATCH `/templates/<id>/`).
+  Future<void> salvarModeloTemplate({
+    required int templateId,
+    required Map<String, dynamic> modeloJson,
+  });
+
   Future<void> atualizarTemplate({
     required int templateId,
     required int projetoId,
@@ -210,6 +236,17 @@ abstract interface class RepositorioRelatorios {
   Future<List<Relatorio>> listarRelatorios();
 
   Future<void> gerarRelatorio({required int templateId, int? eventoId});
+
+  /// Gera o relatório definitivo a partir do documento ProseMirror já
+  /// resolvido/editado no preview ([documentoJson]). Envia para
+  /// `POST /relatorios/`, aguarda a task assíncrona concluir e retorna o id do
+  /// relatório gerado.
+  Future<int> gerarRelatorioComDocumento({
+    required int templateId,
+    int? eventoId,
+    Map<String, dynamic>? documentoJson,
+    String? nome,
+  });
 
   Future<Uint8List> baixarRelatorio(int relatorioId);
 

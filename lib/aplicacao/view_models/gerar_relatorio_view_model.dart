@@ -2,19 +2,16 @@ import 'package:gerelat_frontend/aplicacao/view_models/base_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/evento.dart';
 import 'package:gerelat_frontend/dominio/entidades/template_relatorio.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
-import 'package:gerelat_frontend/nucleo/utils/documento_prosemirror.dart';
 
 class GerarRelatorioViewModel extends BaseViewModel {
   final RepositorioEventos _eventosRepositorio;
   final RepositorioTemplates _templatesRepositorio;
-  final RepositorioRelatorios _relatoriosRepositorio;
   List<Evento> _eventos = [];
   List<TemplateRelatorio> _templates = [];
 
   GerarRelatorioViewModel(RepositorioCatalogo repositorio)
     : _eventosRepositorio = repositorio,
-      _templatesRepositorio = repositorio,
-      _relatoriosRepositorio = repositorio;
+      _templatesRepositorio = repositorio;
 
   List<Evento> get eventos => List.unmodifiable(_eventos);
   List<TemplateRelatorio> get templates => List.unmodifiable(_templates);
@@ -30,22 +27,9 @@ class GerarRelatorioViewModel extends BaseViewModel {
     }
   }
 
-  Future<bool> gerar({required int templateId, int? eventoId}) async {
-    iniciarCarregamento();
-    try {
-      await _relatoriosRepositorio.gerarRelatorio(
-        templateId: templateId,
-        eventoId: eventoId,
-      );
-      finalizarCarregamento();
-      return true;
-    } catch (erro) {
-      definirErro(erro);
-      return false;
-    }
-  }
-
-  Future<String?> previsualizar({
+  /// Resolve as variáveis do projeto/evento sobre o template e devolve o
+  /// documento ProseMirror pronto para preview/edição no editor.
+  Future<Map<String, dynamic>?> obterDocumentoPreview({
     required int templateId,
     int? eventoId,
   }) async {
@@ -56,7 +40,7 @@ class GerarRelatorioViewModel extends BaseViewModel {
         eventoId: eventoId,
       );
       finalizarCarregamento();
-      return renderizarDocumentoProseMirrorComoTexto(documento);
+      return documento;
     } catch (erro) {
       definirErro(erro);
       return null;

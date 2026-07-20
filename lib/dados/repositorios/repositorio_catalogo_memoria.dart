@@ -198,10 +198,47 @@ class RepositorioCatalogoMemoria implements RepositorioCatalogo {
   Future<void> gerarRelatorio({required int templateId, int? eventoId}) async {}
 
   @override
-  Future<int> criarTemplate({required int projetoId, required String nomeTemplate, required Uint8List arquivoBytes, required String nomeArquivo}) async => 1;
+  Future<int> gerarRelatorioComDocumento({
+    required int templateId,
+    int? eventoId,
+    Map<String, dynamic>? documentoJson,
+    String? nome,
+  }) async => 1;
 
   @override
-  Future<Map<int, int>> listarVinculosClasseTemplate(int templateId) async => const {};
+  Future<int> criarTemplate({
+    required int projetoId,
+    required String nomeTemplate,
+    required Uint8List arquivoBytes,
+    required String nomeArquivo,
+  }) async => 1;
+
+  @override
+  Future<int> criarTemplateComModelo({
+    required int projetoId,
+    required String nomeTemplate,
+    Map<String, dynamic>? modeloJson,
+  }) async => 1;
+
+  @override
+  Future<Map<String, dynamic>> converterDocxParaModelo({
+    required Uint8List arquivoBytes,
+    required String nomeArquivo,
+  }) async => const {'type': 'doc', 'content': <Map<String, dynamic>>[]};
+
+  @override
+  Future<Map<String, dynamic>> obterModeloTemplate(int templateId) async =>
+      const {'type': 'doc', 'content': <Map<String, dynamic>>[]};
+
+  @override
+  Future<void> salvarModeloTemplate({
+    required int templateId,
+    required Map<String, dynamic> modeloJson,
+  }) async {}
+
+  @override
+  Future<Map<int, int>> listarVinculosClasseTemplate(int templateId) async =>
+      const {};
 
   @override
   Future<void> vincularTemplateClasse({required int templateId, required int classeEventoId}) async {}

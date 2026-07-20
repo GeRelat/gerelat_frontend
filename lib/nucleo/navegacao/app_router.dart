@@ -22,9 +22,11 @@ import 'package:gerelat_frontend/paginas/programas/pagina_projetos_programa.dart
 import 'package:gerelat_frontend/paginas/recuperar_senha/pagina_email_enviado.dart';
 import 'package:gerelat_frontend/paginas/recuperar_senha/pagina_nova_senha.dart';
 import 'package:gerelat_frontend/paginas/recuperar_senha/pagina_recuperar_senha.dart';
+import 'package:gerelat_frontend/paginas/relatorios/pagina_editor_relatorio.dart';
 import 'package:gerelat_frontend/paginas/relatorios/pagina_gerar_relatorio.dart';
 import 'package:gerelat_frontend/paginas/relatorios/pagina_relatorios.dart';
 import 'package:gerelat_frontend/paginas/sucesso_cadastro/pagina_sucesso_cadastro.dart';
+import 'package:gerelat_frontend/paginas/templates/pagina_editor_template.dart';
 import 'package:gerelat_frontend/paginas/templates/pagina_formulario_template.dart';
 import 'package:gerelat_frontend/paginas/templates/pagina_templates.dart';
 import 'package:go_router/go_router.dart';
@@ -67,9 +69,11 @@ const _rotasPublicas = <String>['/login', '/cadastro', '/cadastro/sucesso', '/re
         : 'Gestão de Programas';
     return (secao: SecaoApp.programas, titulo: titulo);
   }
+  if (caminho.startsWith('/projetos/campos')) {
+    return (secao: SecaoApp.variaveis, titulo: 'Variáveis do Projeto');
+  }
   if (caminho.startsWith('/projetos')) {
-    final titulo = caminho.endsWith('/campos') ? 'Textos do Projeto' : 'Equipe da Parceira';
-    return (secao: SecaoApp.programas, titulo: titulo);
+    return (secao: SecaoApp.programas, titulo: 'Equipe da Parceira');
   }
   if (caminho.startsWith('/eventos')) {
     final titulo = caminho.endsWith('/classes-evento')
@@ -145,6 +149,28 @@ final appRouter = GoRouter(
           return const PaginaRecuperarSenha();
         }
         return PaginaNovaSenha(uid: uid, token: token);
+      },
+    ),
+    // Editores em tela cheia (fora do AppShell): a superfície de edição
+    // ProseMirror precisa de uma altura limitada e de todo o espaço da tela.
+    GoRoute(
+      path: '/templates/:id/editor',
+      builder: (context, state) {
+        final templateId = _idDaRota(state);
+        if (templateId == null) {
+          return const PaginaNaoEncontrada(rotaDestino: '/templates');
+        }
+        return PaginaEditorTemplate(templateId: templateId);
+      },
+    ),
+    GoRoute(
+      path: '/relatorios/editor',
+      builder: (context, state) {
+        final args = state.extra;
+        if (args is! ArgumentosEditorRelatorio) {
+          return const PaginaNaoEncontrada(rotaDestino: '/relatorios/gerar');
+        }
+        return PaginaEditorRelatorio(argumentos: args);
       },
     ),
     ShellRoute(

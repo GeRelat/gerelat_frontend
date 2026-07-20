@@ -70,16 +70,29 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
 
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
-    final exigeArquivo = !widget.edicao;
-    if (_projetoId == null || (exigeArquivo && (_arquivoBytes == null || _nomeArquivo == null))) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecione projeto e arquivo .docx.')));
+    if (_projetoId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecione um projeto.')),
+      );
       return;
     }
 
-    final sucesso = await _viewModel.salvar(templateId: widget.templateId, projetoId: _projetoId!, nomeTemplate: _nome.text.trim(), arquivoBytes: _arquivoBytes, nomeArquivo: _nomeArquivo);
+    final idTemplate = await _viewModel.salvar(
+      templateId: widget.templateId,
+      projetoId: _projetoId!,
+      nomeTemplate: _nome.text.trim(),
+      arquivoBytes: _arquivoBytes,
+      nomeArquivo: _nomeArquivo,
+    );
     if (!mounted) return;
-    if (sucesso) {
-      context.pop(true);
+    if (idTemplate != null) {
+      if (widget.edicao) {
+        // Edição de metadados: volta para a lista.
+        context.pop(true);
+      } else {
+        // Template recém-criado: segue direto para o editor de conteúdo.
+        context.pushReplacement('/templates/$idTemplate/editor');
+      }
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_viewModel.mensagemErro ?? 'Erro ao salvar template.')));
@@ -100,7 +113,12 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Cadastrar template DOCX', style: Tipografia.headlineMedium.copyWith(color: Cores.textoPrincipal)),
+                Text(
+                  widget.edicao ? 'Editar template' : 'Cadastrar template',
+                  style: Tipografia.headlineMedium.copyWith(
+                    color: Cores.textoPrincipal,
+                  ),
+                ),
                 const SizedBox(height: 24),
                 CartaoConteudo(
                   child: Column(
@@ -132,7 +150,21 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Arquivo base (.docx)', style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal)),
+                            Text(
+                              'Arquivo base (.docx) — opcional',
+                              style: Tipografia.labelLarge.copyWith(
+                                color: Cores.textoPrincipal,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Se enviado, o conteúdo do .docx é carregado no '
+                              'editor como ponto de partida. Você também pode '
+                              'criar o template do zero e montá-lo no editor.',
+                              style: Tipografia.bodySmall.copyWith(
+                                color: Cores.cinzaMedio,
+                              ),
+                            ),
                             const SizedBox(height: 8),
                             Text(_nomeArquivo ?? 'Nenhum arquivo selecionado.', style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro)),
                             const SizedBox(height: 14),
