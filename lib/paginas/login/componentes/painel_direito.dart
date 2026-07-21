@@ -98,7 +98,7 @@ class _PainelDireitoState extends State<PainelDireito> {
           style: TextStyle(color: Cores.pretoProfundo, fontSize: 26, fontWeight: FontWeight.w700),
         ),
         SizedBox(height: 6),
-        Text('Acesse sua conta para gerenciar seus relatorios.', style: TextStyle(color: Cores.cinzaMedio, fontSize: 14)),
+        Text('Acesse sua conta para gerenciar seus relatórios.', style: TextStyle(color: Cores.cinzaMedio, fontSize: 14)),
       ],
     );
   }

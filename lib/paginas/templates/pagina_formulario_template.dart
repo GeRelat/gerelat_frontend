@@ -71,19 +71,11 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
     if (_projetoId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione um projeto.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecione um projeto.')));
       return;
     }
 
-    final idTemplate = await _viewModel.salvar(
-      templateId: widget.templateId,
-      projetoId: _projetoId!,
-      nomeTemplate: _nome.text.trim(),
-      arquivoBytes: _arquivoBytes,
-      nomeArquivo: _nomeArquivo,
-    );
+    final idTemplate = await _viewModel.salvar(templateId: widget.templateId, projetoId: _projetoId!, nomeTemplate: _nome.text.trim(), arquivoBytes: _arquivoBytes, nomeArquivo: _nomeArquivo);
     if (!mounted) return;
     if (idTemplate != null) {
       if (widget.edicao) {
@@ -113,12 +105,7 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  widget.edicao ? 'Editar template' : 'Cadastrar template',
-                  style: Tipografia.headlineMedium.copyWith(
-                    color: Cores.textoPrincipal,
-                  ),
-                ),
+                Text(widget.edicao ? 'Editar template' : 'Cadastrar template', style: Tipografia.headlineMedium.copyWith(color: Cores.textoPrincipal)),
                 const SizedBox(height: 24),
                 CartaoConteudo(
                   child: Column(
@@ -133,7 +120,7 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
                         },
                       ),
                       const SizedBox(height: 18),
-                      CampoFormulario(label: 'Nome do Template', hint: 'Ex: Relatório padrão de visita tecnica', icone: LucideIcons.file_text, controller: _nome, validator: _obrigatorio),
+                      CampoFormulario(label: 'Nome do Template', hint: 'Ex: Relatório padrão de visita técnica', icone: LucideIcons.file_text, controller: _nome, validator: _obrigatorio),
                       const SizedBox(height: 18),
                       _campoClassesEvento(),
                       const SizedBox(height: 18),
@@ -150,20 +137,13 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Arquivo base (.docx) — opcional',
-                              style: Tipografia.labelLarge.copyWith(
-                                color: Cores.textoPrincipal,
-                              ),
-                            ),
+                            Text('Arquivo base (.docx) — opcional', style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal)),
                             const SizedBox(height: 4),
                             Text(
                               'Se enviado, o conteúdo do .docx é carregado no '
                               'editor como ponto de partida. Você também pode '
                               'criar o template do zero e montá-lo no editor.',
-                              style: Tipografia.bodySmall.copyWith(
-                                color: Cores.cinzaMedio,
-                              ),
+                              style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
                             ),
                             const SizedBox(height: 8),
                             Text(_nomeArquivo ?? 'Nenhum arquivo selecionado.', style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro)),

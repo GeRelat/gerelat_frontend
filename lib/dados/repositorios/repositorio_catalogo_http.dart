@@ -132,8 +132,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
 
     final nomeClientePorId = {
       for (final cliente in clientes)
-        if (_inteiro(cliente['id']) != null)
-          _inteiro(cliente['id'])!: _texto(cliente['nome']),
+        if (_inteiro(cliente['id']) != null) _inteiro(cliente['id'])!: _texto(cliente['nome']),
     };
 
     return programas.map((programa) {
@@ -170,11 +169,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
     // `listarProgramas`: projetos ligados a este programa e eventos ligados
     // a esses projetos.
     final projetos = await _getLista('/projetos/');
-    final idsProjetosDoPrograma = projetos
-        .where((projeto) => _inteiro(projeto['programa']) == programaId)
-        .map((projeto) => _inteiro(projeto['id']))
-        .whereType<int>()
-        .toSet();
+    final idsProjetosDoPrograma = projetos.where((projeto) => _inteiro(projeto['programa']) == programaId).map((projeto) => _inteiro(projeto['id'])).whereType<int>().toSet();
 
     final eventos = await _getLista('/eventos/');
     final totalEventos = eventos.where((evento) => idsProjetosDoPrograma.contains(_inteiro(evento['projeto']))).length;
@@ -203,8 +198,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
 
     final programaPorId = {
       for (final programa in programas)
-        if (_inteiro(programa['id']) != null)
-          _inteiro(programa['id'])!: _texto(programa['nome']),
+        if (_inteiro(programa['id']) != null) _inteiro(programa['id'])!: _texto(programa['nome']),
     };
 
     final programaPorProjeto = <int, String>{};
@@ -277,14 +271,12 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
 
     final eventoPorId = {
       for (final evento in eventos)
-        if (_inteiro(evento['id']) != null)
-          _inteiro(evento['id'])!: _texto(evento['nome']),
+        if (_inteiro(evento['id']) != null) _inteiro(evento['id'])!: _texto(evento['nome']),
     };
 
     final templatePorId = {
       for (final template in templates)
-        if (_inteiro(template['id']) != null)
-          _inteiro(template['id'])!: _texto(template['nome']),
+        if (_inteiro(template['id']) != null) _inteiro(template['id'])!: _texto(template['nome']),
     };
 
     return relatorios.map((relatorio) {
@@ -316,9 +308,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
         id: _inteiro(template['id']),
         projetoId: _inteiro(template['projeto']),
         nome: _texto(template['nome'], fallback: 'Template sem nome'),
-        descricao: arquivo.isEmpty
-            ? 'Template disponivel para geracao de relatorios.'
-            : 'Arquivo base: $arquivo',
+        descricao: arquivo.isEmpty ? 'Template disponível para geração de relatórios.' : 'Arquivo base: $arquivo',
         tipo: 'DOCX',
         status: 'Ativo',
         arquivoBase: arquivo,
@@ -334,9 +324,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
       id: _inteiro(template['id']),
       projetoId: _inteiro(template['projeto']),
       nome: _texto(template['nome'], fallback: 'Template sem nome'),
-      descricao: arquivo.isEmpty
-          ? 'Template disponivel para geracao de relatorios.'
-          : 'Arquivo base: $arquivo',
+      descricao: arquivo.isEmpty ? 'Template disponível para geração de relatórios.' : 'Arquivo base: $arquivo',
       tipo: 'DOCX',
       status: 'Ativo',
       arquivoBase: arquivo,
@@ -378,14 +366,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
     final membros = await _getLista('/equipes-programa/');
     return membros
         .where((membro) => _inteiro(membro['programa']) == programaId)
-        .map(
-          (membro) => MembroEquipePrograma(
-            id: _inteiro(membro['id']),
-            programaId: programaId,
-            nome: _texto(membro['nome']),
-            cargo: _texto(membro['cargo']),
-          ),
-        )
+        .map((membro) => MembroEquipePrograma(id: _inteiro(membro['id']), programaId: programaId, nome: _texto(membro['nome']), cargo: _texto(membro['cargo'])))
         .toList();
   }
 
@@ -409,15 +390,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
     final membros = await _getLista('/equipes-projeto/');
     return membros
         .where((membro) => _inteiro(membro['projeto']) == projetoId)
-        .map(
-          (membro) => MembroEquipeProjeto(
-            id: _inteiro(membro['id']),
-            projetoId: projetoId,
-            nomeEquipe: _texto(membro['nome_equipe']),
-            nome: _texto(membro['nome']),
-            cargo: _texto(membro['cargo']),
-          ),
-        )
+        .map((membro) => MembroEquipeProjeto(id: _inteiro(membro['id']), projetoId: projetoId, nomeEquipe: _texto(membro['nome_equipe']), nome: _texto(membro['nome']), cargo: _texto(membro['cargo'])))
         .toList();
   }
 
@@ -518,14 +491,8 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<int> criarClasseEvento({
-    required int projetoId,
-    required String nomeClasse,
-  }) async {
-    final resposta = await _api.criar('/classes-evento/', {
-      'projeto': projetoId,
-      'nome_classe': nomeClasse,
-    });
+  Future<int> criarClasseEvento({required int projetoId, required String nomeClasse}) async {
+    final resposta = await _api.criar('/classes-evento/', {'projeto': projetoId, 'nome_classe': nomeClasse});
     return _idCriado(resposta, 'id', 'classe de evento');
   }
 
@@ -538,10 +505,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
           (classe) => ClasseEvento(
             id: _inteiro(classe['id']),
             projetoId: _inteiro(classe['projeto']),
-            nomeClasse: _texto(
-              classe['nome_classe'],
-              fallback: 'Classe sem nome',
-            ),
+            nomeClasse: _texto(classe['nome_classe'], fallback: 'Classe sem nome'),
           ),
         )
         .toList();
@@ -578,12 +542,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<int> gerarRelatorioComDocumento({
-    required int templateId,
-    int? eventoId,
-    Map<String, dynamic>? documentoJson,
-    String? nome,
-  }) async {
+  Future<int> gerarRelatorioComDocumento({required int templateId, int? eventoId, Map<String, dynamic>? documentoJson, String? nome}) async {
     final dados = <String, dynamic>{'template': templateId};
     if (eventoId case final id?) dados['evento'] = id;
     if (documentoJson != null) dados['documento_json'] = documentoJson;
@@ -592,9 +551,7 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
     final resposta = await _api.criar('/relatorios/', dados);
     final taskId = _texto(resposta['task_id']);
     if (taskId.isEmpty) {
-      throw Exception(
-        'Resposta inesperada da API ao gerar relatório: task_id ausente.',
-      );
+      throw Exception('Resposta inesperada da API ao gerar relatório: task_id ausente.');
     }
 
     final resultado = await _aguardarTaskConcluir(taskId);
@@ -606,41 +563,20 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<int> criarTemplate({
-    required int projetoId,
-    required String nomeTemplate,
-    required Uint8List arquivoBytes,
-    required String nomeArquivo,
-  }) async {
+  Future<int> criarTemplate({required int projetoId, required String nomeTemplate, required Uint8List arquivoBytes, required String nomeArquivo}) async {
     try {
-      developer.log(
-        'criarTemplate: projetoId=$projetoId nomeTemplate=$nomeTemplate nomeArquivo=$nomeArquivo bytes=${arquivoBytes.length}',
-        name: 'RepositorioCatalogoHttp',
-      );
+      developer.log('criarTemplate: projetoId=$projetoId nomeTemplate=$nomeTemplate nomeArquivo=$nomeArquivo bytes=${arquivoBytes.length}', name: 'RepositorioCatalogoHttp');
     } catch (_) {}
-    final modeloJson = await _converterDocxParaJson(
-      arquivoBytes: arquivoBytes,
-      nomeArquivo: nomeArquivo,
-    );
+    final modeloJson = await _converterDocxParaJson(arquivoBytes: arquivoBytes, nomeArquivo: nomeArquivo);
 
     try {
-      developer.log(
-        'criarTemplate: modeloJson tipo=${modeloJson.runtimeType} chaves=${modeloJson.keys.toList()}',
-        name: 'RepositorioCatalogoHttp',
-      );
+      developer.log('criarTemplate: modeloJson tipo=${modeloJson.runtimeType} chaves=${modeloJson.keys.toList()}', name: 'RepositorioCatalogoHttp');
     } catch (_) {}
 
-    final resposta = await _api.criar('/templates/', {
-      'nome': nomeTemplate,
-      'projeto': projetoId,
-      'modelo_json': modeloJson,
-    });
+    final resposta = await _api.criar('/templates/', {'nome': nomeTemplate, 'projeto': projetoId, 'modelo_json': modeloJson});
 
     try {
-      developer.log(
-        'criarTemplate: resposta status esperada via _idCriado bodyKeys=${resposta.keys.toList()} resposta=$resposta',
-        name: 'RepositorioCatalogoHttp',
-      );
+      developer.log('criarTemplate: resposta status esperada via _idCriado bodyKeys=${resposta.keys.toList()} resposta=$resposta', name: 'RepositorioCatalogoHttp');
     } catch (_) {}
     final taskId = _texto(resposta['task_id']);
     if (taskId.isEmpty) {
@@ -657,17 +593,8 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<void> atualizarTemplate({
-    required int templateId,
-    required int projetoId,
-    required String nomeTemplate,
-    Uint8List? arquivoBytes,
-    String? nomeArquivo,
-  }) async {
-    await _api.atualizar('/templates/$templateId/', {
-      'projeto': projetoId,
-      'nome': nomeTemplate,
-    });
+  Future<void> atualizarTemplate({required int templateId, required int projetoId, required String nomeTemplate, Uint8List? arquivoBytes, String? nomeArquivo}) async {
+    await _api.atualizar('/templates/$templateId/', {'projeto': projetoId, 'nome': nomeTemplate});
 
     if (arquivoBytes == null || nomeArquivo == null) return;
 
@@ -677,22 +604,12 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<int> criarTemplateComModelo({
-    required int projetoId,
-    required String nomeTemplate,
-    Map<String, dynamic>? modeloJson,
-  }) async {
-    final resposta = await _api.criar('/templates/', {
-      'nome': nomeTemplate,
-      'projeto': projetoId,
-      'modelo_json': modeloJson ?? _documentoVazio(),
-    });
+  Future<int> criarTemplateComModelo({required int projetoId, required String nomeTemplate, Map<String, dynamic>? modeloJson}) async {
+    final resposta = await _api.criar('/templates/', {'nome': nomeTemplate, 'projeto': projetoId, 'modelo_json': modeloJson ?? _documentoVazio()});
 
     final taskId = _texto(resposta['task_id']);
     if (taskId.isEmpty) {
-      throw Exception(
-        'Resposta inesperada da API ao criar template: task_id ausente.',
-      );
+      throw Exception('Resposta inesperada da API ao criar template: task_id ausente.');
     }
 
     final resultado = await _aguardarTaskConcluir(taskId);
@@ -705,14 +622,8 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<Map<String, dynamic>> converterDocxParaModelo({
-    required Uint8List arquivoBytes,
-    required String nomeArquivo,
-  }) {
-    return _converterDocxParaJson(
-      arquivoBytes: arquivoBytes,
-      nomeArquivo: nomeArquivo,
-    );
+  Future<Map<String, dynamic>> converterDocxParaModelo({required Uint8List arquivoBytes, required String nomeArquivo}) {
+    return _converterDocxParaJson(arquivoBytes: arquivoBytes, nomeArquivo: nomeArquivo);
   }
 
   @override
@@ -726,13 +637,8 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
   }
 
   @override
-  Future<void> salvarModeloTemplate({
-    required int templateId,
-    required Map<String, dynamic> modeloJson,
-  }) async {
-    await _api.atualizar('/templates/$templateId/', {
-      'modelo_json': modeloJson,
-    });
+  Future<void> salvarModeloTemplate({required int templateId, required Map<String, dynamic> modeloJson}) async {
+    await _api.atualizar('/templates/$templateId/', {'modelo_json': modeloJson});
   }
 
   Map<String, dynamic> _documentoVazio() => {
@@ -804,19 +710,11 @@ class RepositorioCatalogoHttp implements RepositorioCatalogo {
 
     final dadosPorEquipePrograma = {
       for (final membro in membrosPrograma)
-        if (_inteiro(membro['id']) != null)
-          _inteiro(membro['id'])!: (
-            nome: _texto(membro['nome']),
-            cargo: _texto(membro['cargo']),
-          ),
+        if (_inteiro(membro['id']) != null) _inteiro(membro['id'])!: (nome: _texto(membro['nome']), cargo: _texto(membro['cargo'])),
     };
     final dadosPorEquipeProjeto = {
       for (final membro in membrosProjeto)
-        if (_inteiro(membro['id']) != null)
-          _inteiro(membro['id'])!: (
-            nome: _texto(membro['nome']),
-            cargo: _texto(membro['cargo']),
-          ),
+        if (_inteiro(membro['id']) != null) _inteiro(membro['id'])!: (nome: _texto(membro['nome']), cargo: _texto(membro['cargo'])),
     };
 
     return relevantes.map((assinatura) {

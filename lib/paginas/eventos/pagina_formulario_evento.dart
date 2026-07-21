@@ -20,31 +20,38 @@ class PaginaFormularioEvento extends StatefulWidget {
 
 class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
   final _formKey = GlobalKey<FormState>();
+
   final _nome = TextEditingController();
   final _data = TextEditingController();
   final _local = TextEditingController();
   final _endereco = TextEditingController();
   final _objetivo = TextEditingController();
   final _novaClasse = TextEditingController();
+
   late final EventoFormViewModel _viewModel;
+
   int? _projetoId;
   int? _classeId;
 
   @override
   void initState() {
     super.initState();
+
     _viewModel = EventoFormViewModel(DependenciasApp.instancia.repositorioCatalogo);
-    // Classe existente (dropdown) e nova classe (texto livre) são mutuamente
-    // exclusivas — `EventoFormViewModel.salvar` só cria a classe digitada
-    // quando nenhuma classe foi selecionada. Sem isso, dava pra digitar um
-    // nome aqui com uma classe já selecionada e o texto era descartado sem
-    // aviso nenhum ao salvar.
+
+    // Classe existente e nova classe são opções mutuamente exclusivas.
     _novaClasse.addListener(_aoDigitarNovaClasse);
+
     final eventoId = widget.eventoId;
+
     if (widget.edicao && eventoId != null) {
       _viewModel.carregarEdicao(eventoId).then((_) {
         final evento = _viewModel.evento;
-        if (!mounted || evento == null) return;
+
+        if (!mounted || evento == null) {
+          return;
+        }
+
         _projetoId = evento.projetoId;
         _classeId = evento.classeEventoId;
         _nome.text = evento.nome;
@@ -52,6 +59,7 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
         _local.text = evento.local;
         _endereco.text = evento.endereco;
         _objetivo.text = evento.objetivo;
+
         setState(() {});
       });
     } else {
@@ -62,6 +70,7 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
   @override
   void dispose() {
     _novaClasse.removeListener(_aoDigitarNovaClasse);
+
     _nome.dispose();
     _data.dispose();
     _local.dispose();
@@ -69,19 +78,30 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
     _objetivo.dispose();
     _novaClasse.dispose();
     _viewModel.dispose();
+
     super.dispose();
   }
 
   void _aoDigitarNovaClasse() {
     if (_classeId != null && _novaClasse.text.trim().isNotEmpty) {
-      setState(() => _classeId = null);
+      setState(() {
+        _classeId = null;
+      });
     }
   }
 
   Future<void> _salvar() async {
-    if (!_formKey.currentState!.validate()) return;
+    final formularioValido = _formKey.currentState?.validate() ?? false;
+
+    if (!formularioValido) {
+      return;
+    }
+
     final data = _parseData(_data.text);
-    if (data == null || _projetoId == null) return;
+
+    if (data == null || _projetoId == null) {
+      return;
+    }
 
     final sucesso = await _viewModel.salvar(
       eventoId: widget.eventoId,
@@ -94,11 +114,16 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
       endereco: _endereco.text.trim(),
       objetivo: _objetivo.text.trim(),
     );
-    if (!mounted) return;
+
+    if (!mounted) {
+      return;
+    }
+
     if (sucesso) {
       context.pop(true);
       return;
     }
+
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_viewModel.mensagemErro ?? 'Erro ao salvar.')));
   }
 
@@ -110,6 +135,7 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
         if (_viewModel.carregando && _viewModel.projetos.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
+
         return SingleChildScrollView(
           padding: const EdgeInsets.all(32),
           child: Form(
@@ -117,48 +143,66 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Cadastrar evento institucional', style: Tipografia.headlineMedium.copyWith(color: Cores.textoPrincipal)),
+                Text(widget.edicao ? 'Editar evento institucional' : 'Cadastrar evento institucional', style: Tipografia.headlineMedium.copyWith(color: Cores.textoPrincipal)),
                 const SizedBox(height: 24),
                 CartaoConteudo(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: CampoSelecao(
-                              label: 'Projeto',
-                              valor: _projetoId,
-                              itens: _viewModel.projetos.map((item) => DropdownMenuItem(value: item.id, child: Text(item.nome))).toList(),
-                              onChanged: (value) async {
-                                setState(() {
-                                  _projetoId = value;
-                                  _classeId = null;
-                                });
-                                if (value != null) {
-                                  await _viewModel.carregarClassesProjeto(value);
-                                }
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 18),
-                          Expanded(
-                            child: CampoSelecao(
-                              label: 'Classe do Evento',
-                              valor: _classeId,
-                              itens: _viewModel.classes.map((item) => DropdownMenuItem(value: item.id, child: Text(item.nome))).toList(),
-                              onChanged: (value) => setState(() {
-                                _classeId = value;
-                                if (value != null) _novaClasse.clear();
-                              }),
-                              validator: (value) => value == null && _novaClasse.text.trim().isEmpty ? 'Selecione ou informe uma nova classe' : null,
-                            ),
-                          ),
-                        ],
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final telaPequena = constraints.maxWidth < 700;
+
+                          if (telaPequena) {
+                            return Column(
+                              children: [
+                                CampoSelecao(
+                                  label: 'Projeto',
+                                  valor: _projetoId,
+                                  itens: _viewModel.projetos.map((item) => DropdownMenuItem<int>(value: item.id, child: Text(item.nome))).toList(),
+                                  onChanged: _aoSelecionarProjeto,
+                                ),
+                                const SizedBox(height: 18),
+                                CampoSelecao(
+                                  label: 'Classe do Evento',
+                                  valor: _classeId,
+                                  itens: _viewModel.classes.map((item) => DropdownMenuItem<int>(value: item.id, child: Text(item.nome))).toList(),
+                                  onChanged: _aoSelecionarClasse,
+                                  validator: _validarClasseEvento,
+                                ),
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: CampoSelecao(
+                                  label: 'Projeto',
+                                  valor: _projetoId,
+                                  itens: _viewModel.projetos.map((item) => DropdownMenuItem<int>(value: item.id, child: Text(item.nome))).toList(),
+                                  onChanged: _aoSelecionarProjeto,
+                                ),
+                              ),
+                              const SizedBox(width: 18),
+                              Expanded(
+                                child: CampoSelecao(
+                                  label: 'Classe do Evento',
+                                  valor: _classeId,
+                                  itens: _viewModel.classes.map((item) => DropdownMenuItem<int>(value: item.id, child: Text(item.nome))).toList(),
+                                  onChanged: _aoSelecionarClasse,
+                                  validator: _validarClasseEvento,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 18),
                       CampoFormulario(label: 'Nova classe de evento', hint: 'Preencha quando a classe ainda não existir', icone: LucideIcons.tags, controller: _novaClasse),
                       const SizedBox(height: 18),
-                      CampoFormulario(label: 'Nome do Evento', hint: 'Ex: Oficina de Dados Abertos', icone: LucideIcons.calendar, controller: _nome, validator: _obrigatorio),
+                      CampoFormulario(label: 'Nome do Evento', hint: 'Ex.: Oficina de Dados Abertos', icone: LucideIcons.calendar, controller: _nome, validator: _obrigatorio),
                       const SizedBox(height: 18),
                       CampoFormulario(
                         label: 'Data',
@@ -167,14 +211,19 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
                         controller: _data,
                         keyboardType: TextInputType.number,
                         inputFormatters: [FormatadorData()],
-                        validator: (valor) => _parseData(valor ?? '') == null ? 'Informe uma data válida' : null,
+                        validator: (valor) {
+                          return _parseData(valor ?? '') == null ? 'Informe uma data válida' : null;
+                        },
                       ),
                       const SizedBox(height: 18),
                       CampoFormulario(label: 'Local', hint: 'Local do evento', icone: LucideIcons.map_pin, controller: _local),
                       const SizedBox(height: 18),
                       CampoFormulario(label: 'Endereço', hint: 'Endereço completo', icone: LucideIcons.map, controller: _endereco),
                       const SizedBox(height: 18),
-                      CampoFormulario(label: 'Objetivo', hint: 'Descreva o objetivo do evento', icone: LucideIcons.target, controller: _objetivo, maxLines: 4),
+
+                      // Campo próprio para manter o ícone alinhado ao topo.
+                      _construirCampoObjetivo(),
+
                       const SizedBox(height: 28),
                       BarraAcoesFormulario(
                         textoPrimario: _viewModel.carregando
@@ -195,26 +244,118 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
     );
   }
 
+  Future<void> _aoSelecionarProjeto(int? value) async {
+    setState(() {
+      _projetoId = value;
+      _classeId = null;
+    });
+
+    if (value != null) {
+      await _viewModel.carregarClassesProjeto(value);
+    }
+  }
+
+  void _aoSelecionarClasse(int? value) {
+    setState(() {
+      _classeId = value;
+
+      if (value != null) {
+        _novaClasse.clear();
+      }
+    });
+  }
+
+  String? _validarClasseEvento(int? value) {
+    if (value == null && _novaClasse.text.trim().isEmpty) {
+      return 'Selecione ou informe uma nova classe';
+    }
+
+    return null;
+  }
+
+  /// Campo de objetivo com ícone alinhado ao início do texto.
+  Widget _construirCampoObjetivo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Objetivo', style: Tipografia.labelLarge.copyWith(color: Cores.cinzaEscuro)),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(color: Cores.cinzaClaro, borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 3),
+                child: Icon(LucideIcons.target, size: 20, color: Cores.cinzaMedio),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  controller: _objetivo,
+                  minLines: 4,
+                  maxLines: 6,
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
+                  textAlignVertical: TextAlignVertical.top,
+                  style: Tipografia.bodyLarge.copyWith(color: Cores.textoPrincipal),
+                  decoration: InputDecoration(
+                    hintText: 'Descreva o objetivo do evento',
+                    hintStyle: Tipografia.bodyLarge.copyWith(color: Cores.cinzaMedio),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    focusedErrorBorder: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   String? _obrigatorio(String? valor) {
-    if (valor == null || valor.trim().isEmpty) return 'Campo obrigatório';
+    if (valor == null || valor.trim().isEmpty) {
+      return 'Campo obrigatório';
+    }
+
     return null;
   }
 
   DateTime? _parseData(String valor) {
     final partes = valor.trim().split('/');
-    if (partes.length != 3) return null;
+
+    if (partes.length != 3) {
+      return null;
+    }
+
     final dia = int.tryParse(partes[0]);
     final mes = int.tryParse(partes[1]);
     final ano = int.tryParse(partes[2]);
-    if (dia == null || mes == null || ano == null) return null;
+
+    if (dia == null || mes == null || ano == null) {
+      return null;
+    }
+
     final data = DateTime(ano, mes, dia);
-    if (data.day != dia || data.month != mes || data.year != ano) return null;
+
+    if (data.day != dia || data.month != mes || data.year != ano) {
+      return null;
+    }
+
     return data;
   }
 
   String _formatarData(DateTime data) {
     final dia = data.day.toString().padLeft(2, '0');
     final mes = data.month.toString().padLeft(2, '0');
+
     return '$dia/$mes/${data.year}';
   }
 }
