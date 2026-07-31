@@ -1,18 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:gerelat_frontend/aplicacao/dependencias.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:go_router/go_router.dart';
 
-enum SecaoApp { dashboard, clientes, programas, variaveis, eventos, relatorios, templates, assets, configuracoes }
+enum SecaoApp {
+  dashboard,
+  clientes,
+  programas,
+  variaveis,
+  eventos,
+  relatorios,
+  templates,
+  assets,
+  configuracoes,
+}
 
 class AppShell extends StatelessWidget {
   final SecaoApp secaoAtual;
   final String titulo;
   final Widget child;
+  final SessaoViewModel sessao;
 
-  const AppShell({super.key, required this.secaoAtual, required this.titulo, required this.child});
+  const AppShell({
+    super.key,
+    required this.secaoAtual,
+    required this.titulo,
+    required this.child,
+    required this.sessao,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -38,8 +55,14 @@ class AppShell extends StatelessWidget {
       backgroundColor: Cores.fundoCanvas,
       drawer: Drawer(
         width: 280,
-        backgroundColor: const Color(0xFFF1F5F9),
-        child: SafeArea(child: _SideNav(secaoAtual: secaoAtual, fecharAoNavegar: true)),
+        backgroundColor: Cores.fundoDestaqueSutil,
+        child: SafeArea(
+          child: _SideNav(
+            secaoAtual: secaoAtual,
+            sessao: sessao,
+            fecharAoNavegar: true,
+          ),
+        ),
       ),
       body: Column(
         children: [
@@ -58,7 +81,7 @@ class AppShell extends StatelessWidget {
       backgroundColor: Cores.fundoCanvas,
       body: Row(
         children: [
-          _SideNav(secaoAtual: secaoAtual),
+          _SideNav(secaoAtual: secaoAtual, sessao: sessao),
           Expanded(
             child: Column(
               children: [
@@ -102,7 +125,9 @@ class _TopAppBar extends StatelessWidget {
                   color: Cores.textoPrincipal,
                   style: IconButton.styleFrom(
                     backgroundColor: Cores.fundoSecao,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 );
               },
@@ -110,6 +135,10 @@ class _TopAppBar extends StatelessWidget {
 
           if (exibirBotaoMenu) const SizedBox(width: 8),
 
+          // Fundo transparente e estados de hover/focus/pressed padrão do
+          // Material — igual aos demais IconButton do app (ex.: editar/
+          // excluir nos cartões de lista), sem o `style` "quadrado" usado
+          // pelo botão de menu acima.
           if (context.canPop())
             Padding(
               padding: const EdgeInsets.only(right: 8),
@@ -120,10 +149,6 @@ class _TopAppBar extends StatelessWidget {
                 },
                 icon: const Icon(LucideIcons.arrow_left, size: 20),
                 color: Cores.textoPrincipal,
-                style: IconButton.styleFrom(
-                  backgroundColor: Cores.fundoSecao,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
               ),
             ),
 
@@ -132,20 +157,40 @@ class _TopAppBar extends StatelessWidget {
               titulo,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: exibirBotaoMenu ? Tipografia.titleLarge.copyWith(color: Cores.textoPrincipal, fontWeight: FontWeight.w800) : Tipografia.headlineSmall.copyWith(color: Cores.textoPrincipal, fontWeight: FontWeight.w800),
+              style: exibirBotaoMenu
+                  ? Tipografia.titleLargeDestaque.copyWith(
+                      color: Cores.textoPrincipal,
+                    )
+                  : Tipografia.headlineSmall.copyWith(
+                      color: Cores.textoPrincipal,
+                      fontWeight: FontWeight.w800,
+                    ),
             ),
           ),
 
           const SizedBox(width: 8),
 
           // No celular, alguns ícones são ocultados para evitar overflow.
-          if (!exibirBotaoMenu) ...[const Icon(LucideIcons.bell, size: 20, color: Cores.cinzaEscuro), const SizedBox(width: 16), const Icon(Icons.help_outline, size: 20, color: Cores.cinzaEscuro), const SizedBox(width: 16)],
+          if (!exibirBotaoMenu) ...[
+            const Icon(LucideIcons.bell, size: 20, color: Cores.cinzaEscuro),
+            const SizedBox(width: 16),
+            const Icon(Icons.help_outline, size: 20, color: Cores.cinzaEscuro),
+            const SizedBox(width: 16),
+          ],
 
           Container(
             width: 32,
             height: 32,
-            decoration: BoxDecoration(color: Cores.cinzaCampo, borderRadius: BorderRadius.circular(999)),
-            child: ClipOval(child: Image.asset('assets/images/logo_brisa.png', fit: BoxFit.contain)),
+            decoration: BoxDecoration(
+              color: Cores.cinzaCampo,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: ClipOval(
+              child: Image.asset(
+                'assets/images/logo_brisa.png',
+                fit: BoxFit.contain,
+              ),
+            ),
           ),
         ],
       ),
@@ -153,19 +198,88 @@ class _TopAppBar extends StatelessWidget {
   }
 }
 
+/// Um item de navegação da sidebar: ícone, rótulo, [SecaoApp] que ele
+/// representa (para destacar como ativo) e rota para onde navega.
+///
+/// Mantido como dado (não widget) para que os itens do menu principal
+/// possam ser declarados numa lista só, em vez de repetir a construção de
+/// `_NavItem` uma vez por item.
+typedef _ItemMenu = ({
+  IconData icone,
+  String rotulo,
+  SecaoApp secao,
+  String rota,
+});
+
+const _itensMenuPrincipal = <_ItemMenu>[
+  (
+    icone: LucideIcons.house,
+    rotulo: 'Dashboard',
+    secao: SecaoApp.dashboard,
+    rota: '/dashboard',
+  ),
+  (
+    icone: LucideIcons.building_2,
+    rotulo: 'Clientes',
+    secao: SecaoApp.clientes,
+    rota: '/clientes',
+  ),
+  (
+    icone: LucideIcons.folder_kanban,
+    rotulo: 'Programas',
+    secao: SecaoApp.programas,
+    rota: '/programas',
+  ),
+  (
+    icone: LucideIcons.variable,
+    rotulo: 'Variáveis',
+    secao: SecaoApp.variaveis,
+    rota: '/projetos/campos',
+  ),
+  (
+    icone: LucideIcons.calendar,
+    rotulo: 'Eventos',
+    secao: SecaoApp.eventos,
+    rota: '/eventos',
+  ),
+  (
+    icone: LucideIcons.file_text,
+    rotulo: 'Relatórios',
+    secao: SecaoApp.relatorios,
+    rota: '/relatorios',
+  ),
+  (
+    icone: LucideIcons.copy,
+    rotulo: 'Templates',
+    secao: SecaoApp.templates,
+    rota: '/templates',
+  ),
+  (
+    icone: LucideIcons.image,
+    rotulo: 'Imagens',
+    secao: SecaoApp.assets,
+    rota: '/assets',
+  ),
+];
+
 class _SideNav extends StatelessWidget {
   final SecaoApp secaoAtual;
+  final SessaoViewModel sessao;
 
   /// Quando verdadeiro, fecha o Drawer antes de navegar.
   final bool fecharAoNavegar;
 
-  const _SideNav({required this.secaoAtual, this.fecharAoNavegar = false});
+  const _SideNav({
+    required this.secaoAtual,
+    required this.sessao,
+    this.fecharAoNavegar = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 256,
-      color: const Color(0xFFF1F5F9),
+      color: Cores.fundoDestaqueSutil,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -173,16 +287,22 @@ class _SideNav extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
             child: Row(
               children: [
-                Container(
+                const SizedBox(
                   width: 40,
                   height: 40,
-                  decoration: BoxDecoration(color: Cores.azulAcao, borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(LucideIcons.chart_bar, color: Cores.branco),
+                  child: Image(
+                    image: AssetImage(
+                      'assets/images/logo_gerelat_icone_azul.png',
+                    ),
+                    fit: BoxFit.contain,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Text(
                   'GeRelat',
-                  style: Tipografia.titleLarge.copyWith(color: Cores.textoPrincipal, fontWeight: FontWeight.w800),
+                  style: Tipografia.titleLargeDestaque.copyWith(
+                    color: Cores.textoPrincipal,
+                  ),
                 ),
               ],
             ),
@@ -192,70 +312,15 @@ class _SideNav extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               children: [
-                _NavItem(
-                  icon: LucideIcons.house,
-                  label: 'Dashboard',
-                  ativo: secaoAtual == SecaoApp.dashboard,
-                  onTap: () {
-                    _navegar(context, '/dashboard');
-                  },
-                ),
-                _NavItem(
-                  icon: LucideIcons.building_2,
-                  label: 'Clientes',
-                  ativo: secaoAtual == SecaoApp.clientes,
-                  onTap: () {
-                    _navegar(context, '/clientes');
-                  },
-                ),
-                _NavItem(
-                  icon: LucideIcons.folder_kanban,
-                  label: 'Programas',
-                  ativo: secaoAtual == SecaoApp.programas,
-                  onTap: () {
-                    _navegar(context, '/programas');
-                  },
-                ),
-                _NavItem(
-                  icon: LucideIcons.variable,
-                  label: 'Variáveis',
-                  ativo: secaoAtual == SecaoApp.variaveis,
-                  onTap: () {
-                    _navegar(context, '/projetos/campos');
-                  },
-                ),
-                _NavItem(
-                  icon: LucideIcons.calendar,
-                  label: 'Eventos',
-                  ativo: secaoAtual == SecaoApp.eventos,
-                  onTap: () {
-                    _navegar(context, '/eventos');
-                  },
-                ),
-                _NavItem(
-                  icon: LucideIcons.file_text,
-                  label: 'Relatórios',
-                  ativo: secaoAtual == SecaoApp.relatorios,
-                  onTap: () {
-                    _navegar(context, '/relatorios');
-                  },
-                ),
-                _NavItem(
-                  icon: LucideIcons.copy,
-                  label: 'Templates',
-                  ativo: secaoAtual == SecaoApp.templates,
-                  onTap: () {
-                    _navegar(context, '/templates');
-                  },
-                ),
-                _NavItem(
-                  icon: LucideIcons.image,
-                  label: 'Imagens',
-                  ativo: secaoAtual == SecaoApp.assets,
-                  onTap: () {
-                    _navegar(context, '/assets');
-                  },
-                ),
+                for (final item in _itensMenuPrincipal)
+                  _NavItem(
+                    icon: item.icone,
+                    label: item.rotulo,
+                    ativo: secaoAtual == item.secao,
+                    onTap: () {
+                      _navegar(context, item.rota);
+                    },
+                  ),
               ],
             ),
           ),
@@ -304,7 +369,7 @@ class _SideNav extends StatelessWidget {
       Navigator.of(context).pop();
     }
 
-    final saiu = await DependenciasApp.instancia.sessao.sair();
+    final saiu = await sessao.sair();
 
     if (!saiu || !context.mounted) {
       return;
@@ -320,7 +385,12 @@ class _NavItem extends StatelessWidget {
   final bool ativo;
   final VoidCallback onTap;
 
-  const _NavItem({required this.icon, required this.label, required this.ativo, required this.onTap});
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.ativo,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -337,14 +407,21 @@ class _NavItem extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: Row(
               children: [
-                Icon(icon, size: 19, color: ativo ? Cores.azulAcao : const Color(0xFF64748B)),
+                Icon(
+                  icon,
+                  size: 19,
+                  color: ativo ? Cores.azulAcao : const Color(0xFF64748B),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Tipografia.bodyMedium.copyWith(color: ativo ? Cores.azulAcao : const Color(0xFF475569), fontWeight: ativo ? FontWeight.w700 : FontWeight.w500),
+                    style: Tipografia.bodyMedium.copyWith(
+                      color: ativo ? Cores.azulAcao : const Color(0xFF475569),
+                      fontWeight: ativo ? FontWeight.w700 : FontWeight.w500,
+                    ),
                   ),
                 ),
               ],

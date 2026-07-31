@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/classe_evento_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/classe_evento.dart';
+import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
+import 'package:gerelat_frontend/nucleo/componentes/dialogo_confirmacao_exclusao.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 
 class PaginaClassesEvento extends StatefulWidget {
-  const PaginaClassesEvento({super.key});
+  final RepositorioCatalogo repositorioCatalogo;
+
+  const PaginaClassesEvento({super.key, required this.repositorioCatalogo});
 
   @override
   State<PaginaClassesEvento> createState() => _PaginaClassesEventoState();
@@ -24,9 +27,8 @@ class _PaginaClassesEventoState extends State<PaginaClassesEvento> {
   @override
   void initState() {
     super.initState();
-    _viewModel = ClasseEventoViewModel(
-      DependenciasApp.instancia.repositorioCatalogo,
-    )..carregarProjetos();
+    _viewModel = ClasseEventoViewModel(widget.repositorioCatalogo)
+      ..carregarProjetos();
   }
 
   @override
@@ -68,30 +70,15 @@ class _PaginaClassesEventoState extends State<PaginaClassesEvento> {
   }
 
   Future<void> _confirmarExclusao(ClasseEvento classe) async {
-    final confirmou = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remover classe de evento'),
-        content: Text(
+    final confirmou = await DialogoConfirmacaoExclusao.mostrar(
+      context,
+      titulo: 'Remover classe de evento',
+      mensagem:
           'Remover a classe "${classe.nomeClasse}"? Os eventos cadastrados '
           'nesta classe também serão excluídos. Esta ação não pode ser desfeita.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text(
-              'Remover',
-              style: TextStyle(color: Cores.vermelhoErro),
-            ),
-          ),
-        ],
-      ),
+      textoConfirmar: 'Remover',
     );
-    if (confirmou != true) return;
+    if (!confirmou) return;
 
     final classeId = classe.id;
     if (classeId == null) return;
@@ -115,9 +102,11 @@ class _PaginaClassesEventoState extends State<PaginaClassesEvento> {
 
   @override
   Widget build(BuildContext context) {
+    // O título é a única parte que não depende de `_viewModel`; é passado
+    // como `child` para não ser reconstruído a cada notificação.
     return AnimatedBuilder(
       animation: _viewModel,
-      builder: (context, _) {
+      builder: (context, child) {
         if (_viewModel.carregando && _viewModel.projetos.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -126,17 +115,7 @@ class _PaginaClassesEventoState extends State<PaginaClassesEvento> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Classes de evento',
-                style: Tipografia.headlineMedium.copyWith(
-                  color: Cores.textoPrincipal,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Categorias usadas para classificar os eventos de cada projeto.',
-                style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
-              ),
+              child!,
               const SizedBox(height: 24),
               CartaoConteudo(
                 child: CampoSelecao(
@@ -187,6 +166,22 @@ class _PaginaClassesEventoState extends State<PaginaClassesEvento> {
           ),
         );
       },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Classes de evento',
+            style: Tipografia.headlineMedium.copyWith(
+              color: Cores.textoPrincipal,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Categorias usadas para classificar os eventos de cada projeto.',
+            style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
+          ),
+        ],
+      ),
     );
   }
 
@@ -265,75 +260,42 @@ class _PaginaClassesEventoState extends State<PaginaClassesEvento> {
     );
   }
 
-  Widget _cabecalhoTabela() {
-    return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(
-        color: Cores.fundoSecao,
-        border: Border(bottom: BorderSide(color: Cores.bordaSutil)),
-      ),
-      child: Row(
-        children: [
-          _celulaCabecalho('Nome da Classe', flex: 3),
-          _celulaCabecalho('Ações'),
-        ],
-      ),
-    );
-  }
+  static const _colunas = [
+    ColunaTabelaCrud(rotulo: 'Nome da Classe', flex: 3),
+    ColunaTabelaCrud(rotulo: 'Ações', flex: 1),
+  ];
 
-  Widget _celulaCabecalho(String texto, {int flex = 1}) {
-    return Expanded(
-      flex: flex,
-      child: Text(
-        texto.toUpperCase(),
-        style: Tipografia.labelMedium.copyWith(
-          color: Cores.cinzaMedio,
-          letterSpacing: 0.6,
-        ),
-      ),
-    );
+  Widget _cabecalhoTabela() {
+    return const CabecalhoTabelaCrud(colunas: _colunas);
   }
 
   Widget _linha(ClasseEvento classe) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Cores.bordaSutil)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: Text(
-              classe.nomeClasse,
-              style: Tipografia.labelLarge.copyWith(
-                color: Cores.textoPrincipal,
+    return LinhaTabelaCrud(
+      colunas: _colunas,
+      celulas: [
+        Text(
+          classe.nomeClasse,
+          style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
+        ),
+        Row(
+          children: [
+            IconButton(
+              tooltip: 'Editar',
+              onPressed: () => _iniciarEdicao(classe),
+              icon: const Icon(LucideIcons.pencil, size: 18),
+            ),
+            IconButton(
+              tooltip: 'Remover',
+              onPressed: () => _confirmarExclusao(classe),
+              icon: const Icon(
+                LucideIcons.trash_2,
+                size: 18,
+                color: Cores.vermelhoErro,
               ),
             ),
-          ),
-          Expanded(
-            child: Row(
-              children: [
-                IconButton(
-                  tooltip: 'Editar',
-                  onPressed: () => _iniciarEdicao(classe),
-                  icon: const Icon(LucideIcons.pencil, size: 18),
-                ),
-                IconButton(
-                  tooltip: 'Remover',
-                  onPressed: () => _confirmarExclusao(classe),
-                  icon: const Icon(
-                    LucideIcons.trash_2,
-                    size: 18,
-                    color: Cores.vermelhoErro,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+          ],
+        ),
+      ],
     );
   }
 }

@@ -24,12 +24,16 @@ class TemplatesViewModel extends BaseViewModel {
     final termo = _termoBusca.trim().toLowerCase();
     if (termo.isEmpty) return List.unmodifiable(_templates);
     return _templates
-        .where((template) {
-          return template.nome.toLowerCase().contains(termo) ||
-              template.descricao.toLowerCase().contains(termo) ||
-              template.arquivoBase.toLowerCase().contains(termo);
-        })
+        .where((template) => _correspondeABusca(template, termo))
         .toList(growable: false);
+  }
+
+  /// Verifica se o termo buscado aparece em algum dos campos identificáveis
+  /// do template (nome, descrição, arquivo base).
+  bool _correspondeABusca(TemplateRelatorio template, String termo) {
+    return template.nome.toLowerCase().contains(termo) ||
+        template.descricao.toLowerCase().contains(termo) ||
+        template.arquivoBase.toLowerCase().contains(termo);
   }
 
   Future<void> carregar() async {
@@ -53,8 +57,7 @@ class TemplatesViewModel extends BaseViewModel {
       await carregar();
       return true;
     } catch (erro) {
-      _mensagemErroAcao = erro.toString();
-      notifyListeners();
+      _definirErroAcao(erro);
       return false;
     }
   }
@@ -63,9 +66,16 @@ class TemplatesViewModel extends BaseViewModel {
     try {
       return await _repositorio.baixarArquivoTemplate(templateId);
     } catch (erro) {
-      _mensagemErroAcao = erro.toString();
-      notifyListeners();
+      _definirErroAcao(erro);
       return null;
     }
+  }
+
+  /// Registra o erro de uma ação pontual (ver comentário de
+  /// [mensagemErroAcao]) e notifica os listeners — mesmo tratamento usado
+  /// por [excluir] e [baixarArquivo].
+  void _definirErroAcao(Object erro) {
+    _mensagemErroAcao = erro.toString();
+    notifyListeners();
   }
 }

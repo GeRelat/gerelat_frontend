@@ -38,8 +38,11 @@ class EditorProseMirrorController {
   void inserirVarRichtext(String ref) =>
       _ponte?.enviar({'type': 'INSERT_VAR_RICHTEXT', 'ref': ref});
 
-  void inserirVarImagem(String ref, {String caption = ''}) =>
-      _ponte?.enviar({'type': 'INSERT_VAR_IMAGE', 'ref': ref, 'caption': caption});
+  void inserirVarImagem(String ref, {String caption = ''}) => _ponte?.enviar({
+    'type': 'INSERT_VAR_IMAGE',
+    'ref': ref,
+    'caption': caption,
+  });
 
   void inserirVarTabela(
     String ref, {
@@ -59,7 +62,8 @@ class EditorProseMirrorController {
   void negrito() => _ponte?.enviar({'type': 'FORMAT_BOLD'});
   void italico() => _ponte?.enviar({'type': 'FORMAT_ITALIC'});
   void sublinhado() => _ponte?.enviar({'type': 'FORMAT_UNDERLINE'});
-  void titulo(int nivel) => _ponte?.enviar({'type': 'SET_HEADING', 'level': nivel});
+  void titulo(int nivel) =>
+      _ponte?.enviar({'type': 'SET_HEADING', 'level': nivel});
   void paragrafo() => _ponte?.enviar({'type': 'SET_PARAGRAPH'});
   void desfazer() => _ponte?.enviar({'type': 'UNDO'});
   void refazer() => _ponte?.enviar({'type': 'REDO'});
@@ -69,11 +73,15 @@ class EditorProseMirrorController {
       _ponte?.enviar({'type': 'SET_MODE', 'mode': modo});
 
   void definirDocumento(Map<String, dynamic> doc, {String? modo}) =>
-      _ponte?.enviar({
-        'type': 'SET_DOC',
-        'doc': doc,
-        'mode': ?modo,
-      });
+      _ponte?.enviar({'type': 'SET_DOC', 'doc': doc, 'mode': ?modo});
+
+  /// Liga/desliga a captura de clique/mouse do editor.
+  ///
+  /// Chame com `false` antes de abrir um `Dialog`/`showDialog` por cima do
+  /// editor (ele roda num `<iframe>`, que captura o clique mesmo com um
+  /// diálogo do Flutter desenhado visualmente acima) e `true` ao fechar.
+  void definirInteratividade(bool ativa) =>
+      _ponte?.definirInteratividade(ativa);
 
   /// Recupera o documento atual do editor. Retorna um mapa vazio se o editor
   /// não estiver pronto ou não responder a tempo.

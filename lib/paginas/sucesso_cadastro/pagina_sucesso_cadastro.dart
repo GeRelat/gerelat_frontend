@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
+import 'package:gerelat_frontend/nucleo/temas/sombras.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:go_router/go_router.dart';
 
@@ -34,13 +35,7 @@ class PaginaSucessoCadastro extends StatelessWidget {
       decoration: BoxDecoration(
         color: Cores.branco,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Cores.pretoProfundo.withValues(alpha: 0.04),
-            blurRadius: 48,
-            offset: const Offset(0, 24),
-          ),
-        ],
+        boxShadow: Sombras.cartaoAutenticacao,
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -127,8 +122,7 @@ class PaginaSucessoCadastro extends StatelessWidget {
         // Título → HeadlineMedium (Poppins Regular 28px)
         Text(
           'Conta criada com\nsucesso!',
-          style: Tipografia.headlineMedium.copyWith(
-            letterSpacing: -0.75,
+          style: Tipografia.headlineMediumDestaque.copyWith(
             height: 1.2,
             color: Cores.pretoProfundo,
           ),
@@ -151,8 +145,7 @@ class PaginaSucessoCadastro extends StatelessWidget {
               // "GeRelat" destacado em azul → LabelLarge (Roboto SemiBold 14px)
               TextSpan(
                 text: 'GeRelat',
-                style: Tipografia.labelLarge.copyWith(
-                  fontSize: 16,
+                style: Tipografia.labelLargeDestaque.copyWith(
                   color: Cores.azulPrimario,
                 ),
               ),
@@ -174,10 +167,10 @@ class PaginaSucessoCadastro extends StatelessWidget {
           child: ElevatedButton(
             onPressed: () => _irParaLogin(context),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Cores.azulPrimario,
+              backgroundColor: Cores.azulAcao,
               foregroundColor: Cores.branco,
               elevation: 1,
-              shadowColor: Colors.black.withValues(alpha: 0.05),
+              shadowColor: Sombras.botaoPrimario,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),

@@ -22,13 +22,17 @@ class ClientesViewModel extends BaseViewModel {
     final termo = _termoBusca.trim().toLowerCase();
     if (termo.isEmpty) return List.unmodifiable(_clientes);
     return _clientes
-        .where((cliente) {
-          return cliente.nome.toLowerCase().contains(termo) ||
-              cliente.cnpj.toLowerCase().contains(termo) ||
-              cliente.nomeContato.toLowerCase().contains(termo) ||
-              cliente.emailContato.toLowerCase().contains(termo);
-        })
+        .where((cliente) => _correspondeABusca(cliente, termo))
         .toList(growable: false);
+  }
+
+  /// Verifica se o termo buscado aparece em algum dos campos identificáveis
+  /// do cliente (nome, CNPJ, contato).
+  bool _correspondeABusca(Cliente cliente, String termo) {
+    return cliente.nome.toLowerCase().contains(termo) ||
+        cliente.cnpj.toLowerCase().contains(termo) ||
+        cliente.nomeContato.toLowerCase().contains(termo) ||
+        cliente.emailContato.toLowerCase().contains(termo);
   }
 
   int get totalClientes => _clientes.length;

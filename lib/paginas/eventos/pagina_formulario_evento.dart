@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/evento_form_view_model.dart';
+import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
@@ -11,8 +11,14 @@ import 'package:go_router/go_router.dart';
 class PaginaFormularioEvento extends StatefulWidget {
   final bool edicao;
   final int? eventoId;
+  final RepositorioCatalogo repositorioCatalogo;
 
-  const PaginaFormularioEvento({super.key, this.edicao = false, this.eventoId});
+  const PaginaFormularioEvento({
+    super.key,
+    this.edicao = false,
+    this.eventoId,
+    required this.repositorioCatalogo,
+  });
 
   @override
   State<PaginaFormularioEvento> createState() => _PaginaFormularioEventoState();
@@ -37,7 +43,7 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
   void initState() {
     super.initState();
 
-    _viewModel = EventoFormViewModel(DependenciasApp.instancia.repositorioCatalogo);
+    _viewModel = EventoFormViewModel(widget.repositorioCatalogo);
 
     // Classe existente e nova classe são opções mutuamente exclusivas.
     _novaClasse.addListener(_aoDigitarNovaClasse);
@@ -124,14 +130,19 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_viewModel.mensagemErro ?? 'Erro ao salvar.')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(_viewModel.mensagemErro ?? 'Erro ao salvar.')),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    // O título não depende de `_viewModel` — é passado como `child` para não
+    // ser reconstruído a cada notificação (o resto do formulário depende dos
+    // projetos/classes carregados, então permanece dentro do builder).
     return AnimatedBuilder(
       animation: _viewModel,
-      builder: (context, _) {
+      builder: (context, child) {
         if (_viewModel.carregando && _viewModel.projetos.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -143,7 +154,7 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(widget.edicao ? 'Editar evento institucional' : 'Cadastrar evento institucional', style: Tipografia.headlineMedium.copyWith(color: Cores.textoPrincipal)),
+                child!,
                 const SizedBox(height: 24),
                 CartaoConteudo(
                   child: Column(
@@ -156,20 +167,9 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
                           if (telaPequena) {
                             return Column(
                               children: [
-                                CampoSelecao(
-                                  label: 'Projeto',
-                                  valor: _projetoId,
-                                  itens: _viewModel.projetos.map((item) => DropdownMenuItem<int>(value: item.id, child: Text(item.nome))).toList(),
-                                  onChanged: _aoSelecionarProjeto,
-                                ),
+                                _campoProjeto(),
                                 const SizedBox(height: 18),
-                                CampoSelecao(
-                                  label: 'Classe do Evento',
-                                  valor: _classeId,
-                                  itens: _viewModel.classes.map((item) => DropdownMenuItem<int>(value: item.id, child: Text(item.nome))).toList(),
-                                  onChanged: _aoSelecionarClasse,
-                                  validator: _validarClasseEvento,
-                                ),
+                                _campoClasse(),
                               ],
                             );
                           }
@@ -177,32 +177,30 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
                           return Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(
-                                child: CampoSelecao(
-                                  label: 'Projeto',
-                                  valor: _projetoId,
-                                  itens: _viewModel.projetos.map((item) => DropdownMenuItem<int>(value: item.id, child: Text(item.nome))).toList(),
-                                  onChanged: _aoSelecionarProjeto,
-                                ),
-                              ),
+                              Expanded(child: _campoProjeto()),
                               const SizedBox(width: 18),
-                              Expanded(
-                                child: CampoSelecao(
-                                  label: 'Classe do Evento',
-                                  valor: _classeId,
-                                  itens: _viewModel.classes.map((item) => DropdownMenuItem<int>(value: item.id, child: Text(item.nome))).toList(),
-                                  onChanged: _aoSelecionarClasse,
-                                  validator: _validarClasseEvento,
-                                ),
-                              ),
+                              Expanded(child: _campoClasse()),
                             ],
                           );
                         },
                       ),
                       const SizedBox(height: 18),
-                      CampoFormulario(label: 'Nova classe de evento', hint: 'Preencha quando a classe ainda não existir', icone: LucideIcons.tags, controller: _novaClasse),
+                      CampoFormulario(
+                        label: 'Nova classe de evento',
+                        hint: 'Preencha quando a classe ainda não existir',
+                        icone: LucideIcons.tags,
+                        controller: _novaClasse,
+                        maxLength: 150,
+                      ),
                       const SizedBox(height: 18),
-                      CampoFormulario(label: 'Nome do Evento', hint: 'Ex.: Oficina de Dados Abertos', icone: LucideIcons.calendar, controller: _nome, validator: _obrigatorio),
+                      CampoFormulario(
+                        label: 'Nome do Evento',
+                        hint: 'Ex.: Oficina de Dados Abertos',
+                        icone: LucideIcons.calendar,
+                        controller: _nome,
+                        validator: _obrigatorio,
+                        maxLength: 150,
+                      ),
                       const SizedBox(height: 18),
                       CampoFormulario(
                         label: 'Data',
@@ -212,13 +210,27 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
                         keyboardType: TextInputType.number,
                         inputFormatters: [FormatadorData()],
                         validator: (valor) {
-                          return _parseData(valor ?? '') == null ? 'Informe uma data válida' : null;
+                          return _parseData(valor ?? '') == null
+                              ? 'Informe uma data válida'
+                              : null;
                         },
                       ),
                       const SizedBox(height: 18),
-                      CampoFormulario(label: 'Local', hint: 'Local do evento', icone: LucideIcons.map_pin, controller: _local),
+                      CampoFormulario(
+                        label: 'Local',
+                        hint: 'Local do evento',
+                        icone: LucideIcons.map_pin,
+                        controller: _local,
+                        maxLength: 150,
+                      ),
                       const SizedBox(height: 18),
-                      CampoFormulario(label: 'Endereço', hint: 'Endereço completo', icone: LucideIcons.map, controller: _endereco),
+                      CampoFormulario(
+                        label: 'Endereço',
+                        hint: 'Endereço completo',
+                        icone: LucideIcons.map,
+                        controller: _endereco,
+                        maxLength: 255,
+                      ),
                       const SizedBox(height: 18),
 
                       // Campo próprio para manter o ícone alinhado ao topo.
@@ -241,6 +253,45 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
           ),
         );
       },
+      child: Text(
+        widget.edicao
+            ? 'Editar evento institucional'
+            : 'Cadastrar evento institucional',
+        style: Tipografia.headlineMedium.copyWith(color: Cores.textoPrincipal),
+      ),
+    );
+  }
+
+  /// Seleção de projeto — usada nos dois layouts (compacto e amplo) de
+  /// [build].
+  Widget _campoProjeto() {
+    return CampoSelecao(
+      label: 'Projeto',
+      valor: _projetoId,
+      itens: _viewModel.projetos
+          .map(
+            (item) =>
+                DropdownMenuItem<int>(value: item.id, child: Text(item.nome)),
+          )
+          .toList(),
+      onChanged: _aoSelecionarProjeto,
+    );
+  }
+
+  /// Seleção de classe de evento — usada nos dois layouts (compacto e
+  /// amplo) de [build].
+  Widget _campoClasse() {
+    return CampoSelecao(
+      label: 'Classe do Evento',
+      valor: _classeId,
+      itens: _viewModel.classes
+          .map(
+            (item) =>
+                DropdownMenuItem<int>(value: item.id, child: Text(item.nome)),
+          )
+          .toList(),
+      onChanged: _aoSelecionarClasse,
+      validator: _validarClasseEvento,
     );
   }
 
@@ -278,17 +329,27 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Objetivo', style: Tipografia.labelLarge.copyWith(color: Cores.cinzaEscuro)),
+        Text(
+          'Objetivo',
+          style: Tipografia.labelLarge.copyWith(color: Cores.cinzaEscuro),
+        ),
         const SizedBox(height: 8),
         Container(
-          decoration: BoxDecoration(color: Cores.cinzaClaro, borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(
+            color: Cores.cinzaClaro,
+            borderRadius: BorderRadius.circular(8),
+          ),
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Padding(
                 padding: EdgeInsets.only(top: 3),
-                child: Icon(LucideIcons.target, size: 20, color: Cores.cinzaMedio),
+                child: Icon(
+                  LucideIcons.target,
+                  size: 20,
+                  color: Cores.cinzaMedio,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -299,10 +360,14 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
                   keyboardType: TextInputType.multiline,
                   textInputAction: TextInputAction.newline,
                   textAlignVertical: TextAlignVertical.top,
-                  style: Tipografia.bodyLarge.copyWith(color: Cores.textoPrincipal),
+                  style: Tipografia.bodyLarge.copyWith(
+                    color: Cores.textoPrincipal,
+                  ),
                   decoration: InputDecoration(
                     hintText: 'Descreva o objetivo do evento',
-                    hintStyle: Tipografia.bodyLarge.copyWith(color: Cores.cinzaMedio),
+                    hintStyle: Tipografia.bodyLarge.copyWith(
+                      color: Cores.cinzaMedio,
+                    ),
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,

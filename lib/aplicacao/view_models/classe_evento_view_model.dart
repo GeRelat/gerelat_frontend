@@ -53,12 +53,8 @@ class ClasseEventoViewModel extends BaseViewModel {
     }
   }
 
-  Future<bool> salvar({int? classeId, required String nomeClasse}) async {
-    final projetoId = _projetoSelecionadoId;
-    if (projetoId == null) return false;
-
-    iniciarCarregamento();
-    try {
+  Future<bool> salvar({int? classeId, required String nomeClasse}) {
+    return _executarAcaoClasse((projetoId) async {
       if (classeId == null) {
         await _repositorio.criarClasseEvento(
           projetoId: projetoId,
@@ -70,24 +66,27 @@ class ClasseEventoViewModel extends BaseViewModel {
           nomeClasse: nomeClasse,
         );
       }
-      _classes = await _repositorio.listarClassesEventoDetalhadas(
-        projetoId: projetoId,
-      );
-      finalizarCarregamento();
-      return true;
-    } catch (erro) {
-      definirErro(erro);
-      return false;
-    }
+    });
   }
 
-  Future<bool> excluir(int classeId) async {
+  Future<bool> excluir(int classeId) {
+    return _executarAcaoClasse(
+      (_) => _repositorio.excluirClasseEvento(classeId),
+    );
+  }
+
+  /// Executa uma ação de escrita sobre o projeto selecionado e recarrega as
+  /// classes desse projeto — mesmo tratamento usado por [salvar] e
+  /// [excluir].
+  Future<bool> _executarAcaoClasse(
+    Future<void> Function(int projetoId) acao,
+  ) async {
     final projetoId = _projetoSelecionadoId;
     if (projetoId == null) return false;
 
     iniciarCarregamento();
     try {
-      await _repositorio.excluirClasseEvento(classeId);
+      await acao(projetoId);
       _classes = await _repositorio.listarClassesEventoDetalhadas(
         projetoId: projetoId,
       );

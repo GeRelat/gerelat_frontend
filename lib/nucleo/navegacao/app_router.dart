@@ -40,7 +40,14 @@ int? _idDaRota(GoRouterState state, [String parametro = 'id']) {
   return int.tryParse(state.pathParameters[parametro] ?? '');
 }
 
-const _rotasPublicas = <String>['/login', '/cadastro', '/cadastro/sucesso', '/recuperar-senha', '/recuperar-senha/enviado', '/redefinir-senha'];
+const _rotasPublicas = <String>[
+  '/login',
+  '/cadastro',
+  '/cadastro/sucesso',
+  '/recuperar-senha',
+  '/recuperar-senha/enviado',
+  '/redefinir-senha',
+];
 
 /// Deriva o que o [AppShell] precisa mostrar (seção ativa do menu + título)
 /// a partir do caminho da rota, evitando repetir essa informação em cada página.
@@ -94,182 +101,343 @@ const _rotasPublicas = <String>['/login', '/cadastro', '/cadastro/sucesso', '/re
     return (secao: SecaoApp.templates, titulo: titulo);
   }
   if (caminho.startsWith('/relatorios')) {
-    final titulo = caminho.endsWith('/gerar') ? 'Gerar Relatório' : 'Relatórios';
+    final titulo = caminho.endsWith('/gerar')
+        ? 'Gerar Relatório'
+        : 'Relatórios';
     return (secao: SecaoApp.relatorios, titulo: titulo);
   }
   if (caminho.startsWith('/assets')) {
     return (secao: SecaoApp.assets, titulo: 'Galeria de Imagens');
   }
   if (caminho.startsWith('/configuracoes')) {
-    return (secao: SecaoApp.configuracoes, titulo: 'Configuracoes');
+    return (secao: SecaoApp.configuracoes, titulo: 'Configurações');
   }
   return (secao: SecaoApp.dashboard, titulo: 'Dashboard');
 }
 
-final appRouter = GoRouter(
-  initialLocation: '/dashboard',
-  refreshListenable: DependenciasApp.instancia.sessao,
-  redirect: (context, state) {
-    final autenticado = DependenciasApp.instancia.sessao.estaAutenticado;
-    final indoParaRotaPublica = _rotasPublicas.any((rota) => state.matchedLocation == rota);
+/// Monta o [GoRouter] da aplicação a partir de [dependencias] — ponto único
+/// de composição: lê `DependenciasApp` uma única vez (em [appRouter], mais
+/// abaixo) e distribui os serviços já resolvidos para cada rota.
+GoRouter _construirAppRouter(DependenciasApp dependencias) {
+  final repositorioCatalogo = dependencias.repositorioCatalogo;
+  final repositorioAutenticacao = dependencias.repositorioAutenticacao;
+  final sessao = dependencias.sessao;
+  final urlBase = dependencias.clienteHttp.urlBase;
 
-    if (!autenticado && !indoParaRotaPublica) return '/login';
+  return GoRouter(
+    initialLocation: '/dashboard',
+    refreshListenable: sessao,
+    redirect: (context, state) {
+      final autenticado = sessao.estaAutenticado;
+      final indoParaRotaPublica = _rotasPublicas.any(
+        (rota) => state.matchedLocation == rota,
+      );
 
-    // `/redefinir-senha` precisa funcionar mesmo com uma sessão válida no
-    // navegador: o link do e-mail de recuperação não sabe se quem clicou
-    // está logado, e há motivo legítimo para seguir o fluxo mesmo
-    // autenticado (ex.: sessão antiga ainda válida em outra aba). Sem essa
-    // exceção, o redirect abaixo descartava `uid`/`token` da URL e mandava
-    // direto para `/dashboard`, quebrando o link do e-mail em silêncio.
-    final indoParaRedefinirSenha = state.matchedLocation == '/redefinir-senha';
-    if (autenticado && indoParaRotaPublica && !indoParaRedefinirSenha) {
-      return '/dashboard';
-    }
-    return null;
-  },
-  errorBuilder: (context, state) {
-    final autenticado = DependenciasApp.instancia.sessao.estaAutenticado;
-    return PaginaNaoEncontrada(rotaDestino: autenticado ? '/dashboard' : '/login');
-  },
-  routes: [
-    GoRoute(path: '/login', builder: (context, state) => const PaginaLogin()),
-    GoRoute(path: '/cadastro', builder: (context, state) => const PaginaCadastro()),
-    GoRoute(path: '/cadastro/sucesso', builder: (context, state) => const PaginaSucessoCadastro()),
-    GoRoute(path: '/recuperar-senha', builder: (context, state) => const PaginaRecuperarSenha()),
-    GoRoute(
-      path: '/recuperar-senha/enviado',
-      builder: (context, state) => PaginaEmailEnviado(email: state.extra as String?),
-    ),
-    GoRoute(
-      path: '/redefinir-senha',
-      builder: (context, state) {
-        final uid = state.uri.queryParameters['uid'];
-        final token = state.uri.queryParameters['token'];
-        if (uid == null || token == null) {
-          return const PaginaRecuperarSenha();
-        }
-        return PaginaNovaSenha(uid: uid, token: token);
-      },
-    ),
-    // Editores em tela cheia (fora do AppShell): a superfície de edição
-    // ProseMirror precisa de uma altura limitada e de todo o espaço da tela.
-    GoRoute(
-      path: '/templates/:id/editor',
-      builder: (context, state) {
-        final templateId = _idDaRota(state);
-        if (templateId == null) {
-          return const PaginaNaoEncontrada(rotaDestino: '/templates');
-        }
-        return PaginaEditorTemplate(templateId: templateId);
-      },
-    ),
-    GoRoute(
-      path: '/relatorios/editor',
-      builder: (context, state) {
-        final args = state.extra;
-        if (args is! ArgumentosEditorRelatorio) {
-          return const PaginaNaoEncontrada(rotaDestino: '/relatorios/gerar');
-        }
-        return PaginaEditorRelatorio(argumentos: args);
-      },
-    ),
-    ShellRoute(
-      builder: (context, state, child) {
-        final chrome = _chromeParaRota(state.matchedLocation);
-        return AppShell(secaoAtual: chrome.secao, titulo: chrome.titulo, child: child);
-      },
-      routes: [
-        GoRoute(path: '/dashboard', builder: (context, state) => const DashboardPage()),
-        GoRoute(path: '/clientes', builder: (context, state) => const PaginaClientes()),
-        GoRoute(path: '/clientes/novo', builder: (context, state) => const PaginaFormularioCliente()),
-        GoRoute(
-          path: '/clientes/:id/editar',
-          builder: (context, state) {
-            final clienteId = _idDaRota(state);
-            if (clienteId == null) {
-              return const PaginaNaoEncontrada(rotaDestino: '/clientes');
-            }
-            return PaginaFormularioCliente(edicao: true, clienteId: clienteId);
-          },
+      if (!autenticado && !indoParaRotaPublica) return '/login';
+
+      // `/redefinir-senha` precisa funcionar mesmo com uma sessão válida no
+      // navegador: o link do e-mail de recuperação não sabe se quem clicou
+      // está logado, e há motivo legítimo para seguir o fluxo mesmo
+      // autenticado (ex.: sessão antiga ainda válida em outra aba). Sem essa
+      // exceção, o redirect abaixo descartava `uid`/`token` da URL e mandava
+      // direto para `/dashboard`, quebrando o link do e-mail em silêncio.
+      final indoParaRedefinirSenha =
+          state.matchedLocation == '/redefinir-senha';
+      if (autenticado && indoParaRotaPublica && !indoParaRedefinirSenha) {
+        return '/dashboard';
+      }
+      return null;
+    },
+    errorBuilder: (context, state) {
+      final autenticado = sessao.estaAutenticado;
+      return PaginaNaoEncontrada(
+        rotaDestino: autenticado ? '/dashboard' : '/login',
+      );
+    },
+    routes: [
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => PaginaLogin(
+          repositorioAutenticacao: repositorioAutenticacao,
+          sessao: sessao,
         ),
-        GoRoute(path: '/programas', builder: (context, state) => const PaginaProgramas()),
-        GoRoute(path: '/programas/novo', builder: (context, state) => const PaginaFormularioPrograma()),
-        GoRoute(
-          path: '/programas/:id/editar',
-          builder: (context, state) {
-            final programaId = _idDaRota(state);
-            if (programaId == null) {
-              return const PaginaNaoEncontrada(rotaDestino: '/programas');
-            }
-            return PaginaFormularioPrograma(edicao: true, programaId: programaId);
-          },
+      ),
+      GoRoute(
+        path: '/cadastro',
+        builder: (context, state) =>
+            PaginaCadastro(repositorioAutenticacao: repositorioAutenticacao),
+      ),
+      GoRoute(
+        path: '/cadastro/sucesso',
+        builder: (context, state) => const PaginaSucessoCadastro(),
+      ),
+      GoRoute(
+        path: '/recuperar-senha',
+        builder: (context, state) => PaginaRecuperarSenha(
+          repositorioAutenticacao: repositorioAutenticacao,
         ),
-        GoRoute(
-          path: '/programas/projetos/novo',
-          builder: (context, state) => PaginaFormularioProjeto(programaIdInicial: state.extra as int?),
+      ),
+      GoRoute(
+        path: '/recuperar-senha/enviado',
+        builder: (context, state) => PaginaEmailEnviado(
+          email: state.extra as String?,
+          repositorioAutenticacao: repositorioAutenticacao,
         ),
-        GoRoute(
-          path: '/programas/projetos/:id/editar',
-          builder: (context, state) {
-            final projetoId = _idDaRota(state);
-            if (projetoId == null) {
-              return const PaginaNaoEncontrada(rotaDestino: '/programas');
-            }
-            return PaginaFormularioProjeto(edicao: true, projetoId: projetoId);
-          },
-        ),
-        GoRoute(
-          path: '/programas/:id/projetos',
-          builder: (context, state) {
-            final programaId = _idDaRota(state);
-            if (programaId == null) {
-              return const PaginaNaoEncontrada(rotaDestino: '/programas');
-            }
-            return PaginaProjetosPrograma(programaId: programaId);
-          },
-        ),
-        GoRoute(
-          path: '/programas/:id/equipe',
-          builder: (context, state) {
-            final programaId = _idDaRota(state);
-            if (programaId == null) {
-              return const PaginaNaoEncontrada(rotaDestino: '/programas');
-            }
-            return PaginaEquipePrograma(programaId: programaId);
-          },
-        ),
-        GoRoute(path: '/projetos/equipe', builder: (context, state) => const PaginaEquipeProjeto()),
-        GoRoute(path: '/projetos/campos', builder: (context, state) => const PaginaCamposProjeto()),
-        GoRoute(path: '/eventos', builder: (context, state) => const PaginaEventos()),
-        GoRoute(path: '/eventos/classes-evento', builder: (context, state) => const PaginaClassesEvento()),
-        GoRoute(path: '/eventos/novo', builder: (context, state) => const PaginaFormularioEvento()),
-        GoRoute(
-          path: '/eventos/:id/editar',
-          builder: (context, state) {
-            final eventoId = _idDaRota(state);
-            if (eventoId == null) {
-              return const PaginaNaoEncontrada(rotaDestino: '/eventos');
-            }
-            return PaginaFormularioEvento(edicao: true, eventoId: eventoId);
-          },
-        ),
-        GoRoute(path: '/templates', builder: (context, state) => const PaginaTemplates()),
-        GoRoute(path: '/templates/novo', builder: (context, state) => const PaginaFormularioTemplate()),
-        GoRoute(
-          path: '/templates/:id/editar',
-          builder: (context, state) {
-            final templateId = _idDaRota(state);
-            if (templateId == null) {
-              return const PaginaNaoEncontrada(rotaDestino: '/templates');
-            }
-            return PaginaFormularioTemplate(edicao: true, templateId: templateId);
-          },
-        ),
-        GoRoute(path: '/relatorios', builder: (context, state) => const PaginaRelatorios()),
-        GoRoute(path: '/relatorios/gerar', builder: (context, state) => const PaginaGerarRelatorio()),
-        GoRoute(path: '/assets', builder: (context, state) => const PaginaAssets()),
-        GoRoute(path: '/configuracoes', builder: (context, state) => const PaginaConfiguracoes()),
-      ],
-    ),
-  ],
-);
+      ),
+      GoRoute(
+        path: '/redefinir-senha',
+        builder: (context, state) {
+          final uid = state.uri.queryParameters['uid'];
+          final token = state.uri.queryParameters['token'];
+          if (uid == null || token == null) {
+            return PaginaRecuperarSenha(
+              repositorioAutenticacao: repositorioAutenticacao,
+            );
+          }
+          return PaginaNovaSenha(
+            uid: uid,
+            token: token,
+            repositorioAutenticacao: repositorioAutenticacao,
+          );
+        },
+      ),
+      // Editores em tela cheia (fora do AppShell): a superfície de edição
+      // ProseMirror precisa de uma altura limitada e de todo o espaço da tela.
+      GoRoute(
+        path: '/templates/:id/editor',
+        builder: (context, state) {
+          final templateId = _idDaRota(state);
+          if (templateId == null) {
+            return const PaginaNaoEncontrada(rotaDestino: '/templates');
+          }
+          return PaginaEditorTemplate(
+            templateId: templateId,
+            repositorioCatalogo: repositorioCatalogo,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/relatorios/editor',
+        builder: (context, state) {
+          final args = state.extra;
+          if (args is! ArgumentosEditorRelatorio) {
+            return const PaginaNaoEncontrada(rotaDestino: '/relatorios/gerar');
+          }
+          return PaginaEditorRelatorio(
+            argumentos: args,
+            repositorioCatalogo: repositorioCatalogo,
+          );
+        },
+      ),
+      ShellRoute(
+        builder: (context, state, child) {
+          final chrome = _chromeParaRota(state.matchedLocation);
+          return AppShell(
+            secaoAtual: chrome.secao,
+            titulo: chrome.titulo,
+            sessao: sessao,
+            child: child,
+          );
+        },
+        routes: [
+          GoRoute(
+            path: '/dashboard',
+            builder: (context, state) =>
+                DashboardPage(repositorioCatalogo: repositorioCatalogo),
+          ),
+          GoRoute(
+            path: '/clientes',
+            builder: (context, state) =>
+                PaginaClientes(repositorioCatalogo: repositorioCatalogo),
+          ),
+          GoRoute(
+            path: '/clientes/novo',
+            builder: (context, state) => PaginaFormularioCliente(
+              repositorioCatalogo: repositorioCatalogo,
+            ),
+          ),
+          GoRoute(
+            path: '/clientes/:id/editar',
+            builder: (context, state) {
+              final clienteId = _idDaRota(state);
+              if (clienteId == null) {
+                return const PaginaNaoEncontrada(rotaDestino: '/clientes');
+              }
+              return PaginaFormularioCliente(
+                edicao: true,
+                clienteId: clienteId,
+                repositorioCatalogo: repositorioCatalogo,
+              );
+            },
+          ),
+          GoRoute(
+            path: '/programas',
+            builder: (context, state) =>
+                PaginaProgramas(repositorioCatalogo: repositorioCatalogo),
+          ),
+          GoRoute(
+            path: '/programas/novo',
+            builder: (context, state) => PaginaFormularioPrograma(
+              repositorioCatalogo: repositorioCatalogo,
+              urlBase: urlBase,
+            ),
+          ),
+          GoRoute(
+            path: '/programas/:id/editar',
+            builder: (context, state) {
+              final programaId = _idDaRota(state);
+              if (programaId == null) {
+                return const PaginaNaoEncontrada(rotaDestino: '/programas');
+              }
+              return PaginaFormularioPrograma(
+                edicao: true,
+                programaId: programaId,
+                repositorioCatalogo: repositorioCatalogo,
+                urlBase: urlBase,
+              );
+            },
+          ),
+          GoRoute(
+            path: '/programas/projetos/novo',
+            builder: (context, state) => PaginaFormularioProjeto(
+              programaIdInicial: state.extra as int?,
+              repositorioCatalogo: repositorioCatalogo,
+              urlBase: urlBase,
+            ),
+          ),
+          GoRoute(
+            path: '/programas/projetos/:id/editar',
+            builder: (context, state) {
+              final projetoId = _idDaRota(state);
+              if (projetoId == null) {
+                return const PaginaNaoEncontrada(rotaDestino: '/programas');
+              }
+              return PaginaFormularioProjeto(
+                edicao: true,
+                projetoId: projetoId,
+                repositorioCatalogo: repositorioCatalogo,
+                urlBase: urlBase,
+              );
+            },
+          ),
+          GoRoute(
+            path: '/programas/:id/projetos',
+            builder: (context, state) {
+              final programaId = _idDaRota(state);
+              if (programaId == null) {
+                return const PaginaNaoEncontrada(rotaDestino: '/programas');
+              }
+              return PaginaProjetosPrograma(
+                programaId: programaId,
+                repositorioCatalogo: repositorioCatalogo,
+              );
+            },
+          ),
+          GoRoute(
+            path: '/programas/:id/equipe',
+            builder: (context, state) {
+              final programaId = _idDaRota(state);
+              if (programaId == null) {
+                return const PaginaNaoEncontrada(rotaDestino: '/programas');
+              }
+              return PaginaEquipePrograma(
+                programaId: programaId,
+                repositorioCatalogo: repositorioCatalogo,
+              );
+            },
+          ),
+          GoRoute(
+            path: '/projetos/equipe',
+            builder: (context, state) =>
+                PaginaEquipeProjeto(repositorioCatalogo: repositorioCatalogo),
+          ),
+          GoRoute(
+            path: '/projetos/campos',
+            builder: (context, state) =>
+                PaginaCamposProjeto(repositorioCatalogo: repositorioCatalogo),
+          ),
+          GoRoute(
+            path: '/eventos',
+            builder: (context, state) =>
+                PaginaEventos(repositorioCatalogo: repositorioCatalogo),
+          ),
+          GoRoute(
+            path: '/eventos/classes-evento',
+            builder: (context, state) =>
+                PaginaClassesEvento(repositorioCatalogo: repositorioCatalogo),
+          ),
+          GoRoute(
+            path: '/eventos/novo',
+            builder: (context, state) => PaginaFormularioEvento(
+              repositorioCatalogo: repositorioCatalogo,
+            ),
+          ),
+          GoRoute(
+            path: '/eventos/:id/editar',
+            builder: (context, state) {
+              final eventoId = _idDaRota(state);
+              if (eventoId == null) {
+                return const PaginaNaoEncontrada(rotaDestino: '/eventos');
+              }
+              return PaginaFormularioEvento(
+                edicao: true,
+                eventoId: eventoId,
+                repositorioCatalogo: repositorioCatalogo,
+              );
+            },
+          ),
+          GoRoute(
+            path: '/templates',
+            builder: (context, state) =>
+                PaginaTemplates(repositorioCatalogo: repositorioCatalogo),
+          ),
+          GoRoute(
+            path: '/templates/novo',
+            builder: (context, state) => PaginaFormularioTemplate(
+              repositorioCatalogo: repositorioCatalogo,
+            ),
+          ),
+          GoRoute(
+            path: '/templates/:id/editar',
+            builder: (context, state) {
+              final templateId = _idDaRota(state);
+              if (templateId == null) {
+                return const PaginaNaoEncontrada(rotaDestino: '/templates');
+              }
+              return PaginaFormularioTemplate(
+                edicao: true,
+                templateId: templateId,
+                repositorioCatalogo: repositorioCatalogo,
+              );
+            },
+          ),
+          GoRoute(
+            path: '/relatorios',
+            builder: (context, state) =>
+                PaginaRelatorios(repositorioCatalogo: repositorioCatalogo),
+          ),
+          GoRoute(
+            path: '/relatorios/gerar',
+            builder: (context, state) =>
+                PaginaGerarRelatorio(repositorioCatalogo: repositorioCatalogo),
+          ),
+          GoRoute(
+            path: '/assets',
+            builder: (context, state) => PaginaAssets(
+              repositorioCatalogo: repositorioCatalogo,
+              urlBase: urlBase,
+            ),
+          ),
+          GoRoute(
+            path: '/configuracoes',
+            builder: (context, state) => PaginaConfiguracoes(
+              repositorioAutenticacao: repositorioAutenticacao,
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
+final appRouter = _construirAppRouter(DependenciasApp.instancia);

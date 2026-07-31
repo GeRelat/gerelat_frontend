@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/gerar_relatorio_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/evento.dart';
+import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/paginas/relatorios/pagina_editor_relatorio.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
@@ -10,7 +10,9 @@ import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:go_router/go_router.dart';
 
 class PaginaGerarRelatorio extends StatefulWidget {
-  const PaginaGerarRelatorio({super.key});
+  final RepositorioCatalogo repositorioCatalogo;
+
+  const PaginaGerarRelatorio({super.key, required this.repositorioCatalogo});
 
   @override
   State<PaginaGerarRelatorio> createState() => _PaginaGerarRelatorioState();
@@ -26,9 +28,8 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
   @override
   void initState() {
     super.initState();
-    _viewModel = GerarRelatorioViewModel(
-      DependenciasApp.instancia.repositorioCatalogo,
-    )..carregar();
+    _viewModel = GerarRelatorioViewModel(widget.repositorioCatalogo)
+      ..carregar();
   }
 
   @override
@@ -92,9 +93,10 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
 
   @override
   Widget build(BuildContext context) {
+    // O título é a única parte que não depende de `_viewModel`.
     return AnimatedBuilder(
       animation: _viewModel,
-      builder: (context, _) {
+      builder: (context, child) {
         if (_viewModel.carregando && _viewModel.templates.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -105,19 +107,7 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Novo relatório',
-                  style: Tipografia.headlineMedium.copyWith(
-                    color: Cores.textoPrincipal,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Selecione o template e o evento. Você verá o documento com as '
-                  'variáveis preenchidas e poderá editar os blocos manuais antes '
-                  'de gerar o relatório definitivo.',
-                  style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
-                ),
+                child!,
                 const SizedBox(height: 24),
                 CartaoConteudo(
                   child: Column(
@@ -189,6 +179,24 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
           ),
         );
       },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Novo relatório',
+            style: Tipografia.headlineMedium.copyWith(
+              color: Cores.textoPrincipal,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Selecione o template e o evento. Você verá o documento com as '
+            'variáveis preenchidas e poderá editar os blocos manuais antes '
+            'de gerar o relatório definitivo.',
+            style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
+          ),
+        ],
+      ),
     );
   }
 }

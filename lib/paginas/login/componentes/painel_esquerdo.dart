@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
+import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 
 /// Painel azul da esquerda na tela de login.
 /// Exibe o logo GeRelat, slogan, ilustração e rodapé de segurança.
@@ -18,11 +20,10 @@ class PainelEsquerdo extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _construirLogo(),
-          const SizedBox(height: 16),
-          _construirSlogan(),
-          const SizedBox(height: 40),
+          const SizedBox(height: 88),
           _construirIlustracao(),
+          const SizedBox(height: 40),
+          _construirSlogan(),
           const Spacer(),
           _construirRodapeSeguranca(),
         ],
@@ -30,89 +31,35 @@ class PainelEsquerdo extends StatelessWidget {
     );
   }
 
-  /// Exibe o nome "GeRelat" como logo em texto branco e negrito
-  Widget _construirLogo() {
-    return const Text(
-      'GeRelat',
-      style: TextStyle(
-        color: Cores.branco,
-        fontSize: 28,
-        fontWeight: FontWeight.w800,
-        letterSpacing: -0.5,
-      ),
-    );
-  }
-
-  /// Exibe o slogan institucional abaixo do logo
+  /// Exibe o slogan institucional, centralizado abaixo da ilustração
   Widget _construirSlogan() {
-    return const Text(
-      'A inteligência por trás dos seus dados.\nRelatórios precisos para decisões estratégicas.',
-      style: TextStyle(
-        color: Cores.branco,
-        fontSize: 15,
-        height: 1.6,
-        fontWeight: FontWeight.w400,
+    return SizedBox(
+      width: double.infinity,
+      child: Text(
+        'A inteligência por trás dos seus dados.\nRelatórios precisos para decisões estratégicas.',
+        textAlign: TextAlign.center,
+        style: Tipografia.bodyLarge.copyWith(
+          color: Cores.branco,
+          fontSize: 15,
+          height: 1.6,
+        ),
       ),
     );
   }
 
-  /// Área de ilustração — placeholder com ícone de documento
+  /// Área de ilustração — logo completo (ícone + "GeRelat" + tagline) em
+  /// versão branca, direto sobre o azul do painel, sem cartão/caixa por
+  /// trás. Único lugar do painel onde o nome "GeRelat" aparece — já vem
+  /// escrito na própria imagem.
   Widget _construirIlustracao() {
-    return Container(
+    return SizedBox(
       width: double.infinity,
       height: 260,
-      decoration: BoxDecoration(
-        color: Cores.brancoSutil,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Ícone principal de documento
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: Cores.brancoSutil,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.description_outlined,
-              color: Cores.branco,
-              size: 32,
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Ícone menor abaixo
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Cores.brancoSutil,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.bar_chart_outlined,
-              color: Cores.branco,
-              size: 22,
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Terceiro ícone ainda menor
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: Cores.brancoSutil,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Icon(
-              Icons.data_usage_outlined,
-              color: Cores.branco,
-              size: 16,
-            ),
-          ),
-        ],
+      child: Center(
+        child: Image.asset(
+          'assets/images/logo_gerelat_completo_branco.png',
+          height: 220,
+        ),
       ),
     );
   }
@@ -122,40 +69,29 @@ class PainelEsquerdo extends StatelessWidget {
     return Row(
       children: [
         // Ícone de escudo em círculo azul mais escuro
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: Cores.brancoSutil,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: const Icon(
-            Icons.shield_outlined,
-            color: Cores.branco,
-            size: 20,
-          ),
+        const IconeComFundo(
+          cor: Cores.branco,
+          tamanho: 40,
+          raio: 20,
+          icone: Icons.shield_outlined,
+          tamanhoIcone: 20,
         ),
         const SizedBox(width: 12),
         // Expanded garante que o texto ocupe o espaço restante sem transbordar
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Segurança Total',
-                style: TextStyle(
+                style: Tipografia.titleSmall.copyWith(
                   color: Cores.branco,
-                  fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               Text(
                 'Seus dados protegidos por criptografia de ponta.',
-                style: TextStyle(
-                  color: Cores.branco,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w400,
-                ),
+                style: Tipografia.bodySmall.copyWith(color: Cores.branco),
               ),
             ],
           ),

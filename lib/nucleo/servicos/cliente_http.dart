@@ -27,6 +27,11 @@ class ClienteHttp {
     defaultValue: 'https://api.gerelat.tech',
   );
 
+  /// Mesmo valor para todas as requisições (inclusive a renovação de token),
+  /// para que uma requisição travada sempre falhe com [TimeoutException]
+  /// dentro do mesmo prazo, em vez de ficar pendente indefinidamente.
+  static const Duration _timeoutPadrao = Duration(seconds: 30);
+
   ClienteHttp({
     required ServicoToken servicoToken,
     http.Client? cliente,
@@ -46,11 +51,15 @@ class ClienteHttp {
   };
 
   Future<http.Response> get(String caminho) => _comRenovacao(
-    () => _cliente.get(_uri(caminho), headers: cabecalhosAutenticados),
+    () => _cliente
+        .get(_uri(caminho), headers: cabecalhosAutenticados)
+        .timeout(_timeoutPadrao),
   );
 
   Future<http.Response> delete(String caminho) => _comRenovacao(
-    () => _cliente.delete(_uri(caminho), headers: cabecalhosAutenticados),
+    () => _cliente
+        .delete(_uri(caminho), headers: cabecalhosAutenticados)
+        .timeout(_timeoutPadrao),
   );
 
   Future<http.Response> post(
@@ -61,33 +70,22 @@ class ClienteHttp {
     final headers = autenticado
         ? cabecalhosJson
         : {'Content-Type': 'application/json'};
-    return _cliente.post(
-      _uri(caminho),
-      headers: headers,
-      body: body == null ? null : jsonEncode(body),
-    );
+    return _cliente
+        .post(
+          _uri(caminho),
+          headers: headers,
+          body: body == null ? null : jsonEncode(body),
+        )
+        .timeout(_timeoutPadrao);
   });
-
-  Future<http.Response> put(
-    String caminho, {
-    required Map<String, dynamic> body,
-  }) => _comRenovacao(
-    () => _cliente.put(
-      _uri(caminho),
-      headers: cabecalhosJson,
-      body: jsonEncode(body),
-    ),
-  );
 
   Future<http.Response> patch(
     String caminho, {
     required Map<String, dynamic> body,
   }) => _comRenovacao(
-    () => _cliente.patch(
-      _uri(caminho),
-      headers: cabecalhosJson,
-      body: jsonEncode(body),
-    ),
+    () => _cliente
+        .patch(_uri(caminho), headers: cabecalhosJson, body: jsonEncode(body))
+        .timeout(_timeoutPadrao),
   );
 
   /// [contentType] deve refletir o arquivo enviado (ex.: `image/png` para
@@ -112,7 +110,9 @@ class ClienteHttp {
           contentType: MediaType.parse(contentType),
         ),
       );
-    return http.Response.fromStream(await requisicao.send());
+    return http.Response.fromStream(
+      await requisicao.send().timeout(_timeoutPadrao),
+    );
   });
 
   Uri _uri(String caminho) => Uri.parse('$urlBase$caminho');
@@ -144,11 +144,13 @@ class ClienteHttp {
 
   Future<bool> _executarRenovacao(String refreshToken) async {
     try {
-      final resposta = await _cliente.post(
-        _uri('/auth/login/refresh/'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'refresh': refreshToken}),
-      );
+      final resposta = await _cliente
+          .post(
+            _uri('/auth/login/refresh/'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'refresh': refreshToken}),
+          )
+          .timeout(_timeoutPadrao);
 
       if (resposta.statusCode != 200) return false;
 

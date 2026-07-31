@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/cadastro_view_model.dart';
+import 'package:gerelat_frontend/dominio/repositorios/repositorio_autenticacao.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:gerelat_frontend/nucleo/utils/validadores.dart';
@@ -11,8 +11,13 @@ import 'package:go_router/go_router.dart';
 class FormularioCadastro extends StatefulWidget {
   /// Callback chamado ao clicar em "Fazer login" — navega de volta ao login
   final VoidCallback aoClicarEmLogin;
+  final RepositorioAutenticacao repositorioAutenticacao;
 
-  const FormularioCadastro({super.key, required this.aoClicarEmLogin});
+  const FormularioCadastro({
+    super.key,
+    required this.aoClicarEmLogin,
+    required this.repositorioAutenticacao,
+  });
 
   @override
   State<FormularioCadastro> createState() => _FormularioCadastroState();
@@ -36,13 +41,7 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
   @override
   void initState() {
     super.initState();
-    _viewModel = CadastroViewModel(
-      DependenciasApp.instancia.repositorioAutenticacao,
-    )..addListener(_atualizar);
-  }
-
-  void _atualizar() {
-    if (mounted) setState(() {});
+    _viewModel = CadastroViewModel(widget.repositorioAutenticacao);
   }
 
   @override
@@ -52,7 +51,6 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
     _controladorEmail.dispose();
     _controladorSenha.dispose();
     _controladorConfirmarSenha.dispose();
-    _viewModel.removeListener(_atualizar);
     _viewModel.dispose();
     super.dispose();
   }
@@ -116,7 +114,12 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
             const SizedBox(height: 24),
             _construirCampoConfirmarSenha(),
             const SizedBox(height: 24),
-            _construirBotaoCadastrar(),
+            // Só o botão depende de `_viewModel` (estado `carregando`) — o
+            // AnimatedBuilder fica restrito a ele em vez do formulário inteiro.
+            AnimatedBuilder(
+              animation: _viewModel,
+              builder: (context, _) => _construirBotaoCadastrar(),
+            ),
             const SizedBox(height: 8),
             _construirLinkLogin(),
           ],
@@ -129,17 +132,16 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
   Widget _construirCabecalho() {
     return Column(
       children: [
-        // Título → HeadlineMedium (Poppins Regular 28px)
+        // Título -> HeadlineMedium (Poppins Regular 28px)
         Text(
           'Crie sua conta',
-          style: Tipografia.headlineMedium.copyWith(
-            letterSpacing: -0.75,
+          style: Tipografia.headlineMediumDestaque.copyWith(
             color: Cores.pretoProfundo,
           ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 8),
-        // Subtítulo → BodyLarge (Roboto Regular 16px)
+        // Subtítulo -> BodyLarge (Roboto Regular 16px)
         Text(
           'Preencha os dados abaixo para começar a usar o GeRelat.',
           style: Tipografia.bodyLarge.copyWith(
@@ -202,26 +204,24 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
         decoration: _decoracaoCampo(
           dica: '••••••••',
           icone: Icons.lock_outline,
-          sufixo: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              onTap: () => setState(() => _senhaVisivel = !_senhaVisivel),
-              child: Icon(
-                _senhaVisivel
-                    ? Icons.visibility_outlined
-                    : Icons.visibility_off_outlined,
-                color: Cores.cinzaMedio,
-                size: 20,
-              ),
+          sufixo: IconButton(
+            onPressed: () => setState(() => _senhaVisivel = !_senhaVisivel),
+            icon: Icon(
+              _senhaVisivel
+                  ? Icons.visibility_outlined
+                  : Icons.visibility_off_outlined,
+              color: Cores.cinzaMedio,
+              size: 20,
             ),
+            tooltip: _senhaVisivel ? 'Ocultar senha' : 'Mostrar senha',
+            visualDensity: VisualDensity.compact,
           ),
         ),
-        // Valida mínimo de 8 caracteres
-        validator: (valor) {
-          if (valor == null || valor.isEmpty) return 'Informe a senha';
-          if (valor.length < 8) return 'Mínimo de 8 caracteres';
-          return null;
-        },
+        // Espelha AUTH_PASSWORD_VALIDATORS do backend (ver validarForcaSenha).
+        validator: (valor) => validarForcaSenha(
+          valor,
+          atributosUsuario: [_controladorNome.text, _controladorEmail.text],
+        ),
       ),
     );
   }
@@ -255,11 +255,11 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
       child: ElevatedButton.icon(
         onPressed: _viewModel.carregando ? null : _realizarCadastro,
         style: ElevatedButton.styleFrom(
-          backgroundColor: Cores.azulPrimario,
+          backgroundColor: Cores.azulAcao,
           foregroundColor: Cores.branco,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           elevation: 0,
-          shadowColor: Cores.azulPrimario.withValues(alpha: 0.2),
+          shadowColor: Cores.azulAcao.withValues(alpha: 0.2),
         ),
         icon: _viewModel.carregando
             ? const SizedBox(
@@ -301,17 +301,18 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
             'Já possui uma conta? ',
             style: Tipografia.bodyLarge.copyWith(color: Cores.cinzaEscuro),
           ),
-          MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              onTap: widget.aoClicarEmLogin,
-              // Link de ação → LabelLarge (Roboto SemiBold 14px) em azul
-              child: Text(
-                'Fazer login',
-                style: Tipografia.labelLarge.copyWith(
-                  fontSize: 16,
-                  color: Cores.azulPrimario,
-                ),
+          TextButton(
+            onPressed: widget.aoClicarEmLogin,
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            // Link de ação → LabelLarge (Roboto SemiBold 14px) em azul
+            child: Text(
+              'Fazer login',
+              style: Tipografia.labelLargeDestaque.copyWith(
+                color: Cores.azulPrimario,
               ),
             ),
           ),

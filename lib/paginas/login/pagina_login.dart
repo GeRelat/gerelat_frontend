@@ -1,12 +1,21 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
+import 'package:gerelat_frontend/dominio/repositorios/repositorio_autenticacao.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/paginas/login/componentes/painel_direito.dart';
 import 'package:gerelat_frontend/paginas/login/componentes/painel_esquerdo.dart';
 
 class PaginaLogin extends StatelessWidget {
-  const PaginaLogin({super.key});
+  final RepositorioAutenticacao repositorioAutenticacao;
+  final SessaoViewModel sessao;
+
+  const PaginaLogin({
+    super.key,
+    required this.repositorioAutenticacao,
+    required this.sessao,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -42,6 +51,10 @@ class PaginaLogin extends StatelessWidget {
   }
 
   Widget _construirCardLogin({required bool layoutCompacto}) {
+    final painelDireito = PainelDireito(
+      repositorioAutenticacao: repositorioAutenticacao,
+      sessao: sessao,
+    );
     return Container(
       decoration: BoxDecoration(
         color: Cores.branco,
@@ -57,11 +70,11 @@ class PaginaLogin extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: layoutCompacto
-            ? const PainelDireito()
-            : const Row(
+            ? painelDireito
+            : Row(
                 children: [
-                  Flexible(flex: 45, child: PainelEsquerdo()),
-                  Flexible(flex: 55, child: PainelDireito()),
+                  const Flexible(flex: 45, child: PainelEsquerdo()),
+                  Flexible(flex: 55, child: painelDireito),
                 ],
               ),
       ),

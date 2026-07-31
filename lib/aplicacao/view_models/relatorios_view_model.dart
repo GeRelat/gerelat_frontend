@@ -53,20 +53,24 @@ class RelatoriosViewModel extends BaseViewModel {
     try {
       return await _repositorio.baixarRelatorio(relatorioId);
     } catch (erro) {
-      _mensagemErroAcao = erro.toString();
-      notifyListeners();
+      _definirErroAcao(erro);
       return null;
     }
   }
 
-  Future<bool> renomear({required int relatorioId, required String nome}) async {
+  Future<bool> renomear({
+    required int relatorioId,
+    required String nome,
+  }) async {
     try {
-      await _repositorio.atualizarRelatorio(relatorioId: relatorioId, nome: nome);
+      await _repositorio.atualizarRelatorio(
+        relatorioId: relatorioId,
+        nome: nome,
+      );
       await carregar();
       return true;
     } catch (erro) {
-      _mensagemErroAcao = erro.toString();
-      notifyListeners();
+      _definirErroAcao(erro);
       return false;
     }
   }
@@ -77,9 +81,16 @@ class RelatoriosViewModel extends BaseViewModel {
       await carregar();
       return true;
     } catch (erro) {
-      _mensagemErroAcao = erro.toString();
-      notifyListeners();
+      _definirErroAcao(erro);
       return false;
     }
+  }
+
+  /// Registra o erro de uma ação pontual (ver comentário de
+  /// [mensagemErroAcao]) e notifica os listeners — mesmo tratamento usado
+  /// por [baixar], [renomear] e [excluir].
+  void _definirErroAcao(Object erro) {
+    _mensagemErroAcao = erro.toString();
+    notifyListeners();
   }
 }

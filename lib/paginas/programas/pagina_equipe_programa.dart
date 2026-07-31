@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/equipe_programa_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/membro_equipe_programa.dart';
+import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
+import 'package:gerelat_frontend/nucleo/componentes/dialogo_confirmacao_exclusao.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 
 class PaginaEquipePrograma extends StatefulWidget {
   final int programaId;
+  final RepositorioCatalogo repositorioCatalogo;
 
-  const PaginaEquipePrograma({super.key, required this.programaId});
+  const PaginaEquipePrograma({
+    super.key,
+    required this.programaId,
+    required this.repositorioCatalogo,
+  });
 
   @override
   State<PaginaEquipePrograma> createState() => _PaginaEquipeProgramaState();
@@ -28,7 +34,7 @@ class _PaginaEquipeProgramaState extends State<PaginaEquipePrograma> {
   void initState() {
     super.initState();
     _viewModel = EquipeProgramaViewModel(
-      DependenciasApp.instancia.repositorioCatalogo,
+      widget.repositorioCatalogo,
       programaId: widget.programaId,
     )..carregar();
   }
@@ -76,24 +82,13 @@ class _PaginaEquipeProgramaState extends State<PaginaEquipePrograma> {
   }
 
   Future<void> _confirmarExclusao(MembroEquipePrograma membro) async {
-    final confirmou = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remover da equipe'),
-        content: Text('Remover ${membro.nome} da equipe fixa do programa?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Remover'),
-          ),
-        ],
-      ),
+    final confirmou = await DialogoConfirmacaoExclusao.mostrar(
+      context,
+      titulo: 'Remover da equipe',
+      mensagem: 'Remover ${membro.nome} da equipe fixa do programa?',
+      textoConfirmar: 'Remover',
     );
-    if (confirmou != true) return;
+    if (!confirmou) return;
 
     final membroId = membro.id;
     if (membroId == null) return;
@@ -236,83 +231,47 @@ class _PaginaEquipeProgramaState extends State<PaginaEquipePrograma> {
     );
   }
 
-  Widget _cabecalhoTabela() {
-    return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(
-        color: Cores.fundoSecao,
-        border: Border(bottom: BorderSide(color: Cores.bordaSutil)),
-      ),
-      child: Row(
-        children: [
-          _celulaCabecalho('Nome', flex: 2),
-          _celulaCabecalho('Cargo', flex: 2),
-          _celulaCabecalho('Ações'),
-        ],
-      ),
-    );
-  }
+  static const _colunas = [
+    ColunaTabelaCrud(rotulo: 'Nome', flex: 2),
+    ColunaTabelaCrud(rotulo: 'Cargo', flex: 2),
+    ColunaTabelaCrud(rotulo: 'Ações', flex: 1),
+  ];
 
-  Widget _celulaCabecalho(String texto, {int flex = 1}) {
-    return Expanded(
-      flex: flex,
-      child: Text(
-        texto.toUpperCase(),
-        style: Tipografia.labelMedium.copyWith(
-          color: Cores.cinzaMedio,
-          letterSpacing: 0.6,
-        ),
-      ),
-    );
+  Widget _cabecalhoTabela() {
+    return const CabecalhoTabelaCrud(colunas: _colunas);
   }
 
   Widget _linha(MembroEquipePrograma membro) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Cores.bordaSutil)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(
-              membro.nome,
-              style: Tipografia.labelLarge.copyWith(
-                color: Cores.textoPrincipal,
+    return LinhaTabelaCrud(
+      colunas: _colunas,
+      celulas: [
+        Text(
+          membro.nome,
+          style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
+        ),
+        Text(
+          membro.cargo,
+          style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
+        ),
+        Row(
+          children: [
+            IconButton(
+              tooltip: 'Editar',
+              onPressed: () => _iniciarEdicao(membro),
+              icon: const Icon(LucideIcons.pencil, size: 18),
+            ),
+            IconButton(
+              tooltip: 'Remover',
+              onPressed: () => _confirmarExclusao(membro),
+              icon: const Icon(
+                LucideIcons.trash_2,
+                size: 18,
+                color: Cores.vermelhoErro,
               ),
             ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              membro.cargo,
-              style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
-            ),
-          ),
-          Expanded(
-            child: Row(
-              children: [
-                IconButton(
-                  tooltip: 'Editar',
-                  onPressed: () => _iniciarEdicao(membro),
-                  icon: const Icon(LucideIcons.pencil, size: 18),
-                ),
-                IconButton(
-                  tooltip: 'Remover',
-                  onPressed: () => _confirmarExclusao(membro),
-                  icon: const Icon(
-                    LucideIcons.trash_2,
-                    size: 18,
-                    color: Cores.vermelhoErro,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+          ],
+        ),
+      ],
     );
   }
 }

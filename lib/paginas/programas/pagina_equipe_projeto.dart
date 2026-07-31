@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/equipe_projeto_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/membro_equipe_projeto.dart';
+import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
+import 'package:gerelat_frontend/nucleo/componentes/dialogo_confirmacao_exclusao.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 
 class PaginaEquipeProjeto extends StatefulWidget {
-  const PaginaEquipeProjeto({super.key});
+  final RepositorioCatalogo repositorioCatalogo;
+
+  const PaginaEquipeProjeto({super.key, required this.repositorioCatalogo});
 
   @override
   State<PaginaEquipeProjeto> createState() => _PaginaEquipeProjetoState();
@@ -26,9 +29,8 @@ class _PaginaEquipeProjetoState extends State<PaginaEquipeProjeto> {
   @override
   void initState() {
     super.initState();
-    _viewModel = EquipeProjetoViewModel(
-      DependenciasApp.instancia.repositorioCatalogo,
-    )..carregarProjetos();
+    _viewModel = EquipeProjetoViewModel(widget.repositorioCatalogo)
+      ..carregarProjetos();
   }
 
   @override
@@ -78,26 +80,14 @@ class _PaginaEquipeProjetoState extends State<PaginaEquipeProjeto> {
   }
 
   Future<void> _confirmarExclusao(MembroEquipeProjeto membro) async {
-    final confirmou = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remover da equipe'),
-        content: Text(
+    final confirmou = await DialogoConfirmacaoExclusao.mostrar(
+      context,
+      titulo: 'Remover da equipe',
+      mensagem:
           'Remover ${membro.nome} da equipe "${membro.nomeEquipe}" deste projeto?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Remover'),
-          ),
-        ],
-      ),
+      textoConfirmar: 'Remover',
     );
-    if (confirmou != true) return;
+    if (!confirmou) return;
 
     final membroId = membro.id;
     if (membroId == null) return;
@@ -120,9 +110,11 @@ class _PaginaEquipeProjetoState extends State<PaginaEquipeProjeto> {
 
   @override
   Widget build(BuildContext context) {
+    // O título é a única parte que não depende de `_viewModel`; é passado
+    // como `child` para não ser reconstruído a cada notificação.
     return AnimatedBuilder(
       animation: _viewModel,
-      builder: (context, _) {
+      builder: (context, child) {
         if (_viewModel.carregando && _viewModel.projetos.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -131,17 +123,7 @@ class _PaginaEquipeProjetoState extends State<PaginaEquipeProjeto> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Equipe da parceira',
-                style: Tipografia.headlineMedium.copyWith(
-                  color: Cores.textoPrincipal,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Escolha um projeto para ver e gerenciar a equipe da entidade parceira.',
-                style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
-              ),
+              child!,
               const SizedBox(height: 24),
               CartaoConteudo(
                 child: CampoSelecao(
@@ -189,6 +171,22 @@ class _PaginaEquipeProjetoState extends State<PaginaEquipeProjeto> {
           ),
         );
       },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Equipe da parceira',
+            style: Tipografia.headlineMedium.copyWith(
+              color: Cores.textoPrincipal,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Escolha um projeto para ver e gerenciar a equipe da entidade parceira.',
+            style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
+          ),
+        ],
+      ),
     );
   }
 
@@ -288,91 +286,52 @@ class _PaginaEquipeProjetoState extends State<PaginaEquipeProjeto> {
     );
   }
 
-  Widget _cabecalhoTabela() {
-    return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(
-        color: Cores.fundoSecao,
-        border: Border(bottom: BorderSide(color: Cores.bordaSutil)),
-      ),
-      child: Row(
-        children: [
-          _celulaCabecalho('Equipe', flex: 2),
-          _celulaCabecalho('Nome', flex: 2),
-          _celulaCabecalho('Cargo', flex: 2),
-          _celulaCabecalho('Ações'),
-        ],
-      ),
-    );
-  }
+  static const _colunas = [
+    ColunaTabelaCrud(rotulo: 'Equipe', flex: 2),
+    ColunaTabelaCrud(rotulo: 'Nome', flex: 2),
+    ColunaTabelaCrud(rotulo: 'Cargo', flex: 2),
+    ColunaTabelaCrud(rotulo: 'Ações', flex: 1),
+  ];
 
-  Widget _celulaCabecalho(String texto, {int flex = 1}) {
-    return Expanded(
-      flex: flex,
-      child: Text(
-        texto.toUpperCase(),
-        style: Tipografia.labelMedium.copyWith(
-          color: Cores.cinzaMedio,
-          letterSpacing: 0.6,
-        ),
-      ),
-    );
+  Widget _cabecalhoTabela() {
+    return const CabecalhoTabelaCrud(colunas: _colunas);
   }
 
   Widget _linha(MembroEquipeProjeto membro) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Cores.bordaSutil)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(
-              membro.nomeEquipe,
-              style: Tipografia.labelLarge.copyWith(
-                color: Cores.textoPrincipal,
+    return LinhaTabelaCrud(
+      colunas: _colunas,
+      celulas: [
+        Text(
+          membro.nomeEquipe,
+          style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
+        ),
+        Text(
+          membro.nome,
+          style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
+        ),
+        Text(
+          membro.cargo,
+          style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
+        ),
+        Row(
+          children: [
+            IconButton(
+              tooltip: 'Editar',
+              onPressed: () => _iniciarEdicao(membro),
+              icon: const Icon(LucideIcons.pencil, size: 18),
+            ),
+            IconButton(
+              tooltip: 'Remover',
+              onPressed: () => _confirmarExclusao(membro),
+              icon: const Icon(
+                LucideIcons.trash_2,
+                size: 18,
+                color: Cores.vermelhoErro,
               ),
             ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              membro.nome,
-              style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              membro.cargo,
-              style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
-            ),
-          ),
-          Expanded(
-            child: Row(
-              children: [
-                IconButton(
-                  tooltip: 'Editar',
-                  onPressed: () => _iniciarEdicao(membro),
-                  icon: const Icon(LucideIcons.pencil, size: 18),
-                ),
-                IconButton(
-                  tooltip: 'Remover',
-                  onPressed: () => _confirmarExclusao(membro),
-                  icon: const Icon(
-                    LucideIcons.trash_2,
-                    size: 18,
-                    color: Cores.vermelhoErro,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+          ],
+        ),
+      ],
     );
   }
 }

@@ -110,10 +110,15 @@ void main() {
       final viewModel = GerarRelatorioViewModel(repositorio);
 
       await viewModel.carregar();
-      final sucesso = await viewModel.gerar(templateId: 4, eventoId: 3);
+      final documento = await viewModel.obterDocumentoPreview(
+        templateId: 4,
+        eventoId: 3,
+      );
 
-      expect(sucesso, isTrue);
-      expect(repositorio.relatorioGerado, (template: 4, evento: 3));
+      expect(viewModel.templates, hasLength(1));
+      expect(viewModel.eventos, hasLength(1));
+      expect(documento, isNotNull);
+      expect(repositorio.previsualizacaoRecebida, (template: 4, evento: 3));
     });
   });
 }
@@ -181,6 +186,7 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   String? eventoCriado;
   String? templateCriado;
   ({int template, int? evento})? relatorioGerado;
+  ({int template, int? evento})? previsualizacaoRecebida;
 
   @override
   Future<List<Cliente>> listarClientes() async => const [];
@@ -436,11 +442,6 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   Future<void> excluirClasseEvento(int classeId) async {}
 
   @override
-  Future<void> gerarRelatorio({required int templateId, int? eventoId}) async {
-    relatorioGerado = (template: templateId, evento: eventoId);
-  }
-
-  @override
   Future<Uint8List> baixarRelatorio(int relatorioId) async => Uint8List(0);
 
   @override
@@ -451,17 +452,6 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
 
   @override
   Future<void> excluirRelatorio(int relatorioId) async {}
-
-  @override
-  Future<int> criarTemplate({
-    required int projetoId,
-    required String nomeTemplate,
-    required Uint8List arquivoBytes,
-    required String nomeArquivo,
-  }) async {
-    templateCriado = nomeTemplate;
-    return 1;
-  }
 
   @override
   Future<Map<int, int>> listarVinculosClasseTemplate(int templateId) async =>
@@ -480,6 +470,43 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   Future<void> excluirTemplate(int templateId) async {}
 
   @override
+  Future<int> criarTemplateComModelo({
+    required int projetoId,
+    required String nomeTemplate,
+    Map<String, dynamic>? modeloJson,
+  }) async {
+    templateCriado = nomeTemplate;
+    return 4;
+  }
+
+  @override
+  Future<Map<String, dynamic>> converterDocxParaModelo({
+    required Uint8List arquivoBytes,
+    required String nomeArquivo,
+  }) async => const {'type': 'doc', 'content': <Map<String, dynamic>>[]};
+
+  @override
+  Future<Map<String, dynamic>> obterModeloTemplate(int templateId) async =>
+      const {'type': 'doc', 'content': <Map<String, dynamic>>[]};
+
+  @override
+  Future<void> salvarModeloTemplate({
+    required int templateId,
+    required Map<String, dynamic> modeloJson,
+  }) async {}
+
+  @override
+  Future<int> gerarRelatorioComDocumento({
+    required int templateId,
+    int? eventoId,
+    Map<String, dynamic>? documentoJson,
+    String? nome,
+  }) async {
+    relatorioGerado = (template: templateId, evento: eventoId);
+    return 1;
+  }
+
+  @override
   Future<List<AssinaturaTemplate>> listarAssinaturasTemplate(
     int templateId,
   ) async => const [];
@@ -495,17 +522,16 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   Future<void> excluirAssinaturaTemplate(int assinaturaId) async {}
 
   @override
-  Future<Uint8List> baixarArquivoTemplate(int templateId) async =>
-      Uint8List(0);
+  Future<Uint8List> baixarArquivoTemplate(int templateId) async => Uint8List(0);
 
   @override
   Future<Map<String, dynamic>> previsualizarTemplate({
     required int templateId,
     int? eventoId,
-  }) async => const {
-    'type': 'doc',
-    'content': <Map<String, dynamic>>[],
-  };
+  }) async {
+    previsualizacaoRecebida = (template: templateId, evento: eventoId);
+    return const {'type': 'doc', 'content': <Map<String, dynamic>>[]};
+  }
 
   @override
   Future<TemplateRelatorio> obterTemplate(int templateId) async =>

@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/clientes_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/cliente.dart';
+import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
+import 'package:gerelat_frontend/nucleo/componentes/dialogo_confirmacao_exclusao.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:go_router/go_router.dart';
 
 class PaginaClientes extends StatefulWidget {
-  const PaginaClientes({super.key});
+  final RepositorioCatalogo repositorioCatalogo;
+
+  const PaginaClientes({super.key, required this.repositorioCatalogo});
 
   @override
   State<PaginaClientes> createState() => _PaginaClientesState();
@@ -22,7 +25,7 @@ class _PaginaClientesState extends State<PaginaClientes> {
   @override
   void initState() {
     super.initState();
-    _viewModel = ClientesViewModel(DependenciasApp.instancia.repositorioCatalogo)..carregar();
+    _viewModel = ClientesViewModel(widget.repositorioCatalogo)..carregar();
   }
 
   @override
@@ -34,23 +37,31 @@ class _PaginaClientesState extends State<PaginaClientes> {
 
   @override
   Widget build(BuildContext context) {
+    // Só `_conteudo()` depende de `_viewModel` — cabeçalho e busca são
+    // passados como `child` para não serem reconstruídos a cada notificação.
     return AnimatedBuilder(
       animation: _viewModel,
-      builder: (context, _) {
+      builder: (context, child) {
         return SingleChildScrollView(
           padding: const EdgeInsets.all(32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _cabecalho(context),
-              const SizedBox(height: 20),
-              CampoBusca(controlador: _controladorBusca, dica: 'Pesquisar clientes...', aoAlterar: _viewModel.definirBusca),
-              const SizedBox(height: 24),
-              _conteudo(),
-            ],
+            children: [child!, const SizedBox(height: 24), _conteudo()],
           ),
         );
       },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _cabecalho(context),
+          const SizedBox(height: 20),
+          CampoBusca(
+            controlador: _controladorBusca,
+            dica: 'Pesquisar clientes...',
+            aoAlterar: _viewModel.definirBusca,
+          ),
+        ],
+      ),
     );
   }
 
@@ -61,9 +72,17 @@ class _PaginaClientesState extends State<PaginaClientes> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Clientes', style: Tipografia.headlineMedium.copyWith(color: Cores.textoPrincipal)),
+              Text(
+                'Clientes',
+                style: Tipografia.headlineMedium.copyWith(
+                  color: Cores.textoPrincipal,
+                ),
+              ),
               const SizedBox(height: 6),
-              Text('Cadastre os clientes contratantes e vincule-os aos programas institucionais.', style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro)),
+              Text(
+                'Cadastre os clientes contratantes e vincule-os aos programas institucionais.',
+                style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
+              ),
             ],
           ),
         ),
@@ -85,14 +104,21 @@ class _PaginaClientesState extends State<PaginaClientes> {
     }
 
     if (_viewModel.mensagemErro != null && _viewModel.clientes.isEmpty) {
-      return EstadoVazio(icone: LucideIcons.circle_alert, titulo: 'Não foi possivel carregar os clientes', descricao: _viewModel.mensagemErro!, acao: 'Tentar novamente', onAcao: _viewModel.carregar);
+      return EstadoVazio(
+        icone: LucideIcons.circle_alert,
+        titulo: 'Não foi possivel carregar os clientes',
+        descricao: _viewModel.mensagemErro!,
+        acao: 'Tentar novamente',
+        onAcao: _viewModel.carregar,
+      );
     }
 
     if (_viewModel.clientes.isEmpty) {
       return EstadoVazio(
         icone: LucideIcons.search_x,
         titulo: 'Nenhum cliente encontrado',
-        descricao: 'A lista atual não contém clientes compatíveis com a busca informada.',
+        descricao:
+            'A lista atual não contém clientes compatíveis com a busca informada.',
         acao: 'Limpar busca',
         onAcao: () {
           _controladorBusca.clear();
@@ -108,7 +134,9 @@ class _PaginaClientesState extends State<PaginaClientes> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final duasColunas = constraints.maxWidth >= 900;
-        final largura = duasColunas ? (constraints.maxWidth - 24) / 2 : constraints.maxWidth;
+        final largura = duasColunas
+            ? (constraints.maxWidth - 24) / 2
+            : constraints.maxWidth;
 
         return Wrap(
           spacing: 24,
@@ -117,7 +145,12 @@ class _PaginaClientesState extends State<PaginaClientes> {
               .map(
                 (cliente) => SizedBox(
                   width: largura,
-                  child: _CartaoCliente(cliente, onAlterado: _viewModel.carregar, onExcluir: _viewModel.excluir, obterMensagemErro: () => _viewModel.mensagemErroAcao),
+                  child: _CartaoCliente(
+                    cliente,
+                    onAlterado: _viewModel.carregar,
+                    onExcluir: _viewModel.excluir,
+                    obterMensagemErro: () => _viewModel.mensagemErroAcao,
+                  ),
                 ),
               )
               .toList(),
@@ -133,7 +166,12 @@ class _CartaoCliente extends StatelessWidget {
   final Future<bool> Function(int) onExcluir;
   final String? Function() obterMensagemErro;
 
-  const _CartaoCliente(this.cliente, {required this.onAlterado, required this.onExcluir, required this.obterMensagemErro});
+  const _CartaoCliente(
+    this.cliente, {
+    required this.onAlterado,
+    required this.onExcluir,
+    required this.obterMensagemErro,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -144,20 +182,33 @@ class _CartaoCliente extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(color: Cores.azulAcao.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                child: const Icon(LucideIcons.building_2, color: Cores.azulAcao),
+              const IconeComFundo(
+                cor: Cores.azulAcao,
+                tamanho: 48,
+                raio: 12,
+                icone: LucideIcons.building_2,
+                tamanhoIcone: 24,
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(cliente.nome, style: Tipografia.titleLarge.copyWith(color: Cores.textoPrincipal)),
+                    Text(
+                      cliente.nome,
+                      style: Tipografia.titleLarge.copyWith(
+                        color: Cores.textoPrincipal,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    Text(cliente.cnpj.isEmpty ? 'CNPJ não informado' : cliente.cnpj, style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio)),
+                    Text(
+                      cliente.cnpj.isEmpty
+                          ? 'CNPJ não informado'
+                          : cliente.cnpj,
+                      style: Tipografia.bodySmall.copyWith(
+                        color: Cores.cinzaMedio,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -170,7 +221,12 @@ class _CartaoCliente extends StatelessWidget {
           const SizedBox(height: 6),
           _linhaInfo(LucideIcons.phone, cliente.foneContato),
           const SizedBox(height: 6),
-          _linhaInfo(LucideIcons.signature, cliente.numeroContrato.isEmpty ? 'Contrato não informado' : 'Contrato ${cliente.numeroContrato}'),
+          _linhaInfo(
+            LucideIcons.signature,
+            cliente.numeroContrato.isEmpty
+                ? 'Contrato não informado'
+                : 'Contrato ${cliente.numeroContrato}',
+          ),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
@@ -178,7 +234,9 @@ class _CartaoCliente extends StatelessWidget {
               IconButton(
                 tooltip: 'Editar cliente',
                 onPressed: () async {
-                  final alterado = await context.push<bool>('/clientes/${cliente.id}/editar');
+                  final alterado = await context.push<bool>(
+                    '/clientes/${cliente.id}/editar',
+                  );
                   if (alterado == true) await onAlterado();
                 },
                 icon: const Icon(LucideIcons.pencil, size: 18),
@@ -186,7 +244,11 @@ class _CartaoCliente extends StatelessWidget {
               IconButton(
                 tooltip: 'Excluir cliente',
                 onPressed: () => _confirmarExclusao(context),
-                icon: const Icon(LucideIcons.trash_2, size: 18, color: Cores.vermelhoErro),
+                icon: const Icon(
+                  LucideIcons.trash_2,
+                  size: 18,
+                  color: Cores.vermelhoErro,
+                ),
               ),
             ],
           ),
@@ -213,27 +275,23 @@ class _CartaoCliente extends StatelessWidget {
   }
 
   Future<void> _confirmarExclusao(BuildContext context) async {
-    final confirmou = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Excluir cliente'),
-        content: Text('Tem certeza de que deseja excluir "${cliente.nome}"? Esta ação não pode ser desfeita.'),
-        actions: [
-          TextButton(onPressed: () => context.pop(false), child: const Text('Cancelar')),
-          TextButton(
-            onPressed: () => context.pop(true),
-            child: const Text('Excluir', style: TextStyle(color: Cores.vermelhoErro)),
-          ),
-        ],
-      ),
+    final confirmou = await DialogoConfirmacaoExclusao.mostrar(
+      context,
+      titulo: 'Excluir cliente',
+      mensagem:
+          'Tem certeza de que deseja excluir "${cliente.nome}"? Esta ação não pode ser desfeita.',
     );
-    if (confirmou != true || !context.mounted) return;
+    if (!confirmou || !context.mounted) return;
 
     final clienteId = cliente.id;
     if (clienteId == null) return;
 
     final sucesso = await onExcluir(clienteId);
     if (!context.mounted || sucesso) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(obterMensagemErro() ?? 'Erro ao excluir cliente.')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(obterMensagemErro() ?? 'Erro ao excluir cliente.'),
+      ),
+    );
   }
 }

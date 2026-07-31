@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/nucleo/navegacao/app_router.dart';
 import 'package:gerelat_frontend/nucleo/navegacao/estrategia_url.dart';
+import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 
 Future<void> main() async {
@@ -37,7 +38,7 @@ class AplicativoGeRelat extends StatelessWidget {
       locale: const Locale('pt', 'BR'),
       theme: ThemeData(
         useMaterial3: true,
-        colorSchemeSeed: const Color(0xFF00488D),
+        colorSchemeSeed: Cores.azulPrimario,
         textTheme: Tipografia.textTheme,
       ),
     );

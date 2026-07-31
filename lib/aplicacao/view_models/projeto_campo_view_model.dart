@@ -57,12 +57,8 @@ class ProjetoCampoViewModel extends BaseViewModel {
     required TipoCampoProjeto tipo,
     required bool obrigatorio,
     required Map<String, dynamic> valor,
-  }) async {
-    final projetoId = _projetoSelecionadoId;
-    if (projetoId == null) return false;
-
-    iniciarCarregamento();
-    try {
+  }) {
+    return _executarAcaoCampo((projetoId) async {
       if (campoId == null) {
         await _repositorio.criarCampoProjeto(
           projetoId: projetoId,
@@ -82,22 +78,24 @@ class ProjetoCampoViewModel extends BaseViewModel {
           valor: valor,
         );
       }
-      _campos = await _repositorio.listarCamposProjeto(projetoId: projetoId);
-      finalizarCarregamento();
-      return true;
-    } catch (erro) {
-      definirErro(erro);
-      return false;
-    }
+    });
   }
 
-  Future<bool> excluir(int campoId) async {
+  Future<bool> excluir(int campoId) {
+    return _executarAcaoCampo((_) => _repositorio.excluirCampoProjeto(campoId));
+  }
+
+  /// Executa uma ação de escrita sobre o projeto selecionado e recarrega os
+  /// campos desse projeto — mesmo tratamento usado por [salvar] e [excluir].
+  Future<bool> _executarAcaoCampo(
+    Future<void> Function(int projetoId) acao,
+  ) async {
     final projetoId = _projetoSelecionadoId;
     if (projetoId == null) return false;
 
     iniciarCarregamento();
     try {
-      await _repositorio.excluirCampoProjeto(campoId);
+      await acao(projetoId);
       _campos = await _repositorio.listarCamposProjeto(projetoId: projetoId);
       finalizarCarregamento();
       return true;

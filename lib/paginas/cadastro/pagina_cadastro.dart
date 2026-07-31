@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gerelat_frontend/dominio/repositorios/repositorio_autenticacao.dart';
 import 'package:gerelat_frontend/nucleo/componentes/barra_topo.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
@@ -14,13 +15,15 @@ import 'package:go_router/go_router.dart';
 /// - rolagem vertical;
 /// - rodapé.
 class PaginaCadastro extends StatelessWidget {
-  const PaginaCadastro({super.key});
+  final RepositorioAutenticacao repositorioAutenticacao;
+
+  const PaginaCadastro({super.key, required this.repositorioAutenticacao});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       // Fundo semelhante ao utilizado nas demais páginas do sistema.
-      backgroundColor: const Color(0xFFF4F7FB),
+      backgroundColor: Cores.fundoPagina,
 
       appBar: const BarraTopo(),
 
@@ -38,6 +41,7 @@ class PaginaCadastro extends StatelessWidget {
                   FormularioCadastro(
                     // Retorna para a tela de login.
                     aoClicarEmLogin: () => context.go('/login'),
+                    repositorioAutenticacao: repositorioAutenticacao,
                   ),
 
                   const SizedBox(height: 24),
@@ -60,7 +64,7 @@ class PaginaCadastro extends StatelessWidget {
         opacity: 0.7,
         child: Text(
           '© 2026 GERELAT • GESTÃO E RELATÓRIOS INTELIGENTES',
-          style: Tipografia.labelMedium.copyWith(letterSpacing: 0.6, color: Cores.cinzaMedio),
+          style: Tipografia.eyebrow.copyWith(color: Cores.cinzaMedio),
           textAlign: TextAlign.center,
         ),
       ),

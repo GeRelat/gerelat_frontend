@@ -60,18 +60,10 @@ class TemplateFormViewModel extends BaseViewModel {
     iniciarCarregamento();
     try {
       _projetos = await _eventosRepositorio.listarProjetos();
-      try {
-        developer.log(
-          'template carregarOpcoes: projetos=${_projetos.length}',
-          name: 'TemplateFormViewModel',
-        );
-        for (final projeto in _projetos) {
-          developer.log(
-            'template projeto opcoes id=${projeto.id} nome=${projeto.nome}',
-            name: 'TemplateFormViewModel',
-          );
-        }
-      } catch (_) {}
+      _logProjetosCarregados(
+        'template carregarOpcoes: projetos=${_projetos.length}',
+        'opcoes',
+      );
       finalizarCarregamento();
     } catch (erro) {
       definirErro(erro);
@@ -153,18 +145,10 @@ class TemplateFormViewModel extends BaseViewModel {
     try {
       _template = await _templatesRepositorio.obterTemplate(templateId);
       _projetos = await _eventosRepositorio.listarProjetos();
-      try {
-        developer.log(
-          'template carregarEdicao: templateId=$templateId projetos=${_projetos.length}',
-          name: 'TemplateFormViewModel',
-        );
-        for (final projeto in _projetos) {
-          developer.log(
-            'template projeto edicao id=${projeto.id} nome=${projeto.nome}',
-            name: 'TemplateFormViewModel',
-          );
-        }
-      } catch (_) {}
+      _logProjetosCarregados(
+        'template carregarEdicao: templateId=$templateId projetos=${_projetos.length}',
+        'edicao',
+      );
       final projetoId = _template?.projetoId;
       _classesDisponiveis = projetoId == null
           ? []
@@ -206,12 +190,9 @@ class TemplateFormViewModel extends BaseViewModel {
   }) async {
     iniciarCarregamento();
     try {
-      try {
-        developer.log(
-          'template salvar: templateId=$templateId projetoId=$projetoId nomeTemplate=$nomeTemplate arquivo=${arquivoBytes == null ? 'null' : '${arquivoBytes.length} bytes'} nomeArquivo=$nomeArquivo',
-          name: 'TemplateFormViewModel',
-        );
-      } catch (_) {}
+      _log(
+        'template salvar: templateId=$templateId projetoId=$projetoId nomeTemplate=$nomeTemplate arquivo=${arquivoBytes == null ? 'null' : '${arquivoBytes.length} bytes'} nomeArquivo=$nomeArquivo',
+      );
       var idTemplate = templateId ?? _idTemplateCriado;
       if (idTemplate == null) {
         // O `.docx` é opcional: quando presente, vira o documento inicial do
@@ -228,12 +209,7 @@ class TemplateFormViewModel extends BaseViewModel {
           nomeTemplate: nomeTemplate,
           modeloJson: modeloJson,
         );
-        try {
-          developer.log(
-            'template salvar: criado idTemplate=$idTemplate',
-            name: 'TemplateFormViewModel',
-          );
-        } catch (_) {}
+        _log('template salvar: criado idTemplate=$idTemplate');
         _idTemplateCriado = idTemplate;
       } else {
         await _templatesRepositorio.atualizarTemplate(
@@ -264,12 +240,9 @@ class TemplateFormViewModel extends BaseViewModel {
       );
 
       for (final classeId in classesAdicionadas) {
-        try {
-          developer.log(
-            'template salvar: vinculando classe=$classeId ao template=$idTemplate',
-            name: 'TemplateFormViewModel',
-          );
-        } catch (_) {}
+        _log(
+          'template salvar: vinculando classe=$classeId ao template=$idTemplate',
+        );
         await _templatesRepositorio.vincularTemplateClasse(
           templateId: idTemplate,
           classeEventoId: classeId,
@@ -284,25 +257,37 @@ class TemplateFormViewModel extends BaseViewModel {
 
       await _salvarAssinaturas(idTemplate);
 
-      try {
-        developer.log(
-          'template salvar: finalizado com sucesso template=$idTemplate',
-          name: 'TemplateFormViewModel',
-        );
-      } catch (_) {}
+      _log('template salvar: finalizado com sucesso template=$idTemplate');
 
       finalizarCarregamento();
       return idTemplate;
     } catch (erro) {
-      try {
-        developer.log(
-          'template salvar: erro=$erro',
-          name: 'TemplateFormViewModel',
-        );
-      } catch (_) {}
+      _log('template salvar: erro=$erro');
       definirErro(erro);
       return null;
     }
+  }
+
+  /// Log de depuração best-effort — nunca deve derrubar o fluxo do
+  /// ViewModel, mesmo se o logger falhar.
+  void _log(String mensagem) {
+    try {
+      developer.log(mensagem, name: 'TemplateFormViewModel');
+    } catch (_) {}
+  }
+
+  /// Loga a lista de projetos carregada, usada tanto por [carregarOpcoes]
+  /// quanto por [carregarEdicao].
+  void _logProjetosCarregados(String cabecalho, String rotuloItem) {
+    try {
+      developer.log(cabecalho, name: 'TemplateFormViewModel');
+      for (final projeto in _projetos) {
+        developer.log(
+          'template projeto $rotuloItem id=${projeto.id} nome=${projeto.nome}',
+          name: 'TemplateFormViewModel',
+        );
+      }
+    } catch (_) {}
   }
 
   Future<void> _salvarAssinaturas(int templateId) async {

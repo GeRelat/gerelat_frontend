@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:gerelat_frontend/aplicacao/dependencias.dart';
+import 'package:gerelat_frontend/dominio/repositorios/repositorio_autenticacao.dart';
+import 'package:gerelat_frontend/nucleo/componentes/barra_topo.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
+import 'package:gerelat_frontend/nucleo/temas/sombras.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,8 +10,13 @@ import 'package:go_router/go_router.dart';
 /// Confirma o envio e oferece ação de reenvio e retorno ao login.
 class PaginaEmailEnviado extends StatefulWidget {
   final String? email;
+  final RepositorioAutenticacao repositorioAutenticacao;
 
-  const PaginaEmailEnviado({super.key, this.email});
+  const PaginaEmailEnviado({
+    super.key,
+    this.email,
+    required this.repositorioAutenticacao,
+  });
 
   @override
   State<PaginaEmailEnviado> createState() => _PaginaEmailEnviadoState();
@@ -32,7 +39,7 @@ class _PaginaEmailEnviadoState extends State<PaginaEmailEnviado> {
     if (_reenviando) return;
 
     setState(() => _reenviando = true);
-    final resultado = await DependenciasApp.instancia.repositorioAutenticacao
+    final resultado = await widget.repositorioAutenticacao
         .solicitarRecuperacaoSenha(email: email);
     if (!mounted) return;
     setState(() => _reenviando = false);
@@ -52,7 +59,7 @@ class _PaginaEmailEnviadoState extends State<PaginaEmailEnviado> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Cores.fundoPagina,
-      appBar: _construirBarraTopo(),
+      appBar: const BarraTopo(backgroundColor: Cores.fundoPagina),
       body: Column(
         children: [
           Expanded(
@@ -72,23 +79,6 @@ class _PaginaEmailEnviadoState extends State<PaginaEmailEnviado> {
     );
   }
 
-  /// Barra superior com logo GeRelat — HeadlineSmall (Poppins Regular 24px)
-  PreferredSizeWidget _construirBarraTopo() {
-    return AppBar(
-      backgroundColor: Cores.fundoPagina,
-      elevation: 0,
-      centerTitle: true,
-      automaticallyImplyLeading: false,
-      title: Text(
-        'GeRelat',
-        style: Tipografia.headlineSmall.copyWith(
-          letterSpacing: -1.2,
-          color: Cores.pretoProfundo,
-        ),
-      ),
-    );
-  }
-
   /// Card principal branco com ícone, texto e ações
   Widget _construirCard() {
     return Container(
@@ -99,7 +89,7 @@ class _PaginaEmailEnviadoState extends State<PaginaEmailEnviado> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Cores.preto.withValues(alpha: 0.05),
             blurRadius: 2,
             offset: const Offset(0, 1),
           ),
@@ -163,8 +153,7 @@ class _PaginaEmailEnviadoState extends State<PaginaEmailEnviado> {
         // Título → HeadlineMedium (Poppins Regular 28px)
         Text(
           'E-mail de recuperação\nenviado!',
-          style: Tipografia.headlineMedium.copyWith(
-            letterSpacing: -0.75,
+          style: Tipografia.headlineMediumDestaque.copyWith(
             height: 1.25,
             color: Cores.pretoProfundo,
           ),
@@ -195,10 +184,10 @@ class _PaginaEmailEnviadoState extends State<PaginaEmailEnviado> {
           child: ElevatedButton(
             onPressed: _voltarAoLogin,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Cores.azulPrimario,
+              backgroundColor: Cores.azulAcao,
               foregroundColor: Cores.branco,
               elevation: 1,
-              shadowColor: Colors.black.withValues(alpha: 0.05),
+              shadowColor: Sombras.botaoPrimario,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -222,17 +211,20 @@ class _PaginaEmailEnviadoState extends State<PaginaEmailEnviado> {
               const TextSpan(text: 'Não recebeu o e-mail? '),
               // "Tente reenviar" como link azul — LabelLarge (Roboto SemiBold 14px)
               WidgetSpan(
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: GestureDetector(
-                    onTap: _reenviando ? null : _reenviar,
-                    child: Text(
-                      _reenviando ? 'Reenviando...' : 'Tente reenviar',
-                      style: Tipografia.labelLarge.copyWith(
-                        color: _reenviando
-                            ? Cores.cinzaMedio
-                            : Cores.azulPrimario,
-                      ),
+                alignment: PlaceholderAlignment.middle,
+                child: TextButton(
+                  onPressed: _reenviando ? null : _reenviar,
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    _reenviando ? 'Reenviando...' : 'Tente reenviar',
+                    style: Tipografia.labelLarge.copyWith(
+                      color: _reenviando
+                          ? Cores.cinzaMedio
+                          : Cores.azulPrimario,
                     ),
                   ),
                 ),

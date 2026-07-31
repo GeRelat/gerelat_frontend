@@ -24,22 +24,22 @@ abstract interface class RepositorioClientes {
 
   Future<void> criarCliente({
     required String nome,
-    String cnpj = '',
-    String nomeContato = '',
-    String emailContato = '',
-    String foneContato = '',
-    String numeroContrato = '',
+    required String cnpj,
+    required String nomeContato,
+    required String emailContato,
+    required String foneContato,
+    required String numeroContrato,
     required DateTime dataTerminoContrato,
   });
 
   Future<void> atualizarCliente({
     required int clienteId,
     required String nome,
-    String cnpj = '',
-    String nomeContato = '',
-    String emailContato = '',
-    String foneContato = '',
-    String numeroContrato = '',
+    required String cnpj,
+    required String nomeContato,
+    required String emailContato,
+    required String foneContato,
+    required String numeroContrato,
     required DateTime dataTerminoContrato,
   });
 
@@ -152,13 +152,6 @@ abstract interface class RepositorioTemplates {
 
   Future<TemplateRelatorio> obterTemplate(int templateId);
 
-  Future<int> criarTemplate({
-    required int projetoId,
-    required String nomeTemplate,
-    required Uint8List arquivoBytes,
-    required String nomeArquivo,
-  });
-
   /// Cria um template a partir de um documento ProseMirror já pronto (ou de um
   /// documento vazio quando [modeloJson] é `null`). Usado pelo fluxo do editor,
   /// no qual o upload de `.docx` é opcional. Retorna o id do template criado.
@@ -234,8 +227,6 @@ abstract interface class RepositorioTemplates {
 
 abstract interface class RepositorioRelatorios {
   Future<List<Relatorio>> listarRelatorios();
-
-  Future<void> gerarRelatorio({required int templateId, int? eventoId});
 
   /// Gera o relatório definitivo a partir do documento ProseMirror já
   /// resolvido/editado no preview ([documentoJson]). Envia para
@@ -340,7 +331,10 @@ abstract interface class RepositorioAssets {
 
   Future<Asset> obterAsset(int assetId);
 
-  Future<void> atualizarAsset({required int assetId, required String descricao});
+  Future<void> atualizarAsset({
+    required int assetId,
+    required String descricao,
+  });
 
   Future<void> excluirAsset(int assetId);
 }

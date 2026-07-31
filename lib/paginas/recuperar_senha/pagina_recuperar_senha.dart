@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:gerelat_frontend/aplicacao/dependencias.dart';
+import 'package:gerelat_frontend/dominio/repositorios/repositorio_autenticacao.dart';
+import 'package:gerelat_frontend/nucleo/componentes/barra_topo.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:gerelat_frontend/nucleo/utils/validadores.dart';
@@ -8,7 +9,12 @@ import 'package:go_router/go_router.dart';
 /// Página de recuperação de senha.
 /// O usuário informa o e-mail e recebe um link de redefinição.
 class PaginaRecuperarSenha extends StatefulWidget {
-  const PaginaRecuperarSenha({super.key});
+  final RepositorioAutenticacao repositorioAutenticacao;
+
+  const PaginaRecuperarSenha({
+    super.key,
+    required this.repositorioAutenticacao,
+  });
 
   @override
   State<PaginaRecuperarSenha> createState() => _PaginaRecuperarSenhaState();
@@ -34,7 +40,7 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
     if (!_chaveFormulario.currentState!.validate()) return;
 
     setState(() => _enviando = true);
-    final resultado = await DependenciasApp.instancia.repositorioAutenticacao
+    final resultado = await widget.repositorioAutenticacao
         .solicitarRecuperacaoSenha(email: _controladorEmail.text.trim());
     if (!mounted) return;
     setState(() => _enviando = false);
@@ -56,7 +62,7 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Cores.fundoPagina,
-      appBar: _construirBarraTopo(),
+      appBar: const BarraTopo(backgroundColor: Cores.fundoPagina),
       body: Stack(
         children: [
           // Efeitos de brilho decorativos no fundo da página
@@ -89,54 +95,48 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
     );
   }
 
-  /// Barra superior com logo GeRelat usando HeadlineSmall do design system
-  PreferredSizeWidget _construirBarraTopo() {
-    return AppBar(
-      backgroundColor: Cores.fundoPagina,
-      elevation: 0,
-      centerTitle: true,
-      automaticallyImplyLeading: false,
-      title: Text(
-        'GeRelat',
-        style: Tipografia.headlineSmall.copyWith(
-          letterSpacing: -1.2,
-          color: Cores.pretoProfundo,
-        ),
-      ),
-    );
-  }
-
   /// Efeitos de brilho azul e verde no fundo da página
   Widget _construirBrilhoFundo() {
     return Stack(
       children: [
         // Brilho azul — canto superior direito
-        Positioned(
+        _brilhoDecorativo(
           right: 320,
           top: 256,
-          child: Container(
-            width: 500,
-            height: 500,
-            decoration: BoxDecoration(
-              color: Cores.azulIlustracaoClaro.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-            ),
-          ),
+          tamanho: 500,
+          cor: Cores.azulIlustracaoClaro.withValues(alpha: 0.2),
         ),
         // Brilho verde — canto inferior esquerdo
-        Positioned(
+        _brilhoDecorativo(
           left: 320,
           bottom: 256,
-          child: Container(
-            width: 400,
-            height: 400,
-            decoration: BoxDecoration(
-              color: Cores.verdeClaro.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-          ),
+          tamanho: 400,
+          cor: Cores.verdeClaro.withValues(alpha: 0.15),
         ),
       ],
+    );
+  }
+
+  /// Círculo decorativo posicionado — mesmo tratamento usado por
+  /// [_construirBrilhoFundo] e [_construirCard].
+  Widget _brilhoDecorativo({
+    double? left,
+    double? right,
+    double? top,
+    double? bottom,
+    required double tamanho,
+    required Color cor,
+  }) {
+    return Positioned(
+      left: left,
+      right: right,
+      top: top,
+      bottom: bottom,
+      child: Container(
+        width: tamanho,
+        height: tamanho,
+        decoration: BoxDecoration(color: cor, shape: BoxShape.circle),
+      ),
     );
   }
 
@@ -168,30 +168,18 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
         child: Stack(
           children: [
             // Brilho decorativo azul — canto superior direito do card
-            Positioned(
+            _brilhoDecorativo(
               right: -64,
               top: -64,
-              child: Container(
-                width: 128,
-                height: 128,
-                decoration: BoxDecoration(
-                  color: Cores.azulIlustracaoClaro.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-              ),
+              tamanho: 128,
+              cor: Cores.azulIlustracaoClaro.withValues(alpha: 0.1),
             ),
             // Brilho decorativo verde — canto inferior esquerdo do card
-            Positioned(
+            _brilhoDecorativo(
               left: -64,
               bottom: -64,
-              child: Container(
-                width: 128,
-                height: 128,
-                decoration: BoxDecoration(
-                  color: Cores.verdeClaro.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-              ),
+              tamanho: 128,
+              cor: Cores.verdeClaro.withValues(alpha: 0.1),
             ),
             // Conteúdo do card
             Padding(
@@ -273,10 +261,7 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
           padding: const EdgeInsets.only(left: 4),
           child: Text(
             'E-MAIL',
-            style: Tipografia.labelMedium.copyWith(
-              letterSpacing: 0.6,
-              color: Cores.cinzaEscuro,
-            ),
+            style: Tipografia.eyebrow.copyWith(color: Cores.cinzaEscuro),
           ),
         ),
         const SizedBox(height: 8),
@@ -343,7 +328,7 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
+              color: Cores.preto.withValues(alpha: 0.1),
               blurRadius: 6,
               offset: const Offset(0, 4),
               spreadRadius: -1,
@@ -377,28 +362,22 @@ class _PaginaRecuperarSenhaState extends State<PaginaRecuperarSenha> {
     return Center(
       child: Padding(
         padding: const EdgeInsets.only(top: 8),
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            onTap: () => context.go('/login'),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.arrow_back,
-                  color: Cores.azulPrimario,
-                  size: 14,
-                ),
-                const SizedBox(width: 8),
-                // Texto → TitleSmall (Poppins Medium 14px)
-                Text(
-                  'Voltar ao login',
-                  style: Tipografia.titleSmall.copyWith(
-                    color: Cores.azulPrimario,
-                  ),
-                ),
-              ],
-            ),
+        child: TextButton.icon(
+          onPressed: () => context.go('/login'),
+          style: TextButton.styleFrom(
+            padding: EdgeInsets.zero,
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          icon: const Icon(
+            Icons.arrow_back,
+            color: Cores.azulPrimario,
+            size: 14,
+          ),
+          // Texto → TitleSmall (Poppins Medium 14px)
+          label: Text(
+            'Voltar ao login',
+            style: Tipografia.titleSmall.copyWith(color: Cores.azulPrimario),
           ),
         ),
       ),

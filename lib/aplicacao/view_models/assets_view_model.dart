@@ -26,41 +26,36 @@ class AssetsViewModel extends BaseViewModel {
     required Uint8List arquivoBytes,
     required String nomeArquivo,
     String descricao = '',
-  }) async {
-    iniciarCarregamento();
-    try {
-      await _repositorio.criarAsset(
+  }) {
+    return _executarAcao(
+      () => _repositorio.criarAsset(
         arquivoBytes: arquivoBytes,
         nomeArquivo: nomeArquivo,
         descricao: descricao,
-      );
-      await carregar();
-      return true;
-    } catch (erro) {
-      definirErro(erro);
-      return false;
-    }
+      ),
+    );
   }
 
   Future<bool> atualizarDescricao({
     required int assetId,
     required String descricao,
-  }) async {
-    iniciarCarregamento();
-    try {
-      await _repositorio.atualizarAsset(assetId: assetId, descricao: descricao);
-      await carregar();
-      return true;
-    } catch (erro) {
-      definirErro(erro);
-      return false;
-    }
+  }) {
+    return _executarAcao(
+      () => _repositorio.atualizarAsset(assetId: assetId, descricao: descricao),
+    );
   }
 
-  Future<bool> excluir(int assetId) async {
+  Future<bool> excluir(int assetId) {
+    return _executarAcao(() => _repositorio.excluirAsset(assetId));
+  }
+
+  /// Executa uma ação de escrita (criar/atualizar/excluir), recarregando a
+  /// lista em caso de sucesso — mesmo tratamento usado por [enviar],
+  /// [atualizarDescricao] e [excluir].
+  Future<bool> _executarAcao(Future<void> Function() acao) async {
     iniciarCarregamento();
     try {
-      await _repositorio.excluirAsset(assetId);
+      await acao();
       await carregar();
       return true;
     } catch (erro) {

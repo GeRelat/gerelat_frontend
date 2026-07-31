@@ -32,9 +32,8 @@ class EquipeProgramaViewModel extends BaseViewModel {
     int? membroId,
     required String nome,
     required String cargo,
-  }) async {
-    iniciarCarregamento();
-    try {
+  }) {
+    return _executarAcao(() async {
       if (membroId == null) {
         await _repositorio.criarMembroEquipe(
           programaId: programaId,
@@ -48,21 +47,19 @@ class EquipeProgramaViewModel extends BaseViewModel {
           cargo: cargo,
         );
       }
-      _membros = await _repositorio.listarEquipePrograma(
-        programaId: programaId,
-      );
-      finalizarCarregamento();
-      return true;
-    } catch (erro) {
-      definirErro(erro);
-      return false;
-    }
+    });
   }
 
-  Future<bool> excluir(int membroId) async {
+  Future<bool> excluir(int membroId) {
+    return _executarAcao(() => _repositorio.excluirMembroEquipe(membroId));
+  }
+
+  /// Executa uma ação de escrita e recarrega a equipe do programa — mesmo
+  /// tratamento usado por [salvar] e [excluir].
+  Future<bool> _executarAcao(Future<void> Function() acao) async {
     iniciarCarregamento();
     try {
-      await _repositorio.excluirMembroEquipe(membroId);
+      await acao();
       _membros = await _repositorio.listarEquipePrograma(
         programaId: programaId,
       );

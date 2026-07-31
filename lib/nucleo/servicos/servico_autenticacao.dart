@@ -191,6 +191,7 @@ class ServicoAutenticacao {
   }
 
   String _extrairMensagemErro(Map<String, dynamic> corpo) {
+    if (corpo['detail'] != null) return corpo['detail'].toString();
     for (final valor in corpo.values) {
       if (valor is List && valor.isNotEmpty) return valor.first.toString();
       if (valor is String) return valor;

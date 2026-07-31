@@ -10,7 +10,7 @@ class ServicoApiGerelat {
   ServicoApiGerelat(this._cliente);
 
   Future<List<Map<String, dynamic>>> listar(String caminho) async {
-    final resposta = await _cliente.get(caminho);
+    final resposta = await _semFalhaDeConexao(() => _cliente.get(caminho));
     _validar(resposta);
     final decodificado = jsonDecode(utf8.decode(resposta.bodyBytes));
     final lista = decodificado is Map<String, dynamic>
@@ -29,27 +29,19 @@ class ServicoApiGerelat {
     String caminho,
     Map<String, dynamic> dados,
   ) async {
-    final resposta = await _cliente.post(caminho, body: dados);
-    _validar(resposta);
-    if (resposta.bodyBytes.isEmpty) return {};
-    final decodificado = jsonDecode(utf8.decode(resposta.bodyBytes));
-    return decodificado is Map
-        ? Map<String, dynamic>.from(decodificado)
-        : <String, dynamic>{};
+    final resposta = await _semFalhaDeConexao(
+      () => _cliente.post(caminho, body: dados),
+    );
+    return _decodificarObjeto(resposta);
   }
 
   Future<Map<String, dynamic>> obter(String caminho) async {
-    final resposta = await _cliente.get(caminho);
-    _validar(resposta);
-    if (resposta.bodyBytes.isEmpty) return {};
-    final decodificado = jsonDecode(utf8.decode(resposta.bodyBytes));
-    return decodificado is Map
-        ? Map<String, dynamic>.from(decodificado)
-        : <String, dynamic>{};
+    final resposta = await _semFalhaDeConexao(() => _cliente.get(caminho));
+    return _decodificarObjeto(resposta);
   }
 
   Future<void> excluir(String caminho) async {
-    final resposta = await _cliente.delete(caminho);
+    final resposta = await _semFalhaDeConexao(() => _cliente.delete(caminho));
     _validar(resposta);
   }
 
@@ -57,13 +49,10 @@ class ServicoApiGerelat {
     String caminho,
     Map<String, dynamic> dados,
   ) async {
-    final resposta = await _cliente.patch(caminho, body: dados);
-    _validar(resposta);
-    if (resposta.bodyBytes.isEmpty) return {};
-    final decodificado = jsonDecode(utf8.decode(resposta.bodyBytes));
-    return decodificado is Map
-        ? Map<String, dynamic>.from(decodificado)
-        : <String, dynamic>{};
+    final resposta = await _semFalhaDeConexao(
+      () => _cliente.patch(caminho, body: dados),
+    );
+    return _decodificarObjeto(resposta);
   }
 
   Future<Map<String, dynamic>> criarMultipart({
@@ -74,26 +63,52 @@ class ServicoApiGerelat {
     required String nomeArquivo,
     required String contentType,
   }) async {
-    final resposta = await _cliente.postMultipart(
-      caminho,
-      fields: campos,
-      fileField: campoArquivo,
-      fileBytes: arquivoBytes,
-      filename: nomeArquivo,
-      contentType: contentType,
+    final resposta = await _semFalhaDeConexao(
+      () => _cliente.postMultipart(
+        caminho,
+        fields: campos,
+        fileField: campoArquivo,
+        fileBytes: arquivoBytes,
+        filename: nomeArquivo,
+        contentType: contentType,
+      ),
     );
+    return _decodificarObjeto(resposta);
+  }
+
+  Future<Uint8List> baixarArquivo(String caminho) async {
+    final resposta = await _semFalhaDeConexao(() => _cliente.get(caminho));
+    _validar(resposta);
+    return resposta.bodyBytes;
+  }
+
+  /// Converte falhas de transporte (sem internet, DNS, timeout) em uma
+  /// mensagem amigável — mesmo tratamento já aplicado pelo serviço de
+  /// autenticação para o mesmo tipo de falha. Sem isso, o erro bruto do
+  /// cliente HTTP chegava até a UI via `erro.toString()`.
+  Future<http.Response> _semFalhaDeConexao(
+    Future<http.Response> Function() requisicao,
+  ) async {
+    try {
+      return await requisicao();
+    } catch (_) {
+      throw Exception(
+        'Nao foi possivel conectar ao servidor. Verifique sua conexao.',
+      );
+    }
+  }
+
+  /// Valida a resposta e decodifica o corpo como objeto JSON. Usado por
+  /// [criar], [obter], [atualizar] e [criarMultipart] — endpoints que
+  /// retornam um único objeto (ou corpo vazio, em respostas 204/sem
+  /// conteúdo).
+  Map<String, dynamic> _decodificarObjeto(http.Response resposta) {
     _validar(resposta);
     if (resposta.bodyBytes.isEmpty) return {};
     final decodificado = jsonDecode(utf8.decode(resposta.bodyBytes));
     return decodificado is Map
         ? Map<String, dynamic>.from(decodificado)
         : <String, dynamic>{};
-  }
-
-  Future<Uint8List> baixarArquivo(String caminho) async {
-    final resposta = await _cliente.get(caminho);
-    _validar(resposta);
-    return resposta.bodyBytes;
   }
 
   void _validar(http.Response resposta) {

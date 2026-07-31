@@ -41,9 +41,8 @@ class ProjetoFormViewModel extends BaseViewModel {
     String parceira = '',
     String sigla = '',
     String logomarca = '',
-  }) async {
-    iniciarCarregamento();
-    try {
+  }) {
+    return _executarAcao(() async {
       if (projetoId == null) {
         await _repositorio.criarProjeto(
           programaId: programaId,
@@ -62,18 +61,19 @@ class ProjetoFormViewModel extends BaseViewModel {
           logomarca: logomarca,
         );
       }
-      finalizarCarregamento();
-      return true;
-    } catch (erro) {
-      definirErro(erro);
-      return false;
-    }
+    });
   }
 
-  Future<bool> excluir(int projetoId) async {
+  Future<bool> excluir(int projetoId) {
+    return _executarAcao(() => _repositorio.excluirProjeto(projetoId));
+  }
+
+  /// Executa uma ação de escrita e reporta sucesso/erro — mesmo tratamento
+  /// usado por [salvar] e [excluir].
+  Future<bool> _executarAcao(Future<void> Function() acao) async {
     iniciarCarregamento();
     try {
-      await _repositorio.excluirProjeto(projetoId);
+      await acao();
       finalizarCarregamento();
       return true;
     } catch (erro) {

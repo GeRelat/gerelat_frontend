@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/editor_prosemirror.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
@@ -27,8 +26,13 @@ class ArgumentosEditorRelatorio {
 /// (`custom_text`) antes de gerar o `.docx` definitivo.
 class PaginaEditorRelatorio extends StatefulWidget {
   final ArgumentosEditorRelatorio argumentos;
+  final RepositorioCatalogo repositorioCatalogo;
 
-  const PaginaEditorRelatorio({super.key, required this.argumentos});
+  const PaginaEditorRelatorio({
+    super.key,
+    required this.argumentos,
+    required this.repositorioCatalogo,
+  });
 
   @override
   State<PaginaEditorRelatorio> createState() => _PaginaEditorRelatorioState();
@@ -42,7 +46,7 @@ class _PaginaEditorRelatorioState extends State<PaginaEditorRelatorio> {
   @override
   void initState() {
     super.initState();
-    _relatoriosRepositorio = DependenciasApp.instancia.repositorioCatalogo;
+    _relatoriosRepositorio = widget.repositorioCatalogo;
   }
 
   Future<void> _gerar() async {

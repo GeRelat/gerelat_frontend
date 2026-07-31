@@ -27,10 +27,9 @@ class RepositorioAutenticacaoHttp implements RepositorioAutenticacao {
     required String email,
     required String senha,
   }) async {
-    final resultado = await _servico.login(email: email, senha: senha);
-
-    if (resultado.sucesso) return const ResultadoLogin.sucesso();
-    return ResultadoLogin.erro(resultado.mensagemErro);
+    return _paraResultadoLogin(
+      await _servico.login(email: email, senha: senha),
+    );
   }
 
   @override
@@ -39,22 +38,22 @@ class RepositorioAutenticacaoHttp implements RepositorioAutenticacao {
     required String email,
     required String senha,
   }) async {
-    final resultado = await _servico.cadastrar(
-      nomeCompleto: nomeCompleto,
-      email: email,
-      senha: senha,
+    return _paraResultadoLogin(
+      await _servico.cadastrar(
+        nomeCompleto: nomeCompleto,
+        email: email,
+        senha: senha,
+      ),
     );
-    if (resultado.sucesso) return const ResultadoLogin.sucesso();
-    return ResultadoLogin.erro(resultado.mensagemErro);
   }
 
   @override
   Future<ResultadoLogin> solicitarRecuperacaoSenha({
     required String email,
   }) async {
-    final resultado = await _servico.solicitarRecuperacaoSenha(email: email);
-    if (resultado.sucesso) return const ResultadoLogin.sucesso();
-    return ResultadoLogin.erro(resultado.mensagemErro);
+    return _paraResultadoLogin(
+      await _servico.solicitarRecuperacaoSenha(email: email),
+    );
   }
 
   @override
@@ -63,13 +62,13 @@ class RepositorioAutenticacaoHttp implements RepositorioAutenticacao {
     required String token,
     required String novaSenha,
   }) async {
-    final resultado = await _servico.confirmarRecuperacaoSenha(
-      uid: uid,
-      token: token,
-      novaSenha: novaSenha,
+    return _paraResultadoLogin(
+      await _servico.confirmarRecuperacaoSenha(
+        uid: uid,
+        token: token,
+        novaSenha: novaSenha,
+      ),
     );
-    if (resultado.sucesso) return const ResultadoLogin.sucesso();
-    return ResultadoLogin.erro(resultado.mensagemErro);
   }
 
   @override
@@ -77,14 +76,19 @@ class RepositorioAutenticacaoHttp implements RepositorioAutenticacao {
     required String senhaAtual,
     required String novaSenha,
   }) async {
-    final resultado = await _servico.alterarSenha(
-      senhaAtual: senhaAtual,
-      novaSenha: novaSenha,
+    return _paraResultadoLogin(
+      await _servico.alterarSenha(senhaAtual: senhaAtual, novaSenha: novaSenha),
     );
-    if (resultado.sucesso) return const ResultadoLogin.sucesso();
-    return ResultadoLogin.erro(resultado.mensagemErro);
   }
 
   @override
   Future<void> sair() => _servico.sair();
+
+  /// Converte o resultado interno de [ServicoAutenticacao] para o
+  /// [ResultadoLogin] da interface de domínio — mesma conversão repetida em
+  /// todos os métodos acima.
+  ResultadoLogin _paraResultadoLogin(ResultadoAutenticacao resultado) {
+    if (resultado.sucesso) return const ResultadoLogin.sucesso();
+    return ResultadoLogin.erro(resultado.mensagemErro);
+  }
 }

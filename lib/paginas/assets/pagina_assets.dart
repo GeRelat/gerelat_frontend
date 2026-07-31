@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/assets_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/asset.dart';
+import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
+import 'package:gerelat_frontend/nucleo/componentes/dialogo_confirmacao_exclusao.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
-import 'package:gerelat_frontend/nucleo/servicos/arquivo_web.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:go_router/go_router.dart';
 
 class PaginaAssets extends StatefulWidget {
-  const PaginaAssets({super.key});
+  final RepositorioCatalogo repositorioCatalogo;
+  final String urlBase;
+
+  const PaginaAssets({
+    super.key,
+    required this.repositorioCatalogo,
+    required this.urlBase,
+  });
 
   @override
   State<PaginaAssets> createState() => _PaginaAssetsState();
@@ -22,8 +29,7 @@ class _PaginaAssetsState extends State<PaginaAssets> {
   @override
   void initState() {
     super.initState();
-    _viewModel = AssetsViewModel(DependenciasApp.instancia.repositorioCatalogo)
-      ..carregar();
+    _viewModel = AssetsViewModel(widget.repositorioCatalogo)..carregar();
   }
 
   @override
@@ -33,20 +39,7 @@ class _PaginaAssetsState extends State<PaginaAssets> {
   }
 
   Future<void> _enviarImagem() async {
-    final ArquivoSelecionadoWeb? arquivo;
-    try {
-      arquivo = await selecionarArquivo(
-        accept: '.png,.jpg,.jpeg,.webp',
-        extensoesPermitidas: const ['.png', '.jpg', '.jpeg', '.webp'],
-        tamanhoMaximoBytes: 5 * 1024 * 1024,
-      );
-    } on ArquivoInvalidoException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.mensagem)));
-      return;
-    }
+    final arquivo = await selecionarImagem(context);
     if (arquivo == null) return;
     if (!mounted) return;
 
@@ -59,14 +52,16 @@ class _PaginaAssetsState extends State<PaginaAssets> {
       nomeArquivo: arquivo.nome,
       descricao: descricao,
     );
-    if (!mounted) return;
-    if (!sucesso) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_viewModel.mensagemErro ?? 'Erro ao enviar imagem.'),
-        ),
-      );
-    }
+    _mostrarErroSeFalhou(sucesso, 'Erro ao enviar imagem.');
+  }
+
+  /// Mostra o erro da última ação se ela tiver falhado — mesmo tratamento
+  /// usado por [_enviarImagem], [_editarDescricao] e [_confirmarExclusao].
+  void _mostrarErroSeFalhou(bool sucesso, String mensagemPadrao) {
+    if (!mounted || sucesso) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(_viewModel.mensagemErro ?? mensagemPadrao)),
+    );
   }
 
   Future<String?> _pedirDescricao(
@@ -115,102 +110,55 @@ class _PaginaAssetsState extends State<PaginaAssets> {
       assetId: assetId,
       descricao: descricao,
     );
-    if (!mounted) return;
-    if (!sucesso) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_viewModel.mensagemErro ?? 'Erro ao salvar.'),
-        ),
-      );
-    }
+    _mostrarErroSeFalhou(sucesso, 'Erro ao salvar.');
   }
 
   Future<void> _confirmarExclusao(Asset asset) async {
     final assetId = asset.id;
     if (assetId == null) return;
 
-    final confirmou = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Excluir imagem'),
-        content: const Text(
+    final confirmou = await DialogoConfirmacaoExclusao.mostrar(
+      context,
+      titulo: 'Excluir imagem',
+      mensagem:
           'Tem certeza de que deseja excluir esta imagem? Textos de projeto '
           'que a utilizam ficarão com a referência quebrada. Esta ação não '
           'pode ser desfeita.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => context.pop(false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => context.pop(true),
-            child: const Text(
-              'Excluir',
-              style: TextStyle(color: Cores.vermelhoErro),
-            ),
-          ),
-        ],
-      ),
     );
-    if (confirmou != true || !mounted) return;
+    if (!confirmou || !mounted) return;
 
     final sucesso = await _viewModel.excluir(assetId);
-    if (!mounted || sucesso) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(_viewModel.mensagemErro ?? 'Erro ao excluir imagem.'),
-      ),
-    );
+    _mostrarErroSeFalhou(sucesso, 'Erro ao excluir imagem.');
   }
 
   @override
   Widget build(BuildContext context) {
+    // `_cabecalho()` não depende de `_viewModel` — só `_conteudo()` precisa
+    // ser reconstruído a cada notificação.
     return AnimatedBuilder(
       animation: _viewModel,
-      builder: (context, _) {
+      builder: (context, child) {
         return SingleChildScrollView(
           padding: const EdgeInsets.all(32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _cabecalho(),
-              const SizedBox(height: 24),
-              _conteudo(),
-            ],
+            children: [child!, const SizedBox(height: 24), _conteudo()],
           ),
         );
       },
+      child: _cabecalho(),
     );
   }
 
   Widget _cabecalho() {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Galeria de imagens',
-                style: Tipografia.headlineMedium.copyWith(
-                  color: Cores.textoPrincipal,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Imagens enviadas para uso em textos de projeto e relatórios.',
-                style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
-              ),
-            ],
-          ),
-        ),
-        BotaoPrimario(
-          texto: 'Enviar Imagem',
-          icone: LucideIcons.upload,
-          onPressed: _enviarImagem,
-        ),
-      ],
+    return CabecalhoPagina(
+      titulo: 'Galeria de imagens',
+      subtitulo: 'Imagens enviadas para uso em textos de projeto e relatórios.',
+      acao: BotaoPrimario(
+        texto: 'Enviar Imagem',
+        icone: LucideIcons.upload,
+        onPressed: _enviarImagem,
+      ),
     );
   }
 
@@ -255,7 +203,7 @@ class _PaginaAssetsState extends State<PaginaAssets> {
                   width: largura,
                   child: _CartaoAsset(
                     asset,
-                    urlBase: DependenciasApp.instancia.clienteHttp.urlBase,
+                    urlBase: widget.urlBase,
                     onEditar: () => _editarDescricao(asset),
                     onExcluir: () => _confirmarExclusao(asset),
                   ),

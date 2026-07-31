@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/projeto_form_view_model.dart';
+import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
+import 'package:gerelat_frontend/nucleo/componentes/dialogo_confirmacao_exclusao.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
@@ -11,12 +12,16 @@ class PaginaFormularioProjeto extends StatefulWidget {
   final bool edicao;
   final int? projetoId;
   final int? programaIdInicial;
+  final RepositorioCatalogo repositorioCatalogo;
+  final String urlBase;
 
   const PaginaFormularioProjeto({
     super.key,
     this.edicao = false,
     this.projetoId,
     this.programaIdInicial,
+    required this.repositorioCatalogo,
+    required this.urlBase,
   });
 
   @override
@@ -29,16 +34,14 @@ class _PaginaFormularioProjetoState extends State<PaginaFormularioProjeto> {
   final _nome = TextEditingController();
   final _parceira = TextEditingController();
   final _sigla = TextEditingController();
-  final _logomarca = TextEditingController();
+  String _logomarca = '';
   late final ProjetoFormViewModel _viewModel;
   int? _programaId;
 
   @override
   void initState() {
     super.initState();
-    _viewModel = ProjetoFormViewModel(
-      DependenciasApp.instancia.repositorioCatalogo,
-    );
+    _viewModel = ProjetoFormViewModel(widget.repositorioCatalogo);
     final projetoId = widget.projetoId;
     if (widget.edicao && projetoId != null) {
       _viewModel.carregar(projetoId).then((_) {
@@ -47,8 +50,10 @@ class _PaginaFormularioProjetoState extends State<PaginaFormularioProjeto> {
         _nome.text = projeto.nome;
         _parceira.text = projeto.parceira;
         _sigla.text = projeto.sigla;
-        _logomarca.text = projeto.logomarca;
-        setState(() => _programaId = projeto.programaId);
+        setState(() {
+          _logomarca = projeto.logomarca;
+          _programaId = projeto.programaId;
+        });
       });
     } else {
       _programaId = widget.programaIdInicial;
@@ -61,7 +66,6 @@ class _PaginaFormularioProjetoState extends State<PaginaFormularioProjeto> {
     _nome.dispose();
     _parceira.dispose();
     _sigla.dispose();
-    _logomarca.dispose();
     _viewModel.dispose();
     super.dispose();
   }
@@ -74,7 +78,7 @@ class _PaginaFormularioProjetoState extends State<PaginaFormularioProjeto> {
       nome: _nome.text.trim(),
       parceira: _parceira.text.trim(),
       sigla: _sigla.text.trim(),
-      logomarca: _logomarca.text.trim(),
+      logomarca: _logomarca,
     );
     if (!mounted) return;
     if (sucesso) {
@@ -92,31 +96,15 @@ class _PaginaFormularioProjetoState extends State<PaginaFormularioProjeto> {
     final projetoId = widget.projetoId;
     if (projetoId == null) return;
 
-    final confirmou = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Excluir projeto'),
-        content: const Text(
+    final confirmou = await DialogoConfirmacaoExclusao.mostrar(
+      context,
+      titulo: 'Excluir projeto',
+      mensagem:
           'Tem certeza de que deseja excluir este projeto? Eventos, templates, '
           'campos e equipes vinculados a ele também serão excluídos. '
           'Esta ação não pode ser desfeita.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => context.pop(false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => context.pop(true),
-            child: const Text(
-              'Excluir',
-              style: TextStyle(color: Cores.vermelhoErro),
-            ),
-          ),
-        ],
-      ),
     );
-    if (confirmou != true || !mounted) return;
+    if (!confirmou || !mounted) return;
 
     final sucesso = await _viewModel.excluir(projetoId);
     if (!mounted) return;
@@ -166,9 +154,11 @@ class _PaginaFormularioProjetoState extends State<PaginaFormularioProjeto> {
                           size: 18,
                           color: Cores.vermelhoErro,
                         ),
-                        label: const Text(
+                        label: Text(
                           'Excluir',
-                          style: TextStyle(color: Cores.vermelhoErro),
+                          style: Tipografia.labelLarge.copyWith(
+                            color: Cores.vermelhoErro,
+                          ),
                         ),
                       ),
                   ],
@@ -198,6 +188,7 @@ class _PaginaFormularioProjetoState extends State<PaginaFormularioProjeto> {
                         icone: LucideIcons.briefcase_business,
                         controller: _nome,
                         validator: _obrigatorio,
+                        maxLength: 150,
                       ),
                       const SizedBox(height: 18),
                       CampoFormulario(
@@ -205,6 +196,7 @@ class _PaginaFormularioProjetoState extends State<PaginaFormularioProjeto> {
                         hint: 'Nome da entidade parceira',
                         icone: LucideIcons.handshake,
                         controller: _parceira,
+                        maxLength: 150,
                       ),
                       const SizedBox(height: 18),
                       CampoFormulario(
@@ -212,13 +204,14 @@ class _PaginaFormularioProjetoState extends State<PaginaFormularioProjeto> {
                         hint: 'Ex: GRL',
                         icone: LucideIcons.badge_info,
                         controller: _sigla,
+                        maxLength: 30,
                       ),
                       const SizedBox(height: 18),
-                      CampoFormulario(
-                        label: 'Logomarca',
-                        hint: 'URL ou caminho do arquivo',
-                        icone: LucideIcons.image,
-                        controller: _logomarca,
+                      SeletorLogomarca(
+                        urlAtual: _logomarca,
+                        aoAlterar: (url) => setState(() => _logomarca = url),
+                        repositorioCatalogo: widget.repositorioCatalogo,
+                        urlBase: widget.urlBase,
                       ),
                       const SizedBox(height: 28),
                       BarraAcoesFormulario(

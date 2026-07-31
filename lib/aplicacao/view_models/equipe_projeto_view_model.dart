@@ -46,12 +46,8 @@ class EquipeProjetoViewModel extends BaseViewModel {
     required String nomeEquipe,
     required String nome,
     required String cargo,
-  }) async {
-    final projetoId = _projetoSelecionadoId;
-    if (projetoId == null) return false;
-
-    iniciarCarregamento();
-    try {
+  }) {
+    return _executarAcaoMembro((projetoId) async {
       if (membroId == null) {
         await _repositorio.criarMembroEquipeProjeto(
           projetoId: projetoId,
@@ -67,22 +63,26 @@ class EquipeProjetoViewModel extends BaseViewModel {
           cargo: cargo,
         );
       }
-      _membros = await _repositorio.listarEquipeProjeto(projetoId: projetoId);
-      finalizarCarregamento();
-      return true;
-    } catch (erro) {
-      definirErro(erro);
-      return false;
-    }
+    });
   }
 
-  Future<bool> excluir(int membroId) async {
+  Future<bool> excluir(int membroId) {
+    return _executarAcaoMembro(
+      (_) => _repositorio.excluirMembroEquipeProjeto(membroId),
+    );
+  }
+
+  /// Executa uma ação de escrita sobre o projeto selecionado e recarrega a
+  /// equipe desse projeto — mesmo tratamento usado por [salvar] e [excluir].
+  Future<bool> _executarAcaoMembro(
+    Future<void> Function(int projetoId) acao,
+  ) async {
     final projetoId = _projetoSelecionadoId;
     if (projetoId == null) return false;
 
     iniciarCarregamento();
     try {
-      await _repositorio.excluirMembroEquipeProjeto(membroId);
+      await acao(projetoId);
       _membros = await _repositorio.listarEquipeProjeto(projetoId: projetoId);
       finalizarCarregamento();
       return true;

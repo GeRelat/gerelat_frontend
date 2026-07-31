@@ -33,7 +33,5 @@ void baixarArquivo({
   required String nomeArquivo,
   required String mimeType,
 }) {
-  throw UnsupportedError(
-    'baixarArquivo só está disponível na plataforma web.',
-  );
+  throw UnsupportedError('baixarArquivo só está disponível na plataforma web.');
 }

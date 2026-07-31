@@ -5,7 +5,9 @@ import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 /// Barra de navegação superior compartilhada entre as páginas.
 /// Exibe o logo GeRelat centralizado com altura fixa de 64px.
 class BarraTopo extends StatelessWidget implements PreferredSizeWidget {
-  const BarraTopo({super.key});
+  final Color backgroundColor;
+
+  const BarraTopo({super.key, this.backgroundColor = Cores.branco});
 
   @override
   Size get preferredSize => const Size.fromHeight(64);
@@ -13,7 +15,7 @@ class BarraTopo extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      backgroundColor: Cores.branco,
+      backgroundColor: backgroundColor,
       elevation: 0,
       centerTitle: true,
       automaticallyImplyLeading: false,

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/editor_template_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/projeto_campo.dart';
+import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/editor_prosemirror.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
@@ -12,8 +12,13 @@ import 'package:go_router/go_router.dart';
 /// (inseríveis como nós) + blocos manuais, e o editor ProseMirror embarcado.
 class PaginaEditorTemplate extends StatefulWidget {
   final int templateId;
+  final RepositorioCatalogo repositorioCatalogo;
 
-  const PaginaEditorTemplate({super.key, required this.templateId});
+  const PaginaEditorTemplate({
+    super.key,
+    required this.templateId,
+    required this.repositorioCatalogo,
+  });
 
   @override
   State<PaginaEditorTemplate> createState() => _PaginaEditorTemplateState();
@@ -24,12 +29,18 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
   final EditorProseMirrorController _controller = EditorProseMirrorController();
   bool _salvouAlgumaVez = false;
 
+  // O editor roda num `<iframe>` (ver `EditorProseMirror`). Se navegarmos pra
+  // fora enquanto ele ainda está montado, o Flutter tenta compor a transição
+  // de saída da rota com o platform view ainda vivo e quebra com "Cannot get
+  // renderObject of inactive element". Por isso `_voltar()` desmonta o editor
+  // (via este flag) e espera o frame terminar antes de fazer `context.pop`.
+  bool _saindo = false;
+
   @override
   void initState() {
     super.initState();
-    _viewModel = EditorTemplateViewModel(
-      DependenciasApp.instancia.repositorioCatalogo,
-    )..carregar(widget.templateId);
+    _viewModel = EditorTemplateViewModel(widget.repositorioCatalogo)
+      ..carregar(widget.templateId);
   }
 
   @override
@@ -79,35 +90,44 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
     required String hint,
   }) async {
     final controlador = TextEditingController();
-    final resultado = await showDialog<String>(
-      context: context,
-      // Usa `Navigator.of(dialogContext).pop` (não `context.pop` do go_router):
-      // dentro de um `showDialog`, `context.pop` fecharia a rota da página do
-      // editor inteira em vez do diálogo, desmontando este widget e disparando
-      // "_dependents.isEmpty is not true".
-      builder: (dialogContext) => AlertDialog(
-        title: Text(titulo),
-        content: TextField(
-          controller: controlador,
-          autofocus: true,
-          decoration: InputDecoration(hintText: hint),
-          onSubmitted: (v) => Navigator.of(dialogContext).pop(v),
+    // O editor roda num `<iframe>`, que captura o clique do mouse mesmo com
+    // um `Dialog` do Flutter desenhado visualmente por cima dele. Desligamos
+    // a interatividade do iframe enquanto o diálogo estiver aberto para que
+    // os botões "Cancelar"/"Inserir" recebam o clique de verdade.
+    _controller.definirInteratividade(false);
+    try {
+      final resultado = await showDialog<String>(
+        context: context,
+        // Usa `Navigator.of(dialogContext).pop` (não `context.pop` do go_router):
+        // dentro de um `showDialog`, `context.pop` fecharia a rota da página do
+        // editor inteira em vez do diálogo, desmontando este widget e disparando
+        // "_dependents.isEmpty is not true".
+        builder: (dialogContext) => AlertDialog(
+          title: Text(titulo),
+          content: TextField(
+            controller: controlador,
+            autofocus: true,
+            decoration: InputDecoration(hintText: hint),
+            onSubmitted: (v) => Navigator.of(dialogContext).pop(v),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(controlador.text),
+              child: const Text('Inserir'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () =>
-                Navigator.of(dialogContext).pop(controlador.text),
-            child: const Text('Inserir'),
-          ),
-        ],
-      ),
-    );
-    controlador.dispose();
-    return resultado;
+      );
+      return resultado;
+    } finally {
+      controlador.dispose();
+      if (mounted) _controller.definirInteratividade(true);
+    }
   }
 
   Future<void> _salvar() async {
@@ -123,16 +143,31 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
     if (!mounted) return;
     if (ok) {
       _salvouAlgumaVez = true;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Template salvo.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Template salvo.')));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_viewModel.mensagemErro ?? 'Erro ao salvar o template.'),
+          content: Text(
+            _viewModel.mensagemErro ?? 'Erro ao salvar o template.',
+          ),
         ),
       );
     }
+  }
+
+  /// Desmonta o editor (o `<iframe>`) e só então volta para a tela anterior.
+  ///
+  /// Se navegássemos direto (`context.pop`) com o editor ainda montado, o
+  /// Flutter tentaria compor a animação de transição de saída com o platform
+  /// view ainda vivo e quebraria com "Cannot get renderObject of inactive
+  /// element" no meio da transição.
+  Future<void> _voltar() async {
+    setState(() => _saindo = true);
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    context.pop(_salvouAlgumaVez);
   }
 
   @override
@@ -147,7 +182,7 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
             leading: IconButton(
               icon: const Icon(LucideIcons.arrow_left),
               tooltip: 'Voltar',
-              onPressed: () => context.pop(_salvouAlgumaVez),
+              onPressed: _voltar,
             ),
             title: Text(
               template == null
@@ -172,10 +207,14 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
   }
 
   Widget _corpo() {
+    if (_saindo) {
+      return const SizedBox.shrink();
+    }
     if (_viewModel.carregando && _viewModel.documentoInicial == null) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (_viewModel.mensagemErro != null && _viewModel.documentoInicial == null) {
+    if (_viewModel.mensagemErro != null &&
+        _viewModel.documentoInicial == null) {
       return Center(
         child: Text(
           _viewModel.mensagemErro!,
@@ -292,7 +331,10 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
   Widget _itemCampo(ProjetoCampo campo) {
     final (icone, cor) = switch (campo.tipo) {
       TipoCampoProjeto.texto => (LucideIcons.type, Cores.azulAcao),
-      TipoCampoProjeto.textoRico => (LucideIcons.text_quote, Cores.verdeSucesso),
+      TipoCampoProjeto.textoRico => (
+        LucideIcons.text_quote,
+        Cores.verdeSucesso,
+      ),
       TipoCampoProjeto.imagem => (LucideIcons.image, Cores.azulAcao),
       TipoCampoProjeto.tabela => (LucideIcons.table, Cores.verdeSucesso),
     };

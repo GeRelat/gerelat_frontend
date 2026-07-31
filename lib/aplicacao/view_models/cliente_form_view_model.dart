@@ -23,15 +23,14 @@ class ClienteFormViewModel extends BaseViewModel {
   Future<bool> salvar({
     int? clienteId,
     required String nome,
-    String cnpj = '',
-    String nomeContato = '',
-    String emailContato = '',
-    String foneContato = '',
-    String numeroContrato = '',
+    required String cnpj,
+    required String nomeContato,
+    required String emailContato,
+    required String foneContato,
+    required String numeroContrato,
     required DateTime dataTerminoContrato,
-  }) async {
-    iniciarCarregamento();
-    try {
+  }) {
+    return _executarAcao(() async {
       if (clienteId == null) {
         await _repositorio.criarCliente(
           nome: nome,
@@ -54,18 +53,19 @@ class ClienteFormViewModel extends BaseViewModel {
           dataTerminoContrato: dataTerminoContrato,
         );
       }
-      finalizarCarregamento();
-      return true;
-    } catch (erro) {
-      definirErro(erro);
-      return false;
-    }
+    });
   }
 
-  Future<bool> excluir(int clienteId) async {
+  Future<bool> excluir(int clienteId) {
+    return _executarAcao(() => _repositorio.excluirCliente(clienteId));
+  }
+
+  /// Executa uma ação de escrita e reporta sucesso/erro — mesmo tratamento
+  /// usado por [salvar] e [excluir].
+  Future<bool> _executarAcao(Future<void> Function() acao) async {
     iniciarCarregamento();
     try {
-      await _repositorio.excluirCliente(clienteId);
+      await acao();
       finalizarCarregamento();
       return true;
     } catch (erro) {

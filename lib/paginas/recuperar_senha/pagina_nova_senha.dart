@@ -1,7 +1,10 @@
-import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:flutter/material.dart';
+import 'package:gerelat_frontend/dominio/repositorios/repositorio_autenticacao.dart';
+import 'package:gerelat_frontend/nucleo/componentes/barra_topo.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
+import 'package:gerelat_frontend/nucleo/temas/sombras.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
+import 'package:gerelat_frontend/nucleo/utils/validadores.dart';
 import 'package:go_router/go_router.dart';
 
 /// Página de redefinição de senha.
@@ -9,8 +12,14 @@ import 'package:go_router/go_router.dart';
 class PaginaNovaSenha extends StatefulWidget {
   final String uid;
   final String token;
+  final RepositorioAutenticacao repositorioAutenticacao;
 
-  const PaginaNovaSenha({super.key, required this.uid, required this.token});
+  const PaginaNovaSenha({
+    super.key,
+    required this.uid,
+    required this.token,
+    required this.repositorioAutenticacao,
+  });
 
   @override
   State<PaginaNovaSenha> createState() => _PaginaNovaSenhaState();
@@ -40,7 +49,7 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
   Future<void> _redefinirSenha() async {
     if (!_chaveFormulario.currentState!.validate()) return;
     setState(() => _redefinindo = true);
-    final resultado = await DependenciasApp.instancia.repositorioAutenticacao
+    final resultado = await widget.repositorioAutenticacao
         .confirmarRecuperacaoSenha(
           uid: widget.uid,
           token: widget.token,
@@ -68,7 +77,7 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Cores.fundoPagina,
-      appBar: _construirBarraTopo(),
+      appBar: const BarraTopo(backgroundColor: Cores.fundoPagina),
       body: Column(
         children: [
           Expanded(
@@ -88,23 +97,6 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
     );
   }
 
-  /// Barra superior com logo GeRelat — HeadlineSmall (Poppins Regular 24px)
-  PreferredSizeWidget _construirBarraTopo() {
-    return AppBar(
-      backgroundColor: Cores.fundoPagina,
-      elevation: 0,
-      centerTitle: true,
-      automaticallyImplyLeading: false,
-      title: Text(
-        'GeRelat',
-        style: Tipografia.headlineSmall.copyWith(
-          letterSpacing: -1.2,
-          color: Cores.pretoProfundo,
-        ),
-      ),
-    );
-  }
-
   /// Card principal com formulário de nova senha
   Widget _construirCard() {
     return Container(
@@ -113,13 +105,7 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
         color: Cores.branco,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Cores.cinzaAzulado.withValues(alpha: 0.15)),
-        boxShadow: [
-          BoxShadow(
-            color: Cores.pretoProfundo.withValues(alpha: 0.04),
-            blurRadius: 48,
-            offset: const Offset(0, 24),
-          ),
-        ],
+        boxShadow: Sombras.cartaoAutenticacao,
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -187,8 +173,7 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
         // Título → HeadlineMedium (Poppins Regular 28px)
         Text(
           'Nova Senha',
-          style: Tipografia.headlineMedium.copyWith(
-            letterSpacing: -0.75,
+          style: Tipografia.headlineMediumDestaque.copyWith(
             color: Cores.pretoProfundo,
           ),
           textAlign: TextAlign.center,
@@ -214,10 +199,7 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
           padding: const EdgeInsets.only(left: 4),
           child: Text(
             'NOVA SENHA',
-            style: Tipografia.labelMedium.copyWith(
-              letterSpacing: 0.6,
-              color: Cores.cinzaEscuro,
-            ),
+            style: Tipografia.eyebrow.copyWith(color: Cores.cinzaEscuro),
           ),
         ),
         const SizedBox(height: 6),
@@ -227,23 +209,24 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
           decoration: _decoracaoCampo(
             dica: '••••••••',
             icone: Icons.lock_outline,
-            sufixo: GestureDetector(
-              onTap: () => setState(() => _senhaVisivel = !_senhaVisivel),
-              child: Icon(
+            sufixo: IconButton(
+              onPressed: () => setState(() => _senhaVisivel = !_senhaVisivel),
+              icon: Icon(
                 _senhaVisivel
                     ? Icons.visibility_outlined
                     : Icons.visibility_off_outlined,
                 color: Cores.cinzaMedio,
                 size: 18,
               ),
+              tooltip: _senhaVisivel ? 'Ocultar senha' : 'Mostrar senha',
+              visualDensity: VisualDensity.compact,
             ),
           ),
-          // Valida mínimo de 8 caracteres
-          validator: (valor) {
-            if (valor == null || valor.isEmpty) return 'Informe a nova senha';
-            if (valor.length < 8) return 'Mínimo de 8 caracteres';
-            return null;
-          },
+          // Espelha AUTH_PASSWORD_VALIDATORS do backend (ver validarForcaSenha).
+          // Sem dados do usuário disponíveis nesta tela (fluxo não
+          // autenticado), então a checagem de semelhança com nome/e-mail não
+          // se aplica aqui — só nas telas de cadastro e troca de senha.
+          validator: (valor) => validarForcaSenha(valor),
         ),
         const SizedBox(height: 4),
         // Helper text em itálico → LabelSmall (Roboto Regular 10px)
@@ -271,10 +254,7 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
           padding: const EdgeInsets.only(left: 4),
           child: Text(
             'CONFIRMAR NOVA SENHA',
-            style: Tipografia.labelMedium.copyWith(
-              letterSpacing: 0.6,
-              color: Cores.cinzaEscuro,
-            ),
+            style: Tipografia.eyebrow.copyWith(color: Cores.cinzaEscuro),
           ),
         ),
         const SizedBox(height: 6),
@@ -305,11 +285,11 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
       child: ElevatedButton.icon(
         onPressed: _redefinindo ? null : _redefinirSenha,
         style: ElevatedButton.styleFrom(
-          backgroundColor: Cores.azulPrimario,
+          backgroundColor: Cores.azulAcao,
           foregroundColor: Cores.branco,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           elevation: 4,
-          shadowColor: Colors.black.withValues(alpha: 0.1),
+          shadowColor: Cores.preto.withValues(alpha: 0.1),
         ),
         label: Text(
           _redefinindo ? 'Redefinindo...' : 'Redefinir Senha',
@@ -324,23 +304,17 @@ class _PaginaNovaSenhaState extends State<PaginaNovaSenha> {
   /// Link de volta ao login com seta — TitleSmall (Poppins Medium 14px)
   Widget _construirLinkVoltar() {
     return Center(
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          onTap: () => context.go('/login'),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.arrow_back, color: Cores.azulPrimario, size: 12),
-              const SizedBox(width: 4),
-              Text(
-                'Voltar para o Login',
-                style: Tipografia.titleSmall.copyWith(
-                  color: Cores.azulPrimario,
-                ),
-              ),
-            ],
-          ),
+      child: TextButton.icon(
+        onPressed: () => context.go('/login'),
+        style: TextButton.styleFrom(
+          padding: EdgeInsets.zero,
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        icon: const Icon(Icons.arrow_back, color: Cores.azulPrimario, size: 12),
+        label: Text(
+          'Voltar para o Login',
+          style: Tipografia.titleSmall.copyWith(color: Cores.azulPrimario),
         ),
       ),
     );

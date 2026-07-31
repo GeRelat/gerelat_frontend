@@ -22,5 +22,7 @@ class PonteEditorProseMirror {
     'O editor ProseMirror só está disponível na plataforma web.',
   );
 
+  void definirInteratividade(bool ativa) {}
+
   void dispose() {}
 }

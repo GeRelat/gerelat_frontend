@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/cliente_form_view_model.dart';
+import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
+import 'package:gerelat_frontend/nucleo/componentes/dialogo_confirmacao_exclusao.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
@@ -12,11 +13,13 @@ import 'package:go_router/go_router.dart';
 class PaginaFormularioCliente extends StatefulWidget {
   final bool edicao;
   final int? clienteId;
+  final RepositorioCatalogo repositorioCatalogo;
 
   const PaginaFormularioCliente({
     super.key,
     this.edicao = false,
     this.clienteId,
+    required this.repositorioCatalogo,
   });
 
   @override
@@ -38,9 +41,7 @@ class _PaginaFormularioClienteState extends State<PaginaFormularioCliente> {
   @override
   void initState() {
     super.initState();
-    _viewModel = ClienteFormViewModel(
-      DependenciasApp.instancia.repositorioCatalogo,
-    );
+    _viewModel = ClienteFormViewModel(widget.repositorioCatalogo);
     final clienteId = widget.clienteId;
     if (widget.edicao && clienteId != null) {
       _viewModel.carregar(clienteId).then((_) {
@@ -101,29 +102,13 @@ class _PaginaFormularioClienteState extends State<PaginaFormularioCliente> {
     final clienteId = widget.clienteId;
     if (clienteId == null) return;
 
-    final confirmou = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Excluir cliente'),
-        content: const Text(
+    final confirmou = await DialogoConfirmacaoExclusao.mostrar(
+      context,
+      titulo: 'Excluir cliente',
+      mensagem:
           'Tem certeza de que deseja excluir este cliente? Esta ação não pode ser desfeita.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => context.pop(false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => context.pop(true),
-            child: const Text(
-              'Excluir',
-              style: TextStyle(color: Cores.vermelhoErro),
-            ),
-          ),
-        ],
-      ),
     );
-    if (confirmou != true || !mounted) return;
+    if (!confirmou || !mounted) return;
 
     final sucesso = await _viewModel.excluir(clienteId);
     if (!mounted) return;
@@ -197,9 +182,11 @@ class _PaginaFormularioClienteState extends State<PaginaFormularioCliente> {
                       size: 18,
                       color: Cores.vermelhoErro,
                     ),
-                    label: const Text(
+                    label: Text(
                       'Excluir',
-                      style: TextStyle(color: Cores.vermelhoErro),
+                      style: Tipografia.labelLarge.copyWith(
+                        color: Cores.vermelhoErro,
+                      ),
                     ),
                   ),
               ],
@@ -214,6 +201,7 @@ class _PaginaFormularioClienteState extends State<PaginaFormularioCliente> {
                     icone: LucideIcons.building_2,
                     controller: _nome,
                     validator: _obrigatorio,
+                    maxLength: 150,
                   ),
                   const SizedBox(height: 18),
                   CampoFormulario(
@@ -222,6 +210,7 @@ class _PaginaFormularioClienteState extends State<PaginaFormularioCliente> {
                     icone: LucideIcons.hash,
                     controller: _cnpj,
                     validator: _validarCnpj,
+                    maxLength: 20,
                   ),
                   const SizedBox(height: 18),
                   Row(
@@ -234,6 +223,7 @@ class _PaginaFormularioClienteState extends State<PaginaFormularioCliente> {
                           icone: LucideIcons.user,
                           controller: _nomeContato,
                           validator: _obrigatorio,
+                          maxLength: 150,
                         ),
                       ),
                       const SizedBox(width: 18),
@@ -245,6 +235,7 @@ class _PaginaFormularioClienteState extends State<PaginaFormularioCliente> {
                           controller: _emailContato,
                           keyboardType: TextInputType.emailAddress,
                           validator: _validarEmail,
+                          maxLength: 150,
                         ),
                       ),
                     ],
@@ -262,6 +253,7 @@ class _PaginaFormularioClienteState extends State<PaginaFormularioCliente> {
                           keyboardType: TextInputType.phone,
                           inputFormatters: [FormatadorTelefone()],
                           validator: _validarTelefone,
+                          maxLength: 20,
                         ),
                       ),
                       const SizedBox(width: 18),
@@ -272,6 +264,7 @@ class _PaginaFormularioClienteState extends State<PaginaFormularioCliente> {
                           icone: LucideIcons.signature,
                           controller: _numeroContrato,
                           validator: _obrigatorio,
+                          maxLength: 100,
                         ),
                       ),
                     ],
@@ -311,24 +304,25 @@ class _PaginaFormularioClienteState extends State<PaginaFormularioCliente> {
     return null;
   }
 
-  String? _validarCnpj(String? valor) {
-    final erro = _obrigatorio(valor);
-    if (erro != null) return erro;
-    if (!cnpjValido(valor!)) return 'CNPJ inválido';
-    return null;
-  }
+  String? _validarCnpj(String? valor) =>
+      _validarObrigatorioEValido(valor, cnpjValido, 'CNPJ inválido');
 
-  String? _validarEmail(String? valor) {
-    final erro = _obrigatorio(valor);
-    if (erro != null) return erro;
-    if (!emailValido(valor!)) return 'E-mail inválido';
-    return null;
-  }
+  String? _validarEmail(String? valor) =>
+      _validarObrigatorioEValido(valor, emailValido, 'E-mail inválido');
 
-  String? _validarTelefone(String? valor) {
+  String? _validarTelefone(String? valor) =>
+      _validarObrigatorioEValido(valor, telefoneValido, 'Telefone inválido');
+
+  /// Exige preenchimento e aplica [valido] sobre o valor — mesmo tratamento
+  /// usado por [_validarCnpj], [_validarEmail] e [_validarTelefone].
+  String? _validarObrigatorioEValido(
+    String? valor,
+    bool Function(String) valido,
+    String mensagemInvalido,
+  ) {
     final erro = _obrigatorio(valor);
     if (erro != null) return erro;
-    if (!telefoneValido(valor!)) return 'Telefone inválido';
+    if (!valido(valor!)) return mensagemInvalido;
     return null;
   }
 

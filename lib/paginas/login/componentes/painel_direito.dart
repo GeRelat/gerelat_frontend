@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/login_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
+import 'package:gerelat_frontend/dominio/repositorios/repositorio_autenticacao.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
+import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:gerelat_frontend/nucleo/utils/validadores.dart';
 import 'package:go_router/go_router.dart';
 
 class PainelDireito extends StatefulWidget {
-  const PainelDireito({super.key});
+  final RepositorioAutenticacao repositorioAutenticacao;
+  final SessaoViewModel sessao;
+
+  const PainelDireito({
+    super.key,
+    required this.repositorioAutenticacao,
+    required this.sessao,
+  });
 
   @override
   State<PainelDireito> createState() => _PainelDireitoState();
@@ -24,7 +33,7 @@ class _PainelDireitoState extends State<PainelDireito> {
   @override
   void initState() {
     super.initState();
-    _viewModel = LoginViewModel(DependenciasApp.instancia.repositorioAutenticacao);
+    _viewModel = LoginViewModel(widget.repositorioAutenticacao);
   }
 
   @override
@@ -38,67 +47,82 @@ class _PainelDireitoState extends State<PainelDireito> {
   Future<void> _realizarLogin() async {
     if (!_chaveFormulario.currentState!.validate()) return;
 
-    final sucesso = await _viewModel.login(email: _controladorEmail.text.trim(), senha: _controladorSenha.text);
+    final sucesso = await _viewModel.login(
+      email: _controladorEmail.text.trim(),
+      senha: _controladorSenha.text,
+    );
 
     if (!mounted) return;
 
     if (sucesso) {
-      DependenciasApp.instancia.sessao.notificarMudancaAutenticacao();
+      widget.sessao.notificarMudancaAutenticacao();
       context.go('/dashboard');
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_viewModel.mensagemErro ?? 'Erro ao fazer login.'), backgroundColor: Cores.vermelhoErro));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_viewModel.mensagemErro ?? 'Erro ao fazer login.'),
+        backgroundColor: Cores.vermelhoErro,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _viewModel,
-      builder: (context, _) {
-        return Container(
-          color: Cores.branco,
-          padding: const EdgeInsets.symmetric(horizontal: 56, vertical: 48),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _construirCabecalho(),
-                      const SizedBox(height: 36),
-                      _construirFormulario(),
-                      const SizedBox(height: 24),
-                      _construirBotaoEntrar(),
-                      const SizedBox(height: 24),
-                      _construirDivisor(),
-                      const SizedBox(height: 24),
-                      _construirLinkCadastro(),
-                    ],
+    // Só o botão "Entrar" depende de `_viewModel` (estado `carregando`) — o
+    // restante do painel é estático, então o AnimatedBuilder fica restrito
+    // a ele em vez de envolver a tela inteira.
+    return Container(
+      color: Cores.branco,
+      padding: const EdgeInsets.symmetric(horizontal: 56, vertical: 48),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _construirCabecalho(),
+                  const SizedBox(height: 36),
+                  _construirFormulario(),
+                  const SizedBox(height: 24),
+                  AnimatedBuilder(
+                    animation: _viewModel,
+                    builder: (context, _) => _construirBotaoEntrar(),
                   ),
-                ),
+                  const SizedBox(height: 24),
+                  _construirDivisor(),
+                  const SizedBox(height: 24),
+                  _construirLinkCadastro(),
+                ],
               ),
-              _construirRodape(),
-            ],
+            ),
           ),
-        );
-      },
+          _construirRodape(),
+        ],
+      ),
     );
   }
 
   Widget _construirCabecalho() {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Bem-vindo de volta',
-          style: TextStyle(color: Cores.pretoProfundo, fontSize: 26, fontWeight: FontWeight.w700),
+          style: Tipografia.headlineMedium.copyWith(
+            color: Cores.pretoProfundo,
+            fontSize: 26,
+          ),
         ),
-        SizedBox(height: 6),
-        Text('Acesse sua conta para gerenciar seus relatórios.', style: TextStyle(color: Cores.cinzaMedio, fontSize: 14)),
+        const SizedBox(height: 6),
+        Text(
+          'Acesse sua conta para gerenciar seus relatórios.',
+          style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
+        ),
       ],
     );
   }
@@ -126,7 +150,11 @@ class _PainelDireitoState extends State<PainelDireito> {
   Widget _construirLabelCampo(String texto) {
     return Text(
       texto,
-      style: const TextStyle(color: Cores.cinzaEscuro, fontSize: 13, fontWeight: FontWeight.w500),
+      style: Tipografia.labelLarge.copyWith(
+        color: Cores.cinzaEscuro,
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+      ),
     );
   }
 
@@ -134,7 +162,10 @@ class _PainelDireitoState extends State<PainelDireito> {
     return TextFormField(
       controller: _controladorEmail,
       keyboardType: TextInputType.emailAddress,
-      decoration: _decoracaoCampo(dica: 'nome@empresa.com.br', icone: Icons.mail_outline),
+      decoration: _decoracaoCampo(
+        dica: 'nome@empresa.com.br',
+        icone: Icons.mail_outline,
+      ),
       validator: (valor) {
         if (valor == null || valor.isEmpty) return 'Informe o e-mail';
         if (!emailValido(valor)) return 'E-mail invalido';
@@ -148,13 +179,14 @@ class _PainelDireitoState extends State<PainelDireito> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _construirLabelCampo('Senha'),
-        MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            onTap: () => context.push('/recuperar-senha'),
-            child: const Text(
-              'Esqueci a senha',
-              style: TextStyle(color: Cores.azulPrimario, fontSize: 13, fontWeight: FontWeight.w600),
+        TextButton(
+          onPressed: () => context.push('/recuperar-senha'),
+          style: _estiloBotaoLink,
+          child: Text(
+            'Esqueci a senha',
+            style: Tipografia.labelLarge.copyWith(
+              color: Cores.azulPrimario,
+              fontSize: 13,
             ),
           ),
         ),
@@ -169,12 +201,17 @@ class _PainelDireitoState extends State<PainelDireito> {
       decoration: _decoracaoCampo(
         dica: '********',
         icone: Icons.lock_outline,
-        sufixo: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            onTap: () => setState(() => _senhaVisivel = !_senhaVisivel),
-            child: Icon(_senhaVisivel ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: Cores.cinzaMedio, size: 20),
+        sufixo: IconButton(
+          onPressed: () => setState(() => _senhaVisivel = !_senhaVisivel),
+          icon: Icon(
+            _senhaVisivel
+                ? Icons.visibility_outlined
+                : Icons.visibility_off_outlined,
+            color: Cores.cinzaMedio,
+            size: 20,
           ),
+          tooltip: _senhaVisivel ? 'Ocultar senha' : 'Mostrar senha',
+          visualDensity: VisualDensity.compact,
         ),
       ),
       validator: (valor) {
@@ -194,14 +231,19 @@ class _PainelDireitoState extends State<PainelDireito> {
           child: Checkbox(
             value: _manterConectado,
             activeColor: Cores.azulPrimario,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(4),
+            ),
             onChanged: (valor) {
               setState(() => _manterConectado = valor ?? false);
             },
           ),
         ),
         const SizedBox(width: 10),
-        const Text('Manter conectado', style: TextStyle(color: Cores.cinzaEscuro, fontSize: 14)),
+        Text(
+          'Manter conectado',
+          style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
+        ),
       ],
     );
   }
@@ -213,14 +255,24 @@ class _PainelDireitoState extends State<PainelDireito> {
       child: ElevatedButton(
         onPressed: _viewModel.carregando ? null : _realizarLogin,
         style: ElevatedButton.styleFrom(
-          backgroundColor: Cores.azulPrimario,
+          backgroundColor: Cores.azulAcao,
           foregroundColor: Cores.branco,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           elevation: 0,
         ),
         child: _viewModel.carregando
-            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Cores.branco, strokeWidth: 2))
-            : const Text('Entrar na Plataforma', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: Cores.branco,
+                  strokeWidth: 2,
+                ),
+              )
+            : Text(
+                'Entrar na Plataforma',
+                style: Tipografia.titleSmall.copyWith(fontSize: 15),
+              ),
       ),
     );
   }
@@ -230,7 +282,13 @@ class _PainelDireitoState extends State<PainelDireito> {
       children: [
         const Expanded(child: Divider(color: Cores.cinzaClaro)),
         const SizedBox(width: 12),
-        Text('ou', style: TextStyle(color: Cores.cinzaMedio, fontSize: 13)),
+        Text(
+          'ou',
+          style: Tipografia.bodyMedium.copyWith(
+            color: Cores.cinzaMedio,
+            fontSize: 13,
+          ),
+        ),
         const SizedBox(width: 12),
         const Expanded(child: Divider(color: Cores.cinzaClaro)),
       ],
@@ -242,14 +300,18 @@ class _PainelDireitoState extends State<PainelDireito> {
       alignment: WrapAlignment.center,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        const Text('Não possui uma conta? ', style: TextStyle(color: Cores.cinzaMedio, fontSize: 14)),
-        MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            onTap: () => context.push('/cadastro'),
-            child: const Text(
-              'Cadastrar-se',
-              style: TextStyle(color: Cores.azulPrimario, fontSize: 14, fontWeight: FontWeight.w700),
+        Text(
+          'Não possui uma conta? ',
+          style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
+        ),
+        TextButton(
+          onPressed: () => context.push('/cadastro'),
+          style: _estiloBotaoLink,
+          child: Text(
+            'Cadastrar-se',
+            style: Tipografia.titleSmall.copyWith(
+              color: Cores.azulPrimario,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),
@@ -258,15 +320,31 @@ class _PainelDireitoState extends State<PainelDireito> {
   }
 
   Widget _construirRodape() {
-    return const Center(
-      child: Text('2026 GeRelat Intelligence Solutions. Todos os direitos reservados.', style: TextStyle(color: Cores.cinzaMedio, fontSize: 12)),
+    return Center(
+      child: Text(
+        '2026 GeRelat Intelligence Solutions. Todos os direitos reservados.',
+        style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
+      ),
     );
   }
 
-  InputDecoration _decoracaoCampo({required String dica, required IconData icone, Widget? sufixo}) {
+  /// Estilo compartilhado pelos links de texto do painel ("Esqueci a senha",
+  /// "Cadastrar-se"): sem padding/tap target extra, para caber alinhado ao
+  /// texto vizinho.
+  static final _estiloBotaoLink = TextButton.styleFrom(
+    padding: EdgeInsets.zero,
+    minimumSize: Size.zero,
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  );
+
+  InputDecoration _decoracaoCampo({
+    required String dica,
+    required IconData icone,
+    Widget? sufixo,
+  }) {
     return InputDecoration(
       hintText: dica,
-      hintStyle: const TextStyle(color: Cores.cinzaAzulado, fontSize: 14),
+      hintStyle: Tipografia.bodyMedium.copyWith(color: Cores.cinzaAzulado),
       prefixIcon: Icon(icone, color: Cores.cinzaMedio, size: 20),
       suffixIcon: sufixo,
       filled: true,

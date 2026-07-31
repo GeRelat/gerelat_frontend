@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/alterar_senha_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/usuario.dart';
+import 'package:gerelat_frontend/dominio/repositorios/repositorio_autenticacao.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
+import 'package:gerelat_frontend/nucleo/utils/validadores.dart';
 
 class PaginaConfiguracoes extends StatefulWidget {
-  const PaginaConfiguracoes({super.key});
+  final RepositorioAutenticacao repositorioAutenticacao;
+
+  const PaginaConfiguracoes({super.key, required this.repositorioAutenticacao});
 
   @override
   State<PaginaConfiguracoes> createState() => _PaginaConfiguracoesState();
@@ -31,15 +34,12 @@ class _PaginaConfiguracoesState extends State<PaginaConfiguracoes> {
   @override
   void initState() {
     super.initState();
-    _viewModel = AlterarSenhaViewModel(
-      DependenciasApp.instancia.repositorioAutenticacao,
-    );
+    _viewModel = AlterarSenhaViewModel(widget.repositorioAutenticacao);
     _carregarUsuario();
   }
 
   Future<void> _carregarUsuario() async {
-    final usuario = await DependenciasApp.instancia.repositorioAutenticacao
-        .obterUsuarioAtual();
+    final usuario = await widget.repositorioAutenticacao.obterUsuarioAtual();
     if (!mounted) return;
     setState(() {
       _usuario = usuario;
@@ -76,7 +76,9 @@ class _PaginaConfiguracoesState extends State<PaginaConfiguracoes> {
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_viewModel.mensagemErro ?? 'Erro ao alterar a senha.')),
+      SnackBar(
+        content: Text(_viewModel.mensagemErro ?? 'Erro ao alterar a senha.'),
+      ),
     );
   }
 
@@ -172,96 +174,102 @@ class _PaginaConfiguracoesState extends State<PaginaConfiguracoes> {
   }
 
   Widget _construirCartaoSenha() {
-    return AnimatedBuilder(
-      animation: _viewModel,
-      builder: (context, _) => CartaoConteudo(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(
-                LucideIcons.lock_keyhole,
-                color: Cores.azulAcao,
-                size: 40,
+    // Só o botão "Salvar" depende de `_viewModel` (estado `carregando`) — o
+    // cartão inteiro (ícone, textos, campos) é estático, então o
+    // AnimatedBuilder fica restrito só a ele.
+    return CartaoConteudo(
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(
+              LucideIcons.lock_keyhole,
+              color: Cores.azulAcao,
+              size: 40,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Alterar senha',
+              style: Tipografia.titleLarge.copyWith(
+                color: Cores.textoPrincipal,
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Alterar senha',
-                style: Tipografia.titleLarge.copyWith(
-                  color: Cores.textoPrincipal,
-                ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Informe a senha atual e defina uma nova senha com pelo menos 8 caracteres.',
+              style: Tipografia.bodyMedium.copyWith(
+                color: Cores.cinzaEscuro,
+                height: 1.5,
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Informe a senha atual e defina uma nova senha com pelo menos 8 caracteres.',
-                style: Tipografia.bodyMedium.copyWith(
-                  color: Cores.cinzaEscuro,
-                  height: 1.5,
-                ),
+            ),
+            const SizedBox(height: 24),
+            CampoFormulario(
+              label: 'Senha atual',
+              hint: '••••••••',
+              icone: LucideIcons.lock,
+              controller: _senhaAtual,
+              obscureText: !_senhaAtualVisivel,
+              sufixo: _construirAlternadorVisibilidade(
+                visivel: _senhaAtualVisivel,
+                aoAlternar: () =>
+                    setState(() => _senhaAtualVisivel = !_senhaAtualVisivel),
               ),
-              const SizedBox(height: 24),
-              CampoFormulario(
-                label: 'Senha atual',
-                hint: '••••••••',
-                icone: LucideIcons.lock,
-                controller: _senhaAtual,
-                obscureText: !_senhaAtualVisivel,
-                sufixo: _construirAlternadorVisibilidade(
-                  visivel: _senhaAtualVisivel,
-                  aoAlternar: () =>
-                      setState(() => _senhaAtualVisivel = !_senhaAtualVisivel),
-                ),
-                validator: _obrigatorio,
+              validator: _obrigatorio,
+            ),
+            const SizedBox(height: 18),
+            CampoFormulario(
+              label: 'Nova senha',
+              hint: '••••••••',
+              icone: LucideIcons.lock_keyhole,
+              controller: _novaSenha,
+              obscureText: !_novaSenhaVisivel,
+              sufixo: _construirAlternadorVisibilidade(
+                visivel: _novaSenhaVisivel,
+                aoAlternar: () =>
+                    setState(() => _novaSenhaVisivel = !_novaSenhaVisivel),
               ),
-              const SizedBox(height: 18),
-              CampoFormulario(
-                label: 'Nova senha',
-                hint: '••••••••',
-                icone: LucideIcons.lock_keyhole,
-                controller: _novaSenha,
-                obscureText: !_novaSenhaVisivel,
-                sufixo: _construirAlternadorVisibilidade(
-                  visivel: _novaSenhaVisivel,
-                  aoAlternar: () =>
-                      setState(() => _novaSenhaVisivel = !_novaSenhaVisivel),
-                ),
-                validator: (valor) {
-                  if (valor == null || valor.isEmpty) {
-                    return 'Informe a nova senha';
-                  }
-                  if (valor.length < 8) return 'Mínimo de 8 caracteres';
-                  return null;
-                },
+              // Espelha AUTH_PASSWORD_VALIDATORS do backend (ver validarForcaSenha).
+              validator: (valor) => validarForcaSenha(
+                valor,
+                atributosUsuario: [
+                  _usuario?.nomeCompleto ?? '',
+                  _usuario?.email ?? '',
+                ],
               ),
-              const SizedBox(height: 18),
-              CampoFormulario(
-                label: 'Confirmar nova senha',
-                hint: '••••••••',
-                icone: LucideIcons.shield_check,
-                controller: _confirmarSenha,
-                obscureText: !_novaSenhaVisivel,
-                validator: (valor) {
-                  if (valor == null || valor.isEmpty) {
-                    return 'Confirme a nova senha';
-                  }
-                  if (valor != _novaSenha.text) {
-                    return 'As senhas não coincidem';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
-              Align(
+            ),
+            const SizedBox(height: 18),
+            CampoFormulario(
+              label: 'Confirmar nova senha',
+              hint: '••••••••',
+              icone: LucideIcons.shield_check,
+              controller: _confirmarSenha,
+              obscureText: !_novaSenhaVisivel,
+              validator: (valor) {
+                if (valor == null || valor.isEmpty) {
+                  return 'Confirme a nova senha';
+                }
+                if (valor != _novaSenha.text) {
+                  return 'As senhas não coincidem';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 24),
+            AnimatedBuilder(
+              animation: _viewModel,
+              builder: (context, _) => Align(
                 alignment: Alignment.centerRight,
                 child: BotaoPrimario(
-                  texto: _viewModel.carregando ? 'Salvando...' : 'Salvar nova senha',
+                  texto: _viewModel.carregando
+                      ? 'Salvando...'
+                      : 'Salvar nova senha',
                   icone: LucideIcons.save,
                   onPressed: _viewModel.carregando ? null : _alterarSenha,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -271,13 +279,15 @@ class _PaginaConfiguracoesState extends State<PaginaConfiguracoes> {
     required bool visivel,
     required VoidCallback aoAlternar,
   }) {
-    return GestureDetector(
-      onTap: aoAlternar,
-      child: Icon(
+    return IconButton(
+      onPressed: aoAlternar,
+      icon: Icon(
         visivel ? LucideIcons.eye : LucideIcons.eye_off,
         color: Cores.cinzaMedio,
         size: 18,
       ),
+      tooltip: visivel ? 'Ocultar senha' : 'Mostrar senha',
+      visualDensity: VisualDensity.compact,
     );
   }
 
