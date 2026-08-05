@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/editor_template_view_model.dart';
-import 'package:gerelat_frontend/dominio/entidades/projeto_campo.dart';
+import 'package:gerelat_frontend/dominio/entidades/campo_tipo.dart';
+import 'package:gerelat_frontend/dominio/entidades/variavel_disponivel.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/editor_prosemirror.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
@@ -49,30 +50,20 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
     super.dispose();
   }
 
-  List<Map<String, dynamic>> _colunasDoCampo(ProjetoCampo campo) {
-    final colunas = campo.valor['columns'];
-    if (colunas is List) {
-      return colunas
-          .whereType<Map>()
-          .map((c) => Map<String, dynamic>.from(c))
-          .toList();
-    }
-    return const [];
-  }
-
-  void _inserirCampo(ProjetoCampo campo) {
-    switch (campo.tipo) {
-      case TipoCampoProjeto.texto:
-        _controller.inserirVarTexto(campo.referencia);
-      case TipoCampoProjeto.textoRico:
-        _controller.inserirVarRichtext(campo.referencia);
-      case TipoCampoProjeto.imagem:
-        _controller.inserirVarImagem(campo.referencia);
-      case TipoCampoProjeto.tabela:
-        _controller.inserirVarTabela(
-          campo.referencia,
-          colunas: _colunasDoCampo(campo),
-        );
+  void _inserirVariavel(VariavelDisponivel variavel) {
+    switch (variavel.tipo) {
+      case TipoCampo.texto:
+        _controller.inserirVarTexto(variavel.referencia);
+      case TipoCampo.textoRico:
+        _controller.inserirVarRichtext(variavel.referencia);
+      case TipoCampo.imagem:
+        _controller.inserirVarImagem(variavel.referencia);
+      case TipoCampo.tabela:
+        // Sem colunas: na autoria só existe o schema da variável, não um
+        // valor. O backend também ignora o `columns` do nó do template —
+        // `converters._block_nodes_for_table_ref` monta as colunas a partir do
+        // valor resolvido e só aproveita o `caption` do nó.
+        _controller.inserirVarTabela(variavel.referencia, colunas: const []);
     }
   }
 
@@ -252,21 +243,33 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
           const SizedBox(height: 8),
           _barraFormatacao(),
           const SizedBox(height: 20),
-          _tituloSecao('Variáveis do projeto'),
+          _tituloSecao('Variáveis disponíveis'),
           const SizedBox(height: 4),
           Text(
             'Insira uma variável para que ela seja preenchida automaticamente '
-            'com os dados do banco na geração do relatório.',
+            'com os dados do banco na geração do relatório. A etiqueta indica '
+            'de qual nível vem o valor — usar uma variável de evento, por '
+            'exemplo, obrigará a escolher um evento ao gerar o relatório.',
             style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
           ),
-          const SizedBox(height: 10),
-          if (_viewModel.campos.isEmpty)
+          const SizedBox(height: 12),
+          if (_viewModel.variaveis.isEmpty)
             Text(
-              'Nenhuma variável cadastrada para este projeto.',
+              'Nenhuma variável disponível para o escopo deste template.',
               style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
             )
-          else
-            ..._viewModel.campos.map(_itemCampo),
+          else ...[
+            ..._grupoVariaveis(
+              'Customizadas',
+              _viewModel.variaveisCustomizadas,
+              vazio: 'Nenhuma variável cadastrada para este escopo.',
+            ),
+            ..._grupoVariaveis(
+              'Campos do sistema',
+              _viewModel.variaveisDeSistema,
+              vazio: '',
+            ),
+          ],
           const SizedBox(height: 20),
           _tituloSecao('Blocos manuais'),
           const SizedBox(height: 4),
@@ -328,20 +331,41 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
     );
   }
 
-  Widget _itemCampo(ProjetoCampo campo) {
-    final (icone, cor) = switch (campo.tipo) {
-      TipoCampoProjeto.texto => (LucideIcons.type, Cores.azulAcao),
-      TipoCampoProjeto.textoRico => (
-        LucideIcons.text_quote,
-        Cores.verdeSucesso,
+  /// Um subtítulo seguido dos itens do grupo. Devolve lista para poder ser
+  /// espalhada no `ListView` do painel, e some quando o grupo está vazio e
+  /// não há mensagem para mostrar.
+  List<Widget> _grupoVariaveis(
+    String titulo,
+    List<VariavelDisponivel> variaveis, {
+    required String vazio,
+  }) {
+    if (variaveis.isEmpty && vazio.isEmpty) return const [];
+    return [
+      Padding(
+        padding: const EdgeInsets.only(top: 6, bottom: 8),
+        child: Text(
+          titulo,
+          style: Tipografia.labelMedium.copyWith(color: Cores.cinzaEscuro),
+        ),
       ),
-      TipoCampoProjeto.imagem => (LucideIcons.image, Cores.azulAcao),
-      TipoCampoProjeto.tabela => (LucideIcons.table, Cores.verdeSucesso),
+      if (variaveis.isEmpty)
+        Text(vazio, style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio))
+      else
+        ...variaveis.map(_itemVariavel),
+    ];
+  }
+
+  Widget _itemVariavel(VariavelDisponivel variavel) {
+    final (icone, cor) = switch (variavel.tipo) {
+      TipoCampo.texto => (LucideIcons.type, Cores.azulAcao),
+      TipoCampo.textoRico => (LucideIcons.text_quote, Cores.verdeSucesso),
+      TipoCampo.imagem => (LucideIcons.image, Cores.azulAcao),
+      TipoCampo.tabela => (LucideIcons.table, Cores.verdeSucesso),
     };
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: InkWell(
-        onTap: () => _inserirCampo(campo),
+        onTap: () => _inserirVariavel(variavel),
         borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -359,17 +383,25 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      campo.referencia,
+                      variavel.referencia,
                       style: Tipografia.labelLarge.copyWith(
                         color: Cores.textoPrincipal,
                       ),
                     ),
                     Text(
-                      campo.tipo.rotulo,
+                      '${variavel.tipo.rotulo} · ${variavel.nivelAplicacao.rotulo}',
                       style: Tipografia.bodySmall.copyWith(
                         color: Cores.cinzaMedio,
                       ),
                     ),
+                    if (variavel.descricao.isNotEmpty &&
+                        variavel.descricao != variavel.referencia)
+                      Text(
+                        variavel.descricao,
+                        style: Tipografia.bodySmall.copyWith(
+                          color: Cores.cinzaMedio,
+                        ),
+                      ),
                   ],
                 ),
               ),

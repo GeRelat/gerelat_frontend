@@ -2,18 +2,22 @@ import 'dart:typed_data';
 
 import 'package:gerelat_frontend/dominio/entidades/asset.dart';
 import 'package:gerelat_frontend/dominio/entidades/assinatura_template.dart';
+import 'package:gerelat_frontend/dominio/entidades/campo_definicao.dart';
+import 'package:gerelat_frontend/dominio/entidades/campo_tipo.dart';
+import 'package:gerelat_frontend/dominio/entidades/campo_valor.dart';
 import 'package:gerelat_frontend/dominio/entidades/classe_evento.dart';
 import 'package:gerelat_frontend/dominio/entidades/cliente.dart';
 import 'package:gerelat_frontend/dominio/entidades/evento.dart';
 import 'package:gerelat_frontend/dominio/entidades/membro_equipe_programa.dart';
 import 'package:gerelat_frontend/dominio/entidades/membro_equipe_projeto.dart';
+import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/entidades/opcao_selecao.dart';
 import 'package:gerelat_frontend/dominio/entidades/programa.dart';
 import 'package:gerelat_frontend/dominio/entidades/projeto.dart';
-import 'package:gerelat_frontend/dominio/entidades/projeto_campo.dart';
 import 'package:gerelat_frontend/dominio/entidades/relatorio.dart';
 import 'package:gerelat_frontend/dominio/entidades/resumo_dashboard.dart';
 import 'package:gerelat_frontend/dominio/entidades/template_relatorio.dart';
+import 'package:gerelat_frontend/dominio/entidades/variavel_disponivel.dart';
 
 abstract interface class RepositorioClientes {
   Future<List<Cliente>> listarClientes();
@@ -116,6 +120,13 @@ abstract interface class RepositorioEventos {
     required int projetoId,
   });
 
+  /// Classes de vários projetos numa única listagem — usado por templates de
+  /// nível cliente/programa, que precisam agregar as classes de todos os
+  /// projetos descendentes sem fazer uma requisição por projeto.
+  Future<List<ClasseEvento>> listarClassesEventoDeProjetos(
+    Set<int> projetoIds,
+  );
+
   Future<void> atualizarClasseEvento({
     required int classeId,
     required String nomeClasse,
@@ -155,10 +166,22 @@ abstract interface class RepositorioTemplates {
   /// Cria um template a partir de um documento ProseMirror já pronto (ou de um
   /// documento vazio quando [modeloJson] é `null`). Usado pelo fluxo do editor,
   /// no qual o upload de `.docx` é opcional. Retorna o id do template criado.
+  ///
+  /// [escopo]/[escopoId] indicam a entidade dona do template — o backend exige
+  /// exatamente um de cliente/programa/projeto, coerente com `nivel`.
   Future<int> criarTemplateComModelo({
-    required int projetoId,
+    required NivelEscopo escopo,
+    required int escopoId,
     required String nomeTemplate,
     Map<String, dynamic>? modeloJson,
+  });
+
+  /// Variáveis oferecidas na autoria de um template do escopo informado:
+  /// campos nativos (`sistema.*`) + `CampoDefinicao` visíveis pela cadeia de
+  /// ancestrais, via `GET /templates/variaveis-disponiveis/`.
+  Future<List<VariavelDisponivel>> listarVariaveisDisponiveis({
+    required NivelEscopo escopo,
+    required int escopoId,
   });
 
   /// Converte um `.docx` em documento ProseMirror (`modelo_json`) via
@@ -180,7 +203,8 @@ abstract interface class RepositorioTemplates {
 
   Future<void> atualizarTemplate({
     required int templateId,
-    required int projetoId,
+    required NivelEscopo escopo,
+    required int escopoId,
     required String nomeTemplate,
     Uint8List? arquivoBytes,
     String? nomeArquivo,
@@ -216,11 +240,15 @@ abstract interface class RepositorioTemplates {
   /// (ex.: fluxo `from-json`, que não armazena o .docx original).
   Future<Uint8List> baixarArquivoTemplate(int templateId);
 
-  /// Resolve as variáveis do projeto/evento sobre o `modelo_json` do template
-  /// (via `/templates/<id>/preview/`) e retorna o documento ProseMirror
-  /// resultante, para pré-visualização antes de gerar o relatório definitivo.
+  /// Resolve as variáveis da cadeia de escopo informada sobre o `modelo_json`
+  /// do template (via `/templates/<id>/preview/`) e retorna o documento
+  /// ProseMirror resultante, para pré-visualização antes de gerar o relatório
+  /// definitivo. Os ids omitidos caem no escopo do próprio template.
   Future<Map<String, dynamic>> previsualizarTemplate({
     required int templateId,
+    int? clienteId,
+    int? programaId,
+    int? projetoId,
     int? eventoId,
   });
 }
@@ -232,8 +260,15 @@ abstract interface class RepositorioRelatorios {
   /// resolvido/editado no preview ([documentoJson]). Envia para
   /// `POST /relatorios/`, aguarda a task assíncrona concluir e retorna o id do
   /// relatório gerado.
+  ///
+  /// A cadeia cliente/programa/projeto/evento define quais variáveis o backend
+  /// consegue resolver; ele rejeita com 400 se o documento referenciar uma
+  /// variável de nível mais profundo do que o informado (`scan_required_nivel`).
   Future<int> gerarRelatorioComDocumento({
     required int templateId,
+    int? clienteId,
+    int? programaId,
+    int? projetoId,
     int? eventoId,
     Map<String, dynamic>? documentoJson,
     String? nome,
@@ -258,6 +293,12 @@ abstract interface class RepositorioEquipePrograma {
     required int programaId,
   });
 
+  /// Equipe de vários programas numa única listagem — ver
+  /// [RepositorioEventos.listarClassesEventoDeProjetos].
+  Future<List<MembroEquipePrograma>> listarEquipeDeProgramas(
+    Set<int> programaIds,
+  );
+
   Future<void> criarMembroEquipe({
     required int programaId,
     required String nome,
@@ -278,6 +319,10 @@ abstract interface class RepositorioEquipeProjeto {
     required int projetoId,
   });
 
+  /// Equipe de vários projetos numa única listagem — ver
+  /// [RepositorioEventos.listarClassesEventoDeProjetos].
+  Future<List<MembroEquipeProjeto>> listarEquipeDeProjetos(Set<int> projetoIds);
+
   Future<void> criarMembroEquipeProjeto({
     required int projetoId,
     required String nomeEquipe,
@@ -295,28 +340,64 @@ abstract interface class RepositorioEquipeProjeto {
   Future<void> excluirMembroEquipeProjeto(int membroId);
 }
 
-abstract interface class RepositorioProjetoCampo {
-  Future<List<ProjetoCampo>> listarCamposProjeto({required int projetoId});
+/// Variáveis customizáveis: o schema (`CampoDefinicao`, declarado num escopo) e
+/// os valores por instância (`CampoValor`). Substitui o antigo
+/// `RepositorioProjetoCampo`, que conflava as duas coisas por projeto.
+abstract interface class RepositorioCampos {
+  /// Definições declaradas exatamente no escopo informado. Sem escopo,
+  /// devolve todas.
+  Future<List<CampoDefinicao>> listarDefinicoes({
+    NivelEscopo? escopo,
+    int? escopoId,
+  });
 
-  Future<void> criarCampoProjeto({
-    required int projetoId,
+  /// Definições visíveis a partir de uma cadeia de ancestrais — o equivalente
+  /// no cliente ao filtro `Q(cliente_id=…) | Q(programa_id=…) | Q(projeto_id=…)`
+  /// usado por `document_engine/variables.py` e pela view `variaveis-disponiveis`.
+  Future<List<CampoDefinicao>> listarDefinicoesVisiveis({
+    int? clienteId,
+    int? programaId,
+    int? projetoId,
+  });
+
+  Future<void> criarDefinicao({
+    required NivelEscopo escopo,
+    required int escopoId,
+    required NivelAplicacao nivelAplicacao,
     required String referencia,
     required String descricao,
-    required TipoCampoProjeto tipo,
+    required TipoCampo tipo,
     required bool obrigatorio,
+  });
+
+  Future<void> atualizarDefinicao({
+    required int definicaoId,
+    required NivelAplicacao nivelAplicacao,
+    required String referencia,
+    required String descricao,
+    required TipoCampo tipo,
+    required bool obrigatorio,
+  });
+
+  Future<void> excluirDefinicao(int definicaoId);
+
+  /// Valores já gravados para a instância-alvo informada.
+  Future<List<CampoValor>> listarValores({
+    required NivelAplicacao alvo,
+    required int alvoId,
+  });
+
+  /// Cria (quando [valorId] é `null`) ou atualiza o valor de uma definição
+  /// para a instância-alvo informada.
+  Future<void> salvarValor({
+    int? valorId,
+    required int definicaoId,
+    required NivelAplicacao alvo,
+    required int alvoId,
     required Map<String, dynamic> valor,
   });
 
-  Future<void> atualizarCampoProjeto({
-    required int campoId,
-    required String referencia,
-    required String descricao,
-    required TipoCampoProjeto tipo,
-    required bool obrigatorio,
-    required Map<String, dynamic> valor,
-  });
-
-  Future<void> excluirCampoProjeto(int campoId);
+  Future<void> excluirValor(int valorId);
 }
 
 abstract interface class RepositorioAssets {
@@ -349,5 +430,5 @@ abstract class RepositorioCatalogo
         RepositorioDashboard,
         RepositorioEquipePrograma,
         RepositorioEquipeProjeto,
-        RepositorioProjetoCampo,
+        RepositorioCampos,
         RepositorioAssets {}

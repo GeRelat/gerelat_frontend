@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/template_form_view_model.dart';
+import 'package:gerelat_frontend/dominio/entidades/classe_evento.dart';
+import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/servicos/arquivo_web.dart';
@@ -31,7 +33,6 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
   final _formKey = GlobalKey<FormState>();
   final _nome = TextEditingController();
   late final TemplateFormViewModel _viewModel;
-  int? _projetoId;
   String? _nomeArquivo;
   Uint8List? _arquivoBytes;
 
@@ -45,7 +46,6 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
         final template = _viewModel.template;
         if (!mounted || template == null) return;
         _nome.text = template.nome;
-        _projetoId = template.projetoId;
         _nomeArquivo = template.arquivoBase.isEmpty
             ? null
             : template.arquivoBase;
@@ -85,16 +85,22 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
 
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_projetoId == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Selecione um projeto.')));
+    final escopoId = _viewModel.escopoId;
+    if (escopoId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Selecione ${_viewModel.nivel.rotulo.toLowerCase()} ao qual o template pertence.',
+          ),
+        ),
+      );
       return;
     }
 
     final idTemplate = await _viewModel.salvar(
       templateId: widget.templateId,
-      projetoId: _projetoId!,
+      escopo: _viewModel.nivel,
+      escopoId: escopoId,
       nomeTemplate: _nome.text.trim(),
       arquivoBytes: _arquivoBytes,
       nomeArquivo: _nomeArquivo,
@@ -123,7 +129,9 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
     return AnimatedBuilder(
       animation: _viewModel,
       builder: (context, child) {
-        if (_viewModel.carregando && _viewModel.projetos.isEmpty) {
+        if (_viewModel.carregando &&
+            _viewModel.hierarquia.projetos.isEmpty &&
+            _viewModel.hierarquia.clientes.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
         return SingleChildScrollView(
@@ -138,22 +146,7 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
                 CartaoConteudo(
                   child: Column(
                     children: [
-                      CampoSelecao(
-                        label: 'Projeto',
-                        valor: _projetoId,
-                        itens: _viewModel.projetos
-                            .map(
-                              (item) => DropdownMenuItem(
-                                value: item.id,
-                                child: Text(item.nome),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          setState(() => _projetoId = value);
-                          _viewModel.carregarClasses(value);
-                        },
-                      ),
+                      _campoEscopo(),
                       const SizedBox(height: 18),
                       CampoFormulario(
                         label: 'Nome do Template',
@@ -228,7 +221,73 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
     );
   }
 
+  /// Nível do template + a instância dona. Em nível cliente ou programa, o
+  /// template vale para todos os projetos descendentes — é o que as seções de
+  /// classes e assinaturas abaixo refletem.
+  Widget _campoEscopo() {
+    return _painelSecao(
+      children: [
+        Text(
+          'Nível do template',
+          style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Define a quem o template pertence e quais variáveis ele enxerga: um '
+          'template de cliente pode usar variáveis do cliente e de tudo abaixo '
+          'dele; um de projeto, só as do próprio projeto e seus eventos.',
+          style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: NivelEscopo.values.map((nivel) {
+            return ChoiceChip(
+              label: Text(nivel.rotulo),
+              selected: _viewModel.nivel == nivel,
+              onSelected: (_) => _viewModel.selecionarEscopo(nivel, null),
+              selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 18),
+        CampoSelecao(
+          label: _viewModel.nivel.rotulo,
+          valor: _viewModel.escopoId,
+          itens: _viewModel.opcoesEscopo
+              .map(
+                (item) =>
+                    DropdownMenuItem(value: item.id, child: Text(item.nome)),
+              )
+              .toList(),
+          onChanged: (value) =>
+              _viewModel.selecionarEscopo(_viewModel.nivel, value),
+        ),
+      ],
+    );
+  }
+
+  /// Mensagem de "escolha o escopo primeiro", adaptada ao nível selecionado.
+  Widget _avisoSemEscopo(String complemento) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Text(
+        'Selecione ${_viewModel.nivel.rotulo.toLowerCase()} acima para ver $complemento.',
+        style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
+      ),
+    );
+  }
+
   Widget _campoClassesEvento() {
+    // Em nível cliente/programa as classes vêm de vários projetos; agrupá-las
+    // por projeto é o que torna a lista legível quando ela cresce.
+    final porProjeto = <int?, List<ClasseEvento>>{};
+    for (final classe in _viewModel.classesDisponiveis) {
+      porProjeto.putIfAbsent(classe.projetoId, () => []).add(classe);
+    }
+    final agrupar = _viewModel.nivel != NivelEscopo.projeto;
+
     return _painelSecao(
       children: [
         Text(
@@ -241,39 +300,46 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
           style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
         ),
         const SizedBox(height: 8),
-        if (_projetoId == null)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              'Selecione um projeto para ver as classes disponíveis.',
-              style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
-            ),
-          )
+        if (_viewModel.escopoId == null)
+          _avisoSemEscopo('as classes disponíveis')
         else if (_viewModel.classesDisponiveis.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              'Nenhuma classe cadastrada para este projeto.',
+              'Nenhuma classe de evento cadastrada nos projetos deste escopo.',
               style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
             ),
           )
         else
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _viewModel.classesDisponiveis.map((classe) {
-              final marcada = _viewModel.classesSelecionadas.contains(
-                classe.id,
-              );
-              return FilterChip(
-                label: Text(classe.nome),
-                selected: marcada,
-                onSelected: (_) => _viewModel.alternarClasse(classe.id),
-                selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
-                checkmarkColor: Cores.azulAcao,
-              );
-            }).toList(),
-          ),
+          for (final entrada in porProjeto.entries) ...[
+            if (agrupar) ...[
+              Padding(
+                padding: const EdgeInsets.only(top: 8, bottom: 6),
+                child: Text(
+                  _viewModel.nomeProjeto(entrada.key),
+                  style: Tipografia.labelMedium.copyWith(
+                    color: Cores.cinzaEscuro,
+                  ),
+                ),
+              ),
+            ],
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: entrada.value.map((classe) {
+                final id = classe.id;
+                return FilterChip(
+                  label: Text(classe.nomeClasse),
+                  selected: _viewModel.classesSelecionadas.contains(id),
+                  onSelected: id == null
+                      ? null
+                      : (_) => _viewModel.alternarClasse(id),
+                  selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
+                  checkmarkColor: Cores.azulAcao,
+                );
+              }).toList(),
+            ),
+          ],
       ],
     );
   }
@@ -291,78 +357,99 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
           style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
         ),
         const SizedBox(height: 8),
-        if (_projetoId == null)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              'Selecione um projeto para ver os possíveis signatários.',
-              style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
-            ),
-          )
+        if (_viewModel.escopoId == null)
+          _avisoSemEscopo('os possíveis signatários')
         else ...[
-          Text(
-            'Equipe fixa do programa',
-            style: Tipografia.labelMedium.copyWith(color: Cores.cinzaEscuro),
-          ),
-          const SizedBox(height: 8),
-          if (_viewModel.membrosPrograma.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text(
-                'Nenhum membro cadastrado na equipe fixa do programa.',
-                style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
-              ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _viewModel.membrosPrograma.map((membro) {
-                  final marcado = _viewModel.equipeProgramaSelecionada.contains(
-                    membro.id,
-                  );
-                  return FilterChip(
-                    label: Text('${membro.nome} (${membro.cargo})'),
-                    selected: marcado,
-                    onSelected: (_) =>
+          _grupoSignatarios(
+            titulo: 'Equipes fixas de programa',
+            vazio: 'Nenhum membro cadastrado nas equipes fixas deste escopo.',
+            // Em nível cliente há vários programas; o nome do programa/projeto
+            // desambigua homônimos entre equipes diferentes.
+            itens: [
+              for (final membro in _viewModel.membrosPrograma)
+                if (membro.id != null)
+                  (
+                    id: membro.id!,
+                    rotulo: '${membro.nome} (${membro.cargo})',
+                    origem: _viewModel.nomePrograma(membro.programaId),
+                    marcado: _viewModel.equipeProgramaSelecionada.contains(
+                      membro.id,
+                    ),
+                    aoAlternar: () =>
                         _viewModel.alternarSignatarioPrograma(membro.id!),
-                    selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
-                    checkmarkColor: Cores.azulAcao,
-                  );
-                }).toList(),
-              ),
-            ),
-          Text(
-            'Equipe do projeto',
-            style: Tipografia.labelMedium.copyWith(color: Cores.cinzaEscuro),
+                  ),
+            ],
           ),
-          const SizedBox(height: 8),
-          if (_viewModel.membrosProjeto.isEmpty)
-            Text(
-              'Nenhum membro cadastrado na equipe deste projeto.',
-              style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
-            )
-          else
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _viewModel.membrosProjeto.map((membro) {
-                final marcado = _viewModel.equipeProjetoSelecionada.contains(
-                  membro.id,
-                );
-                return FilterChip(
-                  label: Text('${membro.nome} (${membro.cargo})'),
-                  selected: marcado,
-                  onSelected: (_) =>
-                      _viewModel.alternarSignatarioProjeto(membro.id!),
-                  selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
-                  checkmarkColor: Cores.azulAcao,
-                );
-              }).toList(),
-            ),
+          const SizedBox(height: 12),
+          _grupoSignatarios(
+            titulo: 'Equipes de projeto',
+            vazio: 'Nenhum membro cadastrado nas equipes de projeto deste escopo.',
+            itens: [
+              for (final membro in _viewModel.membrosProjeto)
+                if (membro.id != null)
+                  (
+                    id: membro.id!,
+                    rotulo: '${membro.nome} (${membro.cargo})',
+                    origem: _viewModel.nomeProjeto(membro.projetoId),
+                    marcado: _viewModel.equipeProjetoSelecionada.contains(
+                      membro.id,
+                    ),
+                    aoAlternar: () =>
+                        _viewModel.alternarSignatarioProjeto(membro.id!),
+                  ),
+            ],
+          ),
         ],
+      ],
+    );
+  }
+
+  Widget _grupoSignatarios({
+    required String titulo,
+    required String vazio,
+    required List<
+      ({
+        int id,
+        String rotulo,
+        String origem,
+        bool marcado,
+        VoidCallback aoAlternar,
+      })
+    >
+    itens,
+  }) {
+    final mostrarOrigem = _viewModel.nivel != NivelEscopo.projeto;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          titulo,
+          style: Tipografia.labelMedium.copyWith(color: Cores.cinzaEscuro),
+        ),
+        const SizedBox(height: 8),
+        if (itens.isEmpty)
+          Text(
+            vazio,
+            style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: itens.map((item) {
+              return FilterChip(
+                label: Text(
+                  mostrarOrigem
+                      ? '${item.rotulo} — ${item.origem}'
+                      : item.rotulo,
+                ),
+                selected: item.marcado,
+                onSelected: (_) => item.aoAlternar(),
+                selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
+                checkmarkColor: Cores.azulAcao,
+              );
+            }).toList(),
+          ),
       ],
     );
   }

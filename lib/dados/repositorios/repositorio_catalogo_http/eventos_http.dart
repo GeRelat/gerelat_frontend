@@ -119,10 +119,18 @@ mixin RepositorioEventosHttpMixin implements RepositorioEventos {
   @override
   Future<List<ClasseEvento>> listarClassesEventoDetalhadas({
     required int projetoId,
-  }) async {
+  }) {
+    return listarClassesEventoDeProjetos({projetoId});
+  }
+
+  @override
+  Future<List<ClasseEvento>> listarClassesEventoDeProjetos(
+    Set<int> projetoIds,
+  ) async {
+    if (projetoIds.isEmpty) return const [];
     final classes = await api.listar('/classes-evento/');
     return classes
-        .where((classe) => paraInteiro(classe['projeto']) == projetoId)
+        .where((classe) => projetoIds.contains(paraInteiro(classe['projeto'])))
         .map(
           (classe) => ClasseEvento(
             id: paraInteiro(classe['id']),

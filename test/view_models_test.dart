@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/cadastro_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/campo_definicao_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/campo_valor_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/evento_form_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/gerar_relatorio_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/login_view_model.dart';
@@ -13,16 +15,21 @@ import 'package:gerelat_frontend/dominio/entidades/cliente.dart';
 import 'package:gerelat_frontend/dominio/entidades/evento.dart';
 import 'package:gerelat_frontend/dominio/entidades/membro_equipe_programa.dart';
 import 'package:gerelat_frontend/dominio/entidades/membro_equipe_projeto.dart';
+import 'package:gerelat_frontend/dominio/entidades/campo_definicao.dart';
+import 'package:gerelat_frontend/dominio/entidades/campo_tipo.dart';
+import 'package:gerelat_frontend/dominio/entidades/campo_valor.dart';
+import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/entidades/opcao_selecao.dart';
-import 'package:gerelat_frontend/dominio/entidades/projeto_campo.dart';
 import 'package:gerelat_frontend/dominio/entidades/programa.dart';
 import 'package:gerelat_frontend/dominio/entidades/projeto.dart';
 import 'package:gerelat_frontend/dominio/entidades/relatorio.dart';
 import 'package:gerelat_frontend/dominio/entidades/usuario.dart';
 import 'package:gerelat_frontend/dominio/entidades/resumo_dashboard.dart';
 import 'package:gerelat_frontend/dominio/entidades/template_relatorio.dart';
+import 'package:gerelat_frontend/dominio/entidades/variavel_disponivel.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_autenticacao.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
+import 'package:gerelat_frontend/nucleo/utils/gaps_prosemirror.dart';
 
 void main() {
   group('autenticação', () {
@@ -105,20 +112,310 @@ void main() {
       expect(repositorio.eventoCriado, 'Evento Teste');
     });
 
-    test('GerarRelatorioViewModel usa IDs selecionados', () async {
+    test('GerarRelatorioViewModel envia a cadeia de escopo do template', () async {
       final repositorio = _RepositorioCatalogoFake();
       final viewModel = GerarRelatorioViewModel(repositorio);
 
       await viewModel.carregar();
-      final documento = await viewModel.obterDocumentoPreview(
-        templateId: 4,
-        eventoId: 3,
-      );
+      await viewModel.selecionarTemplate(4);
+      final documento = await viewModel.obterDocumentoPreview();
 
       expect(viewModel.templates, hasLength(1));
-      expect(viewModel.eventos, hasLength(1));
       expect(documento, isNotNull);
-      expect(repositorio.previsualizacaoRecebida, (template: 4, evento: 3));
+      // O template é de projeto: cliente e programa saem resolvidos da
+      // hierarquia, sem o usuário escolher nada.
+      expect(repositorio.previsualizacaoRecebida, (
+        template: 4,
+        cliente: 100,
+        programa: 10,
+        projeto: 1,
+        evento: null,
+      ));
+    });
+  });
+
+  group('escopo exigido para gerar relatório', () {
+    Map<String, dynamic> docComVariavel(String tipo, String ref) => {
+      'type': 'doc',
+      'content': [
+        {
+          'type': 'paragraph',
+          'content': [
+            {
+              'type': tipo,
+              'attrs': {'ref': ref},
+            },
+          ],
+        },
+      ],
+    };
+
+    test('variável de nível evento passa a exigir um evento', () async {
+      final repositorio = _RepositorioCatalogoFake(
+        modeloTemplate: docComVariavel('var_text', 'objetivo'),
+        variaveisDisponiveis: const [
+          VariavelDisponivel(
+            referencia: 'objetivo',
+            descricao: 'Objetivo',
+            tipo: TipoCampo.texto,
+            nivelAplicacao: NivelAplicacao.evento,
+            origem: OrigemVariavel.customizado,
+          ),
+        ],
+      );
+      final viewModel = GerarRelatorioViewModel(repositorio);
+
+      await viewModel.carregar();
+      await viewModel.selecionarTemplate(4);
+
+      expect(viewModel.nivelExigido, NivelAplicacao.evento);
+      expect(viewModel.niveisASelecionar, [NivelAplicacao.evento]);
+      expect(viewModel.escopoCompleto, isFalse);
+
+      viewModel.definirEscopo(NivelAplicacao.evento, 3);
+
+      expect(viewModel.escopoCompleto, isTrue);
+      expect(viewModel.projetoId, 1);
+      expect(viewModel.programaId, 10);
+      expect(viewModel.clienteId, 100);
+    });
+
+    test('referência sem definição vira aviso de variável não contemplada', () async {
+      final repositorio = _RepositorioCatalogoFake(
+        modeloTemplate: docComVariavel('var_text', 'nao_existe'),
+      );
+      final viewModel = GerarRelatorioViewModel(repositorio);
+
+      await viewModel.carregar();
+      await viewModel.selecionarTemplate(4);
+
+      expect(viewModel.refsNaoContempladas, ['nao_existe']);
+      // Sem nível conhecido, nada mais precisa ser escolhido — o backend
+      // também ignora refs desconhecidas em `scan_required_nivel`.
+      expect(viewModel.nivelExigido, isNull);
+      expect(viewModel.escopoCompleto, isTrue);
+    });
+
+    test('campo de sistema resolve o nível pelo próprio nome', () async {
+      final repositorio = _RepositorioCatalogoFake(
+        modeloTemplate: docComVariavel('var_text', 'sistema.evento.local'),
+      );
+      final viewModel = GerarRelatorioViewModel(repositorio);
+
+      await viewModel.carregar();
+      await viewModel.selecionarTemplate(4);
+
+      expect(viewModel.nivelExigido, NivelAplicacao.evento);
+      expect(viewModel.refsNaoContempladas, isEmpty);
+    });
+
+    test('bloco manual não conta como variável não contemplada', () async {
+      final repositorio = _RepositorioCatalogoFake(
+        modeloTemplate: const {
+          'type': 'doc',
+          'content': [
+            {
+              'type': 'custom_text',
+              'attrs': {'label': 'Observações da equipe'},
+              'content': <Map<String, dynamic>>[],
+            },
+          ],
+        },
+      );
+      final viewModel = GerarRelatorioViewModel(repositorio);
+
+      await viewModel.carregar();
+      await viewModel.selecionarTemplate(4);
+
+      expect(viewModel.refsNaoContempladas, isEmpty);
+      expect(viewModel.blocosManuais, ['Observações da equipe']);
+      expect(viewModel.nivelExigido, isNull);
+    });
+  });
+
+  group('variáveis customizáveis', () {
+    const definicaoDeEvento = CampoDefinicao(
+      id: 7,
+      programaId: 10,
+      nivelAplicacao: NivelAplicacao.evento,
+      referencia: 'objetivo',
+      descricao: 'Objetivo',
+      tipo: TipoCampo.texto,
+      obrigatorio: true,
+    );
+
+    test('CampoValorViewModel lista as definições herdadas dos ancestrais', () async {
+      final repositorio = _RepositorioCatalogoFake(
+        definicoes: const [
+          definicaoDeEvento,
+          // Mesmo escopo, mas de nível projeto: não se aplica a um evento.
+          CampoDefinicao(
+            id: 8,
+            programaId: 10,
+            nivelAplicacao: NivelAplicacao.projeto,
+            referencia: 'parceira_local',
+            descricao: 'Parceira local',
+            tipo: TipoCampo.texto,
+          ),
+        ],
+      );
+      final viewModel = CampoValorViewModel(repositorio);
+
+      await viewModel.carregarHierarquia();
+      await viewModel.selecionarAlvo(NivelAplicacao.evento, 3);
+
+      expect(viewModel.variaveis, hasLength(1));
+      final variavel = viewModel.variaveis.single;
+      expect(variavel.definicao.referencia, 'objetivo');
+      // Definida no programa ancestral, não no próprio evento.
+      expect(variavel.origem, 'Programa Programa');
+      expect(variavel.preenchida, isFalse);
+      expect(viewModel.totalPendentes, 1);
+    });
+
+    test('CampoValorViewModel casa o valor já gravado com sua definição', () async {
+      final repositorio = _RepositorioCatalogoFake(
+        definicoes: const [definicaoDeEvento],
+        valores: const [
+          CampoValor(
+            id: 55,
+            definicaoId: 7,
+            eventoId: 3,
+            valor: {'type': 'doc', 'content': <Map<String, dynamic>>[]},
+          ),
+        ],
+      );
+      final viewModel = CampoValorViewModel(repositorio);
+
+      await viewModel.carregarHierarquia();
+      await viewModel.selecionarAlvo(NivelAplicacao.evento, 3);
+
+      expect(viewModel.variaveis.single.valor?.id, 55);
+      expect(viewModel.totalPendentes, 0);
+
+      await viewModel.salvarValor(
+        variavel: viewModel.variaveis.single,
+        valor: const {'type': 'doc', 'content': <Map<String, dynamic>>[]},
+      );
+
+      expect(repositorio.valorSalvo, (
+        definicao: 7,
+        alvo: NivelAplicacao.evento,
+        alvoId: 3,
+      ));
+    });
+
+    test('CampoDefinicaoViewModel rejeita prefixo reservado e duplicata', () async {
+      final repositorio = _RepositorioCatalogoFake(
+        definicoes: const [definicaoDeEvento],
+      );
+      final viewModel = CampoDefinicaoViewModel(repositorio);
+
+      await viewModel.carregarHierarquia();
+      await viewModel.selecionarEscopo(NivelEscopo.programa, 10);
+
+      expect(viewModel.validarReferencia('sistema.evento.local'), isNotNull);
+      expect(viewModel.validarReferencia('objetivo'), isNotNull);
+      // Editar a própria definição não pode acusar duplicata contra si mesma.
+      expect(
+        viewModel.validarReferencia('objetivo', ignorandoDefinicaoId: 7),
+        isNull,
+      );
+      expect(viewModel.validarReferencia('local_evento'), isNull);
+    });
+
+    test('escopo de programa só permite níveis iguais ou mais profundos', () async {
+      final repositorio = _RepositorioCatalogoFake();
+      final viewModel = CampoDefinicaoViewModel(repositorio);
+
+      await viewModel.carregarHierarquia();
+      await viewModel.selecionarEscopo(NivelEscopo.programa, 10);
+
+      expect(viewModel.niveisAplicacaoPermitidos, [
+        NivelAplicacao.programa,
+        NivelAplicacao.projeto,
+        NivelAplicacao.evento,
+      ]);
+
+      await viewModel.salvar(
+        nivelAplicacao: NivelAplicacao.evento,
+        referencia: 'local_evento',
+        descricao: 'Local do evento',
+        tipo: TipoCampo.texto,
+        obrigatorio: false,
+      );
+
+      expect(repositorio.definicaoCriada, (
+        escopo: NivelEscopo.programa,
+        escopoId: 10,
+        ref: 'local_evento',
+      ));
+    });
+  });
+
+  group('scanner de gaps ProseMirror', () {
+    const documento = {
+      'type': 'doc',
+      'content': [
+        {
+          'type': 'paragraph',
+          'content': [
+            {
+              'type': 'var_text',
+              'attrs': {'ref': 'objetivo'},
+            },
+          ],
+        },
+        {
+          'type': 'var_image',
+          'attrs': {'ref': 'foto_capa'},
+        },
+        {
+          'type': 'custom_text',
+          'attrs': {'label': 'Bloco livre'},
+          'content': [
+            {
+              'type': 'paragraph',
+              'content': [
+                {
+                  'type': 'variable',
+                  'attrs': {'ref': 'sistema.projeto.sigla'},
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    test('coleta refs de variáveis, inclusive as aninhadas', () {
+      expect(extrairRefsDeVariaveis(documento), {
+        'objetivo',
+        'foto_capa',
+        'sistema.projeto.sigla',
+      });
+    });
+
+    test('separa os rótulos dos blocos manuais das variáveis', () {
+      expect(extrairLabelsDeBlocosManuais(documento), ['Bloco livre']);
+      expect(
+        extrairRefsDeVariaveis(documento),
+        isNot(contains('Bloco livre')),
+      );
+    });
+
+    test('nível exigido é o mais profundo entre as refs conhecidas', () {
+      final nivel = nivelExigidoPorRefs(const [
+        'objetivo',
+        'sistema.cliente.nome',
+        'desconhecida',
+      ], const {'objetivo': NivelAplicacao.projeto});
+
+      expect(nivel, NivelAplicacao.projeto);
+    });
+
+    test('sem refs conhecidas, nenhum nível é exigido', () {
+      expect(nivelExigidoPorRefs(const ['desconhecida'], const {}), isNull);
     });
   });
 }
@@ -181,15 +478,40 @@ class _RepositorioAutenticacaoFake implements RepositorioAutenticacao {
 }
 
 class _RepositorioCatalogoFake implements RepositorioCatalogo {
+  /// Documento e variáveis usados pelo `GerarRelatorioViewModel` — deixados
+  /// configuráveis para exercitar o cálculo de nível exigido e de referências
+  /// não contempladas.
+  final Map<String, dynamic> modeloTemplate;
+  final List<VariavelDisponivel> variaveisDisponiveis;
+  final List<CampoDefinicao> definicoes;
+  final List<CampoValor> valores;
+
+  _RepositorioCatalogoFake({
+    this.modeloTemplate = const {
+      'type': 'doc',
+      'content': <Map<String, dynamic>>[],
+    },
+    this.variaveisDisponiveis = const [],
+    this.definicoes = const [],
+    this.valores = const [],
+  });
+
   String? programaCriado;
   String? projetoCriado;
   String? eventoCriado;
   String? templateCriado;
+  ({NivelEscopo escopo, int escopoId, String ref})? definicaoCriada;
+  ({int definicao, NivelAplicacao alvo, int alvoId})? valorSalvo;
   ({int template, int? evento})? relatorioGerado;
-  ({int template, int? evento})? previsualizacaoRecebida;
+  ({int template, int? cliente, int? programa, int? projeto, int? evento})?
+  previsualizacaoRecebida;
 
+  // Hierarquia mínima e consistente: Cliente 100 > Programa 10 > Projeto 1 >
+  // Evento 3. É o que permite aos view models resolverem a cadeia de escopo.
   @override
-  Future<List<Cliente>> listarClientes() async => const [];
+  Future<List<Cliente>> listarClientes() async => const [
+    Cliente(id: 100, nome: 'Cliente'),
+  ];
 
   @override
   Future<List<OpcaoSelecao>> listarClientesSelecao() async => const [];
@@ -273,6 +595,11 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   }) async => const [];
 
   @override
+  Future<List<MembroEquipePrograma>> listarEquipeDeProgramas(
+    Set<int> programaIds,
+  ) async => const [];
+
+  @override
   Future<void> criarMembroEquipe({
     required int programaId,
     required String nome,
@@ -295,6 +622,11 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   }) async => const [];
 
   @override
+  Future<List<MembroEquipeProjeto>> listarEquipeDeProjetos(
+    Set<int> projetoIds,
+  ) async => const [];
+
+  @override
   Future<void> criarMembroEquipeProjeto({
     required int projetoId,
     required String nomeEquipe,
@@ -314,32 +646,63 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   Future<void> excluirMembroEquipeProjeto(int membroId) async {}
 
   @override
-  Future<List<ProjetoCampo>> listarCamposProjeto({
-    required int projetoId,
-  }) async => const [];
+  Future<List<CampoDefinicao>> listarDefinicoes({
+    NivelEscopo? escopo,
+    int? escopoId,
+  }) async => definicoes;
 
   @override
-  Future<void> criarCampoProjeto({
-    required int projetoId,
+  Future<List<CampoDefinicao>> listarDefinicoesVisiveis({
+    int? clienteId,
+    int? programaId,
+    int? projetoId,
+  }) async => definicoes;
+
+  @override
+  Future<void> criarDefinicao({
+    required NivelEscopo escopo,
+    required int escopoId,
+    required NivelAplicacao nivelAplicacao,
     required String referencia,
     required String descricao,
-    required TipoCampoProjeto tipo,
+    required TipoCampo tipo,
     required bool obrigatorio,
-    required Map<String, dynamic> valor,
+  }) async {
+    definicaoCriada = (escopo: escopo, escopoId: escopoId, ref: referencia);
+  }
+
+  @override
+  Future<void> atualizarDefinicao({
+    required int definicaoId,
+    required NivelAplicacao nivelAplicacao,
+    required String referencia,
+    required String descricao,
+    required TipoCampo tipo,
+    required bool obrigatorio,
   }) async {}
 
   @override
-  Future<void> atualizarCampoProjeto({
-    required int campoId,
-    required String referencia,
-    required String descricao,
-    required TipoCampoProjeto tipo,
-    required bool obrigatorio,
-    required Map<String, dynamic> valor,
-  }) async {}
+  Future<void> excluirDefinicao(int definicaoId) async {}
 
   @override
-  Future<void> excluirCampoProjeto(int campoId) async {}
+  Future<List<CampoValor>> listarValores({
+    required NivelAplicacao alvo,
+    required int alvoId,
+  }) async => valores;
+
+  @override
+  Future<void> salvarValor({
+    int? valorId,
+    required int definicaoId,
+    required NivelAplicacao alvo,
+    required int alvoId,
+    required Map<String, dynamic> valor,
+  }) async {
+    valorSalvo = (definicao: definicaoId, alvo: alvo, alvoId: alvoId);
+  }
+
+  @override
+  Future<void> excluirValor(int valorId) async {}
 
   @override
   Future<int> criarAsset({
@@ -376,7 +739,7 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
 
   @override
   Future<List<Projeto>> listarProjetosDetalhados({int? programaId}) async =>
-      const [];
+      const [Projeto(id: 1, programaId: 10, nome: 'Projeto')];
 
   @override
   Future<Projeto> obterProjeto(int projetoId) async =>
@@ -433,6 +796,11 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   }) async => const [];
 
   @override
+  Future<List<ClasseEvento>> listarClassesEventoDeProjetos(
+    Set<int> projetoIds,
+  ) async => const [];
+
+  @override
   Future<void> atualizarClasseEvento({
     required int classeId,
     required String nomeClasse,
@@ -471,7 +839,8 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
 
   @override
   Future<int> criarTemplateComModelo({
-    required int projetoId,
+    required NivelEscopo escopo,
+    required int escopoId,
     required String nomeTemplate,
     Map<String, dynamic>? modeloJson,
   }) async {
@@ -487,7 +856,7 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
 
   @override
   Future<Map<String, dynamic>> obterModeloTemplate(int templateId) async =>
-      const {'type': 'doc', 'content': <Map<String, dynamic>>[]};
+      modeloTemplate;
 
   @override
   Future<void> salvarModeloTemplate({
@@ -498,6 +867,9 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   @override
   Future<int> gerarRelatorioComDocumento({
     required int templateId,
+    int? clienteId,
+    int? programaId,
+    int? projetoId,
     int? eventoId,
     Map<String, dynamic>? documentoJson,
     String? nome,
@@ -527,11 +899,26 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   @override
   Future<Map<String, dynamic>> previsualizarTemplate({
     required int templateId,
+    int? clienteId,
+    int? programaId,
+    int? projetoId,
     int? eventoId,
   }) async {
-    previsualizacaoRecebida = (template: templateId, evento: eventoId);
+    previsualizacaoRecebida = (
+      template: templateId,
+      cliente: clienteId,
+      programa: programaId,
+      projeto: projetoId,
+      evento: eventoId,
+    );
     return const {'type': 'doc', 'content': <Map<String, dynamic>>[]};
   }
+
+  @override
+  Future<List<VariavelDisponivel>> listarVariaveisDisponiveis({
+    required NivelEscopo escopo,
+    required int escopoId,
+  }) async => variaveisDisponiveis;
 
   @override
   Future<TemplateRelatorio> obterTemplate(int templateId) async =>
@@ -547,7 +934,8 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   @override
   Future<void> atualizarTemplate({
     required int templateId,
-    required int projetoId,
+    required NivelEscopo escopo,
+    required int escopoId,
     required String nomeTemplate,
     Uint8List? arquivoBytes,
     String? nomeArquivo,
@@ -568,6 +956,7 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   Future<List<Evento>> listarEventos() async => [
     Evento(
       id: 3,
+      projetoId: 1,
       nome: 'Evento',
       programa: 'Programa',
       data: DateTime(2026, 6, 21),
@@ -579,6 +968,8 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   Future<List<TemplateRelatorio>> listarTemplates() async => const [
     TemplateRelatorio(
       id: 4,
+      nivel: NivelEscopo.projeto,
+      projetoId: 1,
       nome: 'Template',
       descricao: 'Descrição',
       tipo: 'DOCX',
@@ -587,7 +978,17 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   ];
 
   @override
-  Future<List<Programa>> listarProgramas() async => const [];
+  Future<List<Programa>> listarProgramas() async => const [
+    Programa(
+      id: 10,
+      clienteId: 100,
+      nome: 'Programa',
+      descricao: 'Descrição',
+      projetos: 1,
+      eventos: 1,
+      status: 'Ativo',
+    ),
+  ];
 
   @override
   Future<void> atualizarEvento({

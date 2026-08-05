@@ -40,11 +40,20 @@ mixin RepositorioRelatoriosHttpMixin implements RepositorioRelatorios {
   @override
   Future<int> gerarRelatorioComDocumento({
     required int templateId,
+    int? clienteId,
+    int? programaId,
+    int? projetoId,
     int? eventoId,
     Map<String, dynamic>? documentoJson,
     String? nome,
   }) async {
     final dados = <String, dynamic>{'template': templateId};
+    // O backend resolve a cadeia a partir do elo mais profundo informado, mas
+    // valida os elos mais rasos que também vierem — então mandamos todos os
+    // que o usuário escolheu, e nenhum dos que ele não escolheu.
+    if (clienteId case final id?) dados['cliente'] = id;
+    if (programaId case final id?) dados['programa'] = id;
+    if (projetoId case final id?) dados['projeto'] = id;
     if (eventoId case final id?) dados['evento'] = id;
     if (documentoJson != null) dados['documento_json'] = documentoJson;
     if (nome != null && nome.trim().isNotEmpty) dados['nome'] = nome.trim();

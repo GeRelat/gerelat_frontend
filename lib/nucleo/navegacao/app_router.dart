@@ -12,7 +12,6 @@ import 'package:gerelat_frontend/paginas/eventos/pagina_classes_evento.dart';
 import 'package:gerelat_frontend/paginas/eventos/pagina_eventos.dart';
 import 'package:gerelat_frontend/paginas/eventos/pagina_formulario_evento.dart';
 import 'package:gerelat_frontend/paginas/login/pagina_login.dart';
-import 'package:gerelat_frontend/paginas/programas/pagina_campos_projeto.dart';
 import 'package:gerelat_frontend/paginas/programas/pagina_equipe_programa.dart';
 import 'package:gerelat_frontend/paginas/programas/pagina_equipe_projeto.dart';
 import 'package:gerelat_frontend/paginas/programas/pagina_formulario_programa.dart';
@@ -29,6 +28,8 @@ import 'package:gerelat_frontend/paginas/sucesso_cadastro/pagina_sucesso_cadastr
 import 'package:gerelat_frontend/paginas/templates/pagina_editor_template.dart';
 import 'package:gerelat_frontend/paginas/templates/pagina_formulario_template.dart';
 import 'package:gerelat_frontend/paginas/templates/pagina_templates.dart';
+import 'package:gerelat_frontend/paginas/variaveis/pagina_definicoes_variaveis.dart';
+import 'package:gerelat_frontend/paginas/variaveis/pagina_valores_variaveis.dart';
 import 'package:go_router/go_router.dart';
 
 /// Faz o parse seguro de um parâmetro numérico de rota (`:id` etc.).
@@ -76,8 +77,10 @@ const _rotasPublicas = <String>[
         : 'Gestão de Programas';
     return (secao: SecaoApp.programas, titulo: titulo);
   }
-  if (caminho.startsWith('/projetos/campos')) {
-    return (secao: SecaoApp.variaveis, titulo: 'Variáveis do Projeto');
+  if (caminho.startsWith('/variaveis')) {
+    return caminho.endsWith('/valores')
+        ? (secao: SecaoApp.variaveisValores, titulo: 'Valores de Variáveis')
+        : (secao: SecaoApp.variaveis, titulo: 'Definições de Variáveis');
   }
   if (caminho.startsWith('/projetos')) {
     return (secao: SecaoApp.programas, titulo: 'Equipe da Parceira');
@@ -352,9 +355,15 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
                 PaginaEquipeProjeto(repositorioCatalogo: repositorioCatalogo),
           ),
           GoRoute(
-            path: '/projetos/campos',
+            path: '/variaveis/definicoes',
+            builder: (context, state) => PaginaDefinicoesVariaveis(
+              repositorioCatalogo: repositorioCatalogo,
+            ),
+          ),
+          GoRoute(
+            path: '/variaveis/valores',
             builder: (context, state) =>
-                PaginaCamposProjeto(repositorioCatalogo: repositorioCatalogo),
+                PaginaValoresVariaveis(repositorioCatalogo: repositorioCatalogo),
           ),
           GoRoute(
             path: '/eventos',

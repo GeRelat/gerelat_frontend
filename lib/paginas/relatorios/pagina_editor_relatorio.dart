@@ -9,12 +9,22 @@ import 'package:go_router/go_router.dart';
 /// Parâmetros passados de [PaginaGerarRelatorio] para o editor de relatório.
 class ArgumentosEditorRelatorio {
   final int templateId;
+
+  /// Cadeia de escopo escolhida na tela anterior. É o que permite ao backend
+  /// resolver as variáveis de cada nível — e o que ele valida contra os gaps
+  /// do documento antes de enfileirar a geração.
+  final int? clienteId;
+  final int? programaId;
+  final int? projetoId;
   final int? eventoId;
   final String? nome;
   final Map<String, dynamic> documento;
 
   const ArgumentosEditorRelatorio({
     required this.templateId,
+    this.clienteId,
+    this.programaId,
+    this.projetoId,
     required this.eventoId,
     required this.nome,
     required this.documento,
@@ -63,6 +73,9 @@ class _PaginaEditorRelatorioState extends State<PaginaEditorRelatorio> {
     try {
       await _relatoriosRepositorio.gerarRelatorioComDocumento(
         templateId: widget.argumentos.templateId,
+        clienteId: widget.argumentos.clienteId,
+        programaId: widget.argumentos.programaId,
+        projetoId: widget.argumentos.projetoId,
         eventoId: widget.argumentos.eventoId,
         documentoJson: documento,
         nome: widget.argumentos.nome,

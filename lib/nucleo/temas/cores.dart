@@ -110,6 +110,12 @@ class Cores {
   /// Vermelho de erro — mensagens de erro e ações destrutivas.
   static const Color vermelhoErro = Color(0xFFE53935);
 
+  /// Âmbar de alerta — avisos que não impedem a ação, como variável
+  /// obrigatória ainda sem valor ou referência sem definição no template.
+  /// Escolhido para atingir 4.5:1 (mínimo WCAG/M3 para texto normal) sobre
+  /// [branco] e [fundoCanvas].
+  static const Color ambarAlerta = Color(0xFFB45309);
+
   // ---------------------------------------------------------------------
   // Translúcidos — elementos sobre o painel azul da tela de login.
   // ---------------------------------------------------------------------

@@ -1,16 +1,25 @@
 import 'dart:typed_data';
 
+import 'package:gerelat_frontend/aplicacao/hierarquia_escopo.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/base_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/template_relatorio.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 
 class TemplatesViewModel extends BaseViewModel {
   final RepositorioTemplates _repositorio;
+  final RepositorioCatalogo _catalogo;
+  HierarquiaEscopo _hierarquia = const HierarquiaEscopo();
   List<TemplateRelatorio> _templates = [];
   String _termoBusca = '';
   String? _mensagemErroAcao;
 
-  TemplatesViewModel(this._repositorio);
+  TemplatesViewModel(RepositorioCatalogo repositorio)
+    : _repositorio = repositorio,
+      _catalogo = repositorio;
+
+  /// Nome da entidade dona do template, para exibir junto do nível no cartão.
+  String donoDoTemplate(TemplateRelatorio template) =>
+      _hierarquia.nomeDeEscopo(template.nivel, template.escopoId);
 
   // Erro de uma ação pontual (excluir/baixar um item), separado de
   // `mensagemErro` — que é reservado para falha da carga da lista. Antes,
@@ -39,6 +48,10 @@ class TemplatesViewModel extends BaseViewModel {
   Future<void> carregar() async {
     iniciarCarregamento();
     try {
+      _hierarquia = await HierarquiaEscopo.carregar(
+        _catalogo,
+        comEventos: false,
+      );
       _templates = await _repositorio.listarTemplates();
       finalizarCarregamento();
     } catch (erro) {

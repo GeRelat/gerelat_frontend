@@ -2,7 +2,10 @@ import 'dart:typed_data';
 
 import 'package:gerelat_frontend/dados/servicos/servico_api_gerelat.dart';
 import 'package:gerelat_frontend/dominio/entidades/assinatura_template.dart';
+import 'package:gerelat_frontend/dominio/entidades/campo_tipo.dart';
+import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/entidades/template_relatorio.dart';
+import 'package:gerelat_frontend/dominio/entidades/variavel_disponivel.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 
 import 'utilitarios_http.dart';
@@ -13,29 +16,21 @@ mixin RepositorioTemplatesHttpMixin implements RepositorioTemplates {
   @override
   Future<List<TemplateRelatorio>> listarTemplates() async {
     final templates = await api.listar('/templates/');
-
-    return templates.map((template) {
-      final arquivo = paraTexto(template['modelo_arquivo_base']);
-      return TemplateRelatorio(
-        id: paraInteiro(template['id']),
-        projetoId: paraInteiro(template['projeto']),
-        nome: paraTexto(template['nome'], fallback: 'Template sem nome'),
-        descricao: arquivo.isEmpty
-            ? 'Template disponível para geração de relatórios.'
-            : 'Arquivo base: $arquivo',
-        tipo: 'DOCX',
-        status: 'Ativo',
-        arquivoBase: arquivo,
-      );
-    }).toList();
+    return templates.map(_templateDeMapa).toList();
   }
 
   @override
   Future<TemplateRelatorio> obterTemplate(int templateId) async {
-    final template = await api.obter('/templates/$templateId/');
+    return _templateDeMapa(await api.obter('/templates/$templateId/'));
+  }
+
+  TemplateRelatorio _templateDeMapa(Map<String, dynamic> template) {
     final arquivo = paraTexto(template['modelo_arquivo_base']);
     return TemplateRelatorio(
       id: paraInteiro(template['id']),
+      nivel: NivelEscopo.porValorApi(paraTexto(template['nivel'])),
+      clienteId: paraInteiro(template['cliente']),
+      programaId: paraInteiro(template['programa']),
       projetoId: paraInteiro(template['projeto']),
       nome: paraTexto(template['nome'], fallback: 'Template sem nome'),
       descricao: arquivo.isEmpty
@@ -47,16 +42,32 @@ mixin RepositorioTemplatesHttpMixin implements RepositorioTemplates {
     );
   }
 
+  /// Corpo com `nivel` + os três donos possíveis, sendo `null` os dois que não
+  /// correspondem ao nível.
+  ///
+  /// Os `null` explícitos são obrigatórios no PATCH: o
+  /// `_validate_owner_matches_nivel` do backend cai para o valor já gravado
+  /// quando o campo não vem no corpo, então um PATCH parcial que só troca o
+  /// dono deixaria o dono antigo preenchido e a API responderia 400
+  /// ("Informe exatamente um dos campos: cliente, programa ou projeto.").
+  Map<String, dynamic> _corpoEscopo(NivelEscopo escopo, int escopoId) => {
+    'nivel': escopo.valorApi,
+    'cliente': escopo == NivelEscopo.cliente ? escopoId : null,
+    'programa': escopo == NivelEscopo.programa ? escopoId : null,
+    'projeto': escopo == NivelEscopo.projeto ? escopoId : null,
+  };
+
   @override
   Future<void> atualizarTemplate({
     required int templateId,
-    required int projetoId,
+    required NivelEscopo escopo,
+    required int escopoId,
     required String nomeTemplate,
     Uint8List? arquivoBytes,
     String? nomeArquivo,
   }) async {
     await api.atualizar('/templates/$templateId/', {
-      'projeto': projetoId,
+      ..._corpoEscopo(escopo, escopoId),
       'nome': nomeTemplate,
     });
 
@@ -72,13 +83,14 @@ mixin RepositorioTemplatesHttpMixin implements RepositorioTemplates {
 
   @override
   Future<int> criarTemplateComModelo({
-    required int projetoId,
+    required NivelEscopo escopo,
+    required int escopoId,
     required String nomeTemplate,
     Map<String, dynamic>? modeloJson,
   }) async {
     final resposta = await api.criar('/templates/', {
       'nome': nomeTemplate,
-      'projeto': projetoId,
+      ..._corpoEscopo(escopo, escopoId),
       'modelo_json': modeloJson ?? _documentoVazio(),
     });
 
@@ -284,12 +296,18 @@ mixin RepositorioTemplatesHttpMixin implements RepositorioTemplates {
   @override
   Future<Map<String, dynamic>> previsualizarTemplate({
     required int templateId,
+    int? clienteId,
+    int? programaId,
+    int? projetoId,
     int? eventoId,
   }) async {
-    final caminho = eventoId == null
-        ? '/templates/$templateId/preview/'
-        : '/templates/$templateId/preview/?evento_id=$eventoId';
-    final resposta = await api.obter(caminho);
+    final query = _queryEscopo(
+      clienteId: clienteId,
+      programaId: programaId,
+      projetoId: projetoId,
+      eventoId: eventoId,
+    );
+    final resposta = await api.obter('/templates/$templateId/preview/$query');
     final documento = resposta['documento_json'];
     if (documento is! Map) {
       throw Exception(
@@ -297,5 +315,56 @@ mixin RepositorioTemplatesHttpMixin implements RepositorioTemplates {
       );
     }
     return Map<String, dynamic>.from(documento);
+  }
+
+  @override
+  Future<List<VariavelDisponivel>> listarVariaveisDisponiveis({
+    required NivelEscopo escopo,
+    required int escopoId,
+  }) async {
+    final query = _queryEscopo(
+      clienteId: escopo == NivelEscopo.cliente ? escopoId : null,
+      programaId: escopo == NivelEscopo.programa ? escopoId : null,
+      projetoId: escopo == NivelEscopo.projeto ? escopoId : null,
+      extras: {'nivel': escopo.valorApi},
+    );
+    final variaveis = await api.listar(
+      '/templates/variaveis-disponiveis/$query',
+    );
+
+    return variaveis
+        .map(
+          (variavel) => VariavelDisponivel(
+            referencia: paraTexto(variavel['referencia']),
+            descricao: paraTexto(variavel['descricao']),
+            tipo: TipoCampo.porValorApi(paraTexto(variavel['tipo'])),
+            nivelAplicacao: NivelAplicacao.porValorApi(
+              paraTexto(variavel['nivel_aplicacao']),
+            ),
+            origem: OrigemVariavel.porValorApi(paraTexto(variavel['origem'])),
+            obrigatorio: variavel['obrigatorio'] == true,
+          ),
+        )
+        .toList();
+  }
+
+  /// Monta a query string com os ids da cadeia de escopo que estiverem
+  /// preenchidos (mais [extras]), ou string vazia se não houver nenhum.
+  String _queryEscopo({
+    int? clienteId,
+    int? programaId,
+    int? projetoId,
+    int? eventoId,
+    Map<String, String> extras = const {},
+  }) {
+    final parametros = <String, String>{
+      ...extras,
+      if (clienteId != null) 'cliente_id': '$clienteId',
+      if (programaId != null) 'programa_id': '$programaId',
+      if (projetoId != null) 'projeto_id': '$projetoId',
+      if (eventoId != null) 'evento_id': '$eventoId',
+    };
+    if (parametros.isEmpty) return '';
+    return '?${Uri(queryParameters: parametros).query}';
   }
 }

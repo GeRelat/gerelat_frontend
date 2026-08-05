@@ -10,14 +10,24 @@ mixin RepositorioEquipeProgramaHttpMixin implements RepositorioEquipePrograma {
   @override
   Future<List<MembroEquipePrograma>> listarEquipePrograma({
     required int programaId,
-  }) async {
+  }) {
+    return listarEquipeDeProgramas({programaId});
+  }
+
+  @override
+  Future<List<MembroEquipePrograma>> listarEquipeDeProgramas(
+    Set<int> programaIds,
+  ) async {
+    if (programaIds.isEmpty) return const [];
     final membros = await api.listar('/equipes-programa/');
     return membros
-        .where((membro) => paraInteiro(membro['programa']) == programaId)
+        .where(
+          (membro) => programaIds.contains(paraInteiro(membro['programa'])),
+        )
         .map(
           (membro) => MembroEquipePrograma(
             id: paraInteiro(membro['id']),
-            programaId: programaId,
+            programaId: paraInteiro(membro['programa']) ?? 0,
             nome: paraTexto(membro['nome']),
             cargo: paraTexto(membro['cargo']),
           ),

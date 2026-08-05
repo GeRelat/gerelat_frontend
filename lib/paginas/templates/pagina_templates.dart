@@ -131,6 +131,7 @@ class _PaginaTemplatesState extends State<PaginaTemplates> {
                   width: largura,
                   child: _CartaoTemplate(
                     template,
+                    dono: _viewModel.donoDoTemplate(template),
                     onEditado: _viewModel.carregar,
                     onExcluir: _viewModel.excluir,
                     onBaixar: _viewModel.baixarArquivo,
@@ -147,6 +148,9 @@ class _PaginaTemplatesState extends State<PaginaTemplates> {
 
 class _CartaoTemplate extends StatelessWidget {
   final TemplateRelatorio template;
+
+  /// Nome da entidade dona do template (cliente, programa ou projeto).
+  final String dono;
   final Future<void> Function() onEditado;
   final Future<bool> Function(int) onExcluir;
   final Future<Uint8List?> Function(int) onBaixar;
@@ -154,6 +158,7 @@ class _CartaoTemplate extends StatelessWidget {
 
   const _CartaoTemplate(
     this.template, {
+    required this.dono,
     required this.onEditado,
     required this.onExcluir,
     required this.onBaixar,
@@ -177,11 +182,23 @@ class _CartaoTemplate extends StatelessWidget {
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: Text(
-                  template.nome,
-                  style: Tipografia.titleLarge.copyWith(
-                    color: Cores.textoPrincipal,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      template.nome,
+                      style: Tipografia.titleLarge.copyWith(
+                        color: Cores.textoPrincipal,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${template.nivel.rotulo} · $dono',
+                      style: Tipografia.bodySmall.copyWith(
+                        color: Cores.cinzaMedio,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               _tag(template.tipo),

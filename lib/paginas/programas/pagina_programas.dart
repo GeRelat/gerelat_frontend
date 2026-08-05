@@ -96,7 +96,7 @@ class _PaginaProgramasState extends State<PaginaProgramas> {
             BotaoPrimario(
               texto: 'Variáveis',
               icone: LucideIcons.variable,
-              onPressed: () => context.push('/projetos/campos'),
+              onPressed: () => context.push('/variaveis/definicoes'),
             ),
             const SizedBox(width: 12),
             BotaoPrimario(
