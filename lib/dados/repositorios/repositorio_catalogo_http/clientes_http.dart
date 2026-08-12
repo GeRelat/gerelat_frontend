@@ -15,10 +15,15 @@ mixin RepositorioClientesHttpMixin implements RepositorioClientes {
   }
 
   @override
-  Future<List<OpcaoSelecao>> listarClientesSelecao() async {
+  Future<List<OpcaoSelecao>> listarClientesSelecao({int? clienteId}) async {
     final clientes = await api.listar('/clientes/');
+    final filtrados = clienteId == null
+        ? clientes
+        : clientes
+            .where((c) => paraInteiro(c['id']) == clienteId)
+            .toList();
     return paraOpcoes(
-      clientes,
+      filtrados,
       campoNome: 'nome',
       fallback: 'Cliente sem nome',
     );
@@ -39,6 +44,7 @@ mixin RepositorioClientesHttpMixin implements RepositorioClientes {
     required String foneContato,
     required String numeroContrato,
     required DateTime dataTerminoContrato,
+    String logomarca = '',
   }) async {
     await api.criar('/clientes/', {
       'nome': nome,
@@ -48,6 +54,7 @@ mixin RepositorioClientesHttpMixin implements RepositorioClientes {
       'fone_contato': foneContato,
       'numero_contrato': numeroContrato,
       'data_termino_contrato': formatarDataParaApi(dataTerminoContrato),
+      'logomarca': logomarca,
     });
   }
 
@@ -61,6 +68,7 @@ mixin RepositorioClientesHttpMixin implements RepositorioClientes {
     required String foneContato,
     required String numeroContrato,
     required DateTime dataTerminoContrato,
+    String logomarca = '',
   }) async {
     await api.atualizar('/clientes/$clienteId/', {
       'nome': nome,
@@ -70,6 +78,7 @@ mixin RepositorioClientesHttpMixin implements RepositorioClientes {
       'fone_contato': foneContato,
       'numero_contrato': numeroContrato,
       'data_termino_contrato': formatarDataParaApi(dataTerminoContrato),
+      'logomarca': logomarca,
     });
   }
 
@@ -90,6 +99,7 @@ mixin RepositorioClientesHttpMixin implements RepositorioClientes {
       dataTerminoContrato: DateTime.tryParse(
         paraTexto(cliente['data_termino_contrato']),
       ),
+      logomarca: paraTexto(cliente['logomarca']),
     );
   }
 }

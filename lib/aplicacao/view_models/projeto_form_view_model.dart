@@ -13,21 +13,25 @@ class ProjetoFormViewModel extends BaseViewModel {
   List<OpcaoSelecao> get programas => List.unmodifiable(_programas);
   Projeto? get projeto => _projeto;
 
-  Future<void> carregarOpcoes() async {
+  Future<void> carregarOpcoes({int? clienteAtivoId}) async {
     iniciarCarregamento();
     try {
-      _programas = await _repositorio.listarProgramasSelecao();
+      _programas = await _repositorio.listarProgramasSelecao(
+        clienteId: clienteAtivoId,
+      );
       finalizarCarregamento();
     } catch (erro) {
       definirErro(erro);
     }
   }
 
-  Future<void> carregar(int projetoId) async {
+  Future<void> carregar(int projetoId, {int? clienteAtivoId}) async {
     iniciarCarregamento();
     try {
       _projeto = await _repositorio.obterProjeto(projetoId);
-      _programas = await _repositorio.listarProgramasSelecao();
+      _programas = await _repositorio.listarProgramasSelecao(
+        clienteId: clienteAtivoId,
+      );
       finalizarCarregamento();
     } catch (erro) {
       definirErro(erro);

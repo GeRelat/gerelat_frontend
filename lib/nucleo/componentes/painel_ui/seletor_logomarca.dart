@@ -36,6 +36,8 @@ class SeletorLogomarca extends StatefulWidget {
   final ValueChanged<String> aoAlterar;
   final RepositorioCatalogo repositorioCatalogo;
   final String urlBase;
+  final NivelEscopo? escopo;
+  final int? escopoId;
 
   const SeletorLogomarca({
     super.key,
@@ -44,6 +46,8 @@ class SeletorLogomarca extends StatefulWidget {
     required this.aoAlterar,
     required this.repositorioCatalogo,
     required this.urlBase,
+    this.escopo,
+    this.escopoId,
   });
 
   @override
@@ -66,11 +70,12 @@ class _SeletorLogomarcaState extends State<SeletorLogomarca> {
     setState(() => _enviando = true);
     try {
       final repositorio = widget.repositorioCatalogo;
-      final assetId = await repositorio.criarAsset(
+      final asset = await repositorio.criarAsset(
         arquivoBytes: arquivo.bytes,
         nomeArquivo: arquivo.nome,
+        escopo: widget.escopo,
+        escopoId: widget.escopoId,
       );
-      final asset = await repositorio.obterAsset(assetId);
       if (!mounted) return;
       widget.aoAlterar(asset.urlArquivo);
     } catch (erro) {
@@ -80,6 +85,21 @@ class _SeletorLogomarcaState extends State<SeletorLogomarca> {
       ).showSnackBar(SnackBar(content: Text('Erro ao enviar imagem: $erro')));
     } finally {
       if (mounted) setState(() => _enviando = false);
+    }
+  }
+
+  Future<void> _abrirGaleria() async {
+    final asset = await showDialog<Asset>(
+      context: context,
+      builder: (context) => DialogoSelecaoAsset(
+        repositorioCatalogo: widget.repositorioCatalogo,
+        urlBase: widget.urlBase,
+        escopo: widget.escopo,
+        escopoId: widget.escopoId,
+      ),
+    );
+    if (asset != null && mounted) {
+      widget.aoAlterar(asset.urlArquivo);
     }
   }
 
@@ -128,14 +148,14 @@ class _SeletorLogomarcaState extends State<SeletorLogomarca> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(LucideIcons.upload, size: 16),
-                label: Text(
-                  _enviando
-                      ? 'Enviando...'
-                      : widget.urlAtual.isEmpty
-                      ? 'Selecionar imagem'
-                      : 'Trocar imagem',
-                ),
+                label: Text(_enviando ? 'Enviando...' : 'Upload'),
               ),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: _enviando ? null : _abrirGaleria,
+              icon: const Icon(LucideIcons.images, size: 16),
+              label: const Text('Galeria'),
             ),
           ],
         ),

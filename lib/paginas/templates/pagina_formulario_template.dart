@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/template_form_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/classe_evento.dart';
 import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
@@ -16,12 +17,14 @@ class PaginaFormularioTemplate extends StatefulWidget {
   final bool edicao;
   final int? templateId;
   final RepositorioCatalogo repositorioCatalogo;
+  final SessaoViewModel sessaoViewModel;
 
   const PaginaFormularioTemplate({
     super.key,
     this.edicao = false,
     this.templateId,
     required this.repositorioCatalogo,
+    required this.sessaoViewModel,
   });
 
   @override
@@ -40,6 +43,11 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
   void initState() {
     super.initState();
     _viewModel = TemplateFormViewModel(widget.repositorioCatalogo);
+    _viewModel.definirContexto(
+      widget.sessaoViewModel.clienteAtivoId,
+      widget.sessaoViewModel.usuarioAtual,
+    );
+    widget.sessaoViewModel.addListener(_aoMudarSessao);
     final templateId = widget.templateId;
     if (widget.edicao && templateId != null) {
       _viewModel.carregarEdicao(templateId).then((_) {
@@ -56,8 +64,16 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
     }
   }
 
+  void _aoMudarSessao() {
+    _viewModel.definirContexto(
+      widget.sessaoViewModel.clienteAtivoId,
+      widget.sessaoViewModel.usuarioAtual,
+    );
+  }
+
   @override
   void dispose() {
+    widget.sessaoViewModel.removeListener(_aoMudarSessao);
     _nome.dispose();
     _viewModel.dispose();
     super.dispose();
@@ -242,7 +258,7 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: NivelEscopo.values.map((nivel) {
+          children: _viewModel.niveisPermitidos.map((nivel) {
             return ChoiceChip(
               label: Text(nivel.rotulo),
               selected: _viewModel.nivel == nivel,
@@ -280,14 +296,6 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
   }
 
   Widget _campoClassesEvento() {
-    // Em nível cliente/programa as classes vêm de vários projetos; agrupá-las
-    // por projeto é o que torna a lista legível quando ela cresce.
-    final porProjeto = <int?, List<ClasseEvento>>{};
-    for (final classe in _viewModel.classesDisponiveis) {
-      porProjeto.putIfAbsent(classe.projetoId, () => []).add(classe);
-    }
-    final agrupar = _viewModel.nivel != NivelEscopo.projeto;
-
     return _painelSecao(
       children: [
         Text(
@@ -306,40 +314,27 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              'Nenhuma classe de evento cadastrada nos projetos deste escopo.',
+              'Nenhuma classe de evento cadastrada neste escopo.',
               style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
             ),
           )
         else
-          for (final entrada in porProjeto.entries) ...[
-            if (agrupar) ...[
-              Padding(
-                padding: const EdgeInsets.only(top: 8, bottom: 6),
-                child: Text(
-                  _viewModel.nomeProjeto(entrada.key),
-                  style: Tipografia.labelMedium.copyWith(
-                    color: Cores.cinzaEscuro,
-                  ),
-                ),
-              ),
-            ],
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: entrada.value.map((classe) {
-                final id = classe.id;
-                return FilterChip(
-                  label: Text(classe.nomeClasse),
-                  selected: _viewModel.classesSelecionadas.contains(id),
-                  onSelected: id == null
-                      ? null
-                      : (_) => _viewModel.alternarClasse(id),
-                  selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
-                  checkmarkColor: Cores.azulAcao,
-                );
-              }).toList(),
-            ),
-          ],
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _viewModel.classesDisponiveis.map((classe) {
+              final id = classe.id;
+              return FilterChip(
+                label: Text(classe.nomeClasse),
+                selected: _viewModel.classesSelecionadas.contains(id),
+                onSelected: id == null
+                    ? null
+                    : (_) => _viewModel.alternarClasse(id),
+                selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
+                checkmarkColor: Cores.azulAcao,
+              );
+            }).toList(),
+          ),
       ],
     );
   }

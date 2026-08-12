@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:gerelat_frontend/dominio/entidades/agendamento_relatorio.dart';
 import 'package:gerelat_frontend/dominio/entidades/asset.dart';
 import 'package:gerelat_frontend/dominio/entidades/assinatura_template.dart';
 import 'package:gerelat_frontend/dominio/entidades/campo_definicao.dart';
@@ -8,6 +9,9 @@ import 'package:gerelat_frontend/dominio/entidades/campo_valor.dart';
 import 'package:gerelat_frontend/dominio/entidades/classe_evento.dart';
 import 'package:gerelat_frontend/dominio/entidades/cliente.dart';
 import 'package:gerelat_frontend/dominio/entidades/evento.dart';
+import 'package:gerelat_frontend/dominio/entidades/membro_cliente.dart';
+import 'package:gerelat_frontend/dominio/entidades/membro_gerelat.dart';
+import 'package:gerelat_frontend/dominio/entidades/usuario_cliente.dart';
 import 'package:gerelat_frontend/dominio/entidades/membro_equipe_programa.dart';
 import 'package:gerelat_frontend/dominio/entidades/membro_equipe_projeto.dart';
 import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
@@ -16,13 +20,14 @@ import 'package:gerelat_frontend/dominio/entidades/programa.dart';
 import 'package:gerelat_frontend/dominio/entidades/projeto.dart';
 import 'package:gerelat_frontend/dominio/entidades/relatorio.dart';
 import 'package:gerelat_frontend/dominio/entidades/resumo_dashboard.dart';
+import 'package:gerelat_frontend/dominio/entidades/solicitacao_cliente.dart';
 import 'package:gerelat_frontend/dominio/entidades/template_relatorio.dart';
 import 'package:gerelat_frontend/dominio/entidades/variavel_disponivel.dart';
 
 abstract interface class RepositorioClientes {
   Future<List<Cliente>> listarClientes();
 
-  Future<List<OpcaoSelecao>> listarClientesSelecao();
+  Future<List<OpcaoSelecao>> listarClientesSelecao({int? clienteId});
 
   Future<Cliente> obterCliente(int clienteId);
 
@@ -34,6 +39,7 @@ abstract interface class RepositorioClientes {
     required String foneContato,
     required String numeroContrato,
     required DateTime dataTerminoContrato,
+    String logomarca = '',
   });
 
   Future<void> atualizarCliente({
@@ -45,6 +51,7 @@ abstract interface class RepositorioClientes {
     required String foneContato,
     required String numeroContrato,
     required DateTime dataTerminoContrato,
+    String logomarca = '',
   });
 
   Future<void> excluirCliente(int clienteId);
@@ -53,7 +60,7 @@ abstract interface class RepositorioClientes {
 abstract interface class RepositorioProgramas {
   Future<List<Programa>> listarProgramas();
 
-  Future<List<OpcaoSelecao>> listarProgramasSelecao();
+  Future<List<OpcaoSelecao>> listarProgramasSelecao({int? clienteId});
 
   Future<Programa> obterPrograma(int programaId);
 
@@ -109,15 +116,23 @@ abstract interface class RepositorioEventos {
 
   Future<List<OpcaoSelecao>> listarProjetos();
 
-  Future<List<OpcaoSelecao>> listarClassesEvento({int? projetoId});
+  Future<List<OpcaoSelecao>> listarClassesEvento({
+    int? projetoId,
+    NivelEscopo? escopo,
+    int? escopoId,
+  });
 
   Future<int> criarClasseEvento({
-    required int projetoId,
+    int? projetoId,
+    NivelEscopo? escopo,
+    int? escopoId,
     required String nomeClasse,
   });
 
   Future<List<ClasseEvento>> listarClassesEventoDetalhadas({
-    required int projetoId,
+    int? projetoId,
+    NivelEscopo? escopo,
+    int? escopoId,
   });
 
   /// Classes de vários projetos numa única listagem — usado por templates de
@@ -127,6 +142,13 @@ abstract interface class RepositorioEventos {
     Set<int> projetoIds,
   );
 
+  /// Classes de evento no alcance do escopo (cliente, programas ou projetos).
+  Future<List<ClasseEvento>> listarClassesEventoDoAlcance({
+    int? clienteId,
+    Set<int> programaIds = const {},
+    Set<int> projetoIds = const {},
+  });
+
   Future<void> atualizarClasseEvento({
     required int classeId,
     required String nomeClasse,
@@ -135,7 +157,9 @@ abstract interface class RepositorioEventos {
   Future<void> excluirClasseEvento(int classeId);
 
   Future<void> criarEvento({
-    required int projetoId,
+    int? projetoId,
+    NivelEscopo? escopo,
+    int? escopoId,
     required int classeEventoId,
     required String nome,
     required DateTime data,
@@ -146,7 +170,9 @@ abstract interface class RepositorioEventos {
 
   Future<void> atualizarEvento({
     required int eventoId,
-    required int projetoId,
+    int? projetoId,
+    NivelEscopo? escopo,
+    int? escopoId,
     required int classeEventoId,
     required String nome,
     required DateTime data,
@@ -240,6 +266,10 @@ abstract interface class RepositorioTemplates {
   /// (ex.: fluxo `from-json`, que não armazena o .docx original).
   Future<Uint8List> baixarArquivoTemplate(int templateId);
 
+  /// Listagem de eventos disponíveis para a geração de relatórios com o template
+  /// informado (respeitando o escopo do template e vinculação com classe de evento).
+  Future<List<Evento>> listarEventosDisponiveis(int templateId);
+
   /// Resolve as variáveis da cadeia de escopo informada sobre o `modelo_json`
   /// do template (via `/templates/<id>/preview/`) e retorna o documento
   /// ProseMirror resultante, para pré-visualização antes de gerar o relatório
@@ -278,14 +308,41 @@ abstract interface class RepositorioRelatorios {
 
   Future<void> atualizarRelatorio({
     required int relatorioId,
-    required String nome,
+    String? nome,
+    Map<String, dynamic>? documentoJson,
   });
 
   Future<void> excluirRelatorio(int relatorioId);
+
+  Future<void> agendarRelatorio({
+    required String nome,
+    required int templateId,
+    int? clienteId,
+    int? programaId,
+    int? projetoId,
+    int? eventoId,
+    Map<String, dynamic>? documentoJson,
+    required String tipoAgendamento,
+    DateTime? dataHoraExecucao,
+    String? recorrencia,
+    String? horarioExecucao,
+    int? diaSemana,
+    int? diaMes,
+    bool ativo = true,
+  });
+
+  Future<List<AgendamentoRelatorio>> listarAgendamentos({int? clienteId});
+
+  Future<void> alterarStatusAgendamento({
+    required int agendamentoId,
+    required bool ativo,
+  });
+
+  Future<void> excluirAgendamento(int agendamentoId);
 }
 
 abstract interface class RepositorioDashboard {
-  Future<ResumoDashboard> obterResumoDashboard();
+  Future<ResumoDashboard> obterResumoDashboard({int? clienteId});
 }
 
 abstract interface class RepositorioEquipePrograma {
@@ -401,10 +458,12 @@ abstract interface class RepositorioCampos {
 }
 
 abstract interface class RepositorioAssets {
-  /// Envia uma imagem e retorna o id do Asset criado.
-  Future<int> criarAsset({
+  /// Envia uma imagem e retorna o Asset criado.
+  Future<Asset> criarAsset({
     required Uint8List arquivoBytes,
     required String nomeArquivo,
+    NivelEscopo? escopo,
+    int? escopoId,
     String descricao = '',
   });
 
@@ -420,6 +479,56 @@ abstract interface class RepositorioAssets {
   Future<void> excluirAsset(int assetId);
 }
 
+abstract interface class RepositorioSolicitacoes {
+  Future<List<SolicitacaoClienteModel>> listarSolicitacoes({
+    int? clienteId,
+    String? status,
+  });
+  Future<bool> aprovarSolicitacao(
+    int id, {
+    bool eAdminCliente = false,
+    List<Map<String, dynamic>> programas = const [],
+    List<Map<String, dynamic>> projetos = const [],
+  });
+  Future<bool> recusarSolicitacao(int id);
+}
+
+abstract interface class RepositorioMembrosCliente {
+  /// Retorna todos os usuários com qualquer acesso ao [clienteId] dado
+  /// (Admin do Cliente + AcessoPrograma + AcessoProjeto), agregados por usuário.
+  Future<List<UsuarioClienteModel>> listarUsuariosCliente(
+      {required int clienteId});
+
+  /// Remove TODOS os acessos do [userId] no [clienteId] (admin + programa + projeto).
+  Future<void> removerUsuarioDoCliente({
+    required int clienteId,
+    required int userId,
+  });
+
+  /// Substitui completamente as permissões do [userId] no [clienteId].
+  /// Se [eAdminCliente] for true, concede MembroCliente e remove os demais acessos.
+  /// Caso contrário, sincroniza [programaIds] e [projetoIds] com o estado atual.
+  Future<void> atualizarPermissoesUsuario({
+    required int clienteId,
+    required int userId,
+    required bool eAdminCliente,
+    required List<int> programaIds,
+    required List<int> projetoIds,
+  });
+
+  // --- Admin do Cliente (MembroCliente) ---
+  Future<List<MembroClienteModel>> listarMembrosCliente({int? clienteId});
+  Future<void> criarMembroCliente({required int clienteId, required int userId});
+  Future<void> excluirMembroCliente(int id);
+}
+
+abstract interface class RepositorioMembrosGeRelat {
+  Future<List<MembroGeRelatModel>> listarMembrosGeRelat();
+  Future<List<UsuarioDisponivelModel>> listarUsuariosDisponiveisGeRelat();
+  Future<void> criarMembroGeRelat({required int userId});
+  Future<void> excluirMembroGeRelat(int id);
+}
+
 abstract class RepositorioCatalogo
     implements
         RepositorioClientes,
@@ -431,4 +540,7 @@ abstract class RepositorioCatalogo
         RepositorioEquipePrograma,
         RepositorioEquipeProjeto,
         RepositorioCampos,
-        RepositorioAssets {}
+        RepositorioAssets,
+        RepositorioSolicitacoes,
+        RepositorioMembrosCliente,
+        RepositorioMembrosGeRelat {}

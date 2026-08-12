@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/clientes_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/cliente.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/dialogo_confirmacao_exclusao.dart';
@@ -11,8 +12,15 @@ import 'package:go_router/go_router.dart';
 
 class PaginaClientes extends StatefulWidget {
   final RepositorioCatalogo repositorioCatalogo;
+  final String urlBase;
+  final SessaoViewModel sessaoViewModel;
 
-  const PaginaClientes({super.key, required this.repositorioCatalogo});
+  const PaginaClientes({
+    super.key,
+    required this.repositorioCatalogo,
+    this.urlBase = '',
+    required this.sessaoViewModel,
+  });
 
   @override
   State<PaginaClientes> createState() => _PaginaClientesState();
@@ -66,6 +74,8 @@ class _PaginaClientesState extends State<PaginaClientes> {
   }
 
   Widget _cabecalho(BuildContext context) {
+    final eAdminGeRelat =
+        widget.sessaoViewModel.usuarioAtual?.isAdminGeRelat ?? false;
     return Row(
       children: [
         Expanded(
@@ -86,14 +96,15 @@ class _PaginaClientesState extends State<PaginaClientes> {
             ],
           ),
         ),
-        BotaoPrimario(
-          texto: 'Novo Cliente',
-          icone: LucideIcons.plus,
-          onPressed: () async {
-            final criado = await context.push<bool>('/clientes/novo');
-            if (criado == true) await _viewModel.carregar();
-          },
-        ),
+        if (eAdminGeRelat)
+          BotaoPrimario(
+            texto: 'Novo Cliente',
+            icone: LucideIcons.plus,
+            onPressed: () async {
+              final criado = await context.push<bool>('/clientes/novo');
+              if (criado == true) await _viewModel.carregar();
+            },
+          ),
       ],
     );
   }
@@ -131,6 +142,8 @@ class _PaginaClientesState extends State<PaginaClientes> {
   }
 
   Widget _gradeClientes(List<Cliente> clientes) {
+    final usuario = widget.sessaoViewModel.usuarioAtual;
+    final eAdminGeRelat = usuario?.isAdminGeRelat ?? false;
     return LayoutBuilder(
       builder: (context, constraints) {
         final duasColunas = constraints.maxWidth >= 900;
@@ -147,6 +160,9 @@ class _PaginaClientesState extends State<PaginaClientes> {
                   width: largura,
                   child: _CartaoCliente(
                     cliente,
+                    urlBase: widget.urlBase,
+                    podeEditar: usuario?.eAdminDoCliente(cliente.id) ?? false,
+                    podeExcluir: eAdminGeRelat,
                     onAlterado: _viewModel.carregar,
                     onExcluir: _viewModel.excluir,
                     obterMensagemErro: () => _viewModel.mensagemErroAcao,
@@ -162,12 +178,18 @@ class _PaginaClientesState extends State<PaginaClientes> {
 
 class _CartaoCliente extends StatelessWidget {
   final Cliente cliente;
+  final String urlBase;
+  final bool podeEditar;
+  final bool podeExcluir;
   final Future<void> Function() onAlterado;
   final Future<bool> Function(int) onExcluir;
   final String? Function() obterMensagemErro;
 
   const _CartaoCliente(
     this.cliente, {
+    required this.urlBase,
+    required this.podeEditar,
+    required this.podeExcluir,
     required this.onAlterado,
     required this.onExcluir,
     required this.obterMensagemErro,
@@ -182,13 +204,7 @@ class _CartaoCliente extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const IconeComFundo(
-                cor: Cores.azulAcao,
-                tamanho: 48,
-                raio: 12,
-                icone: LucideIcons.building_2,
-                tamanhoIcone: 24,
-              ),
+              _logomarcaCliente(),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -224,35 +240,76 @@ class _CartaoCliente extends StatelessWidget {
           _linhaInfo(
             LucideIcons.signature,
             cliente.numeroContrato.isEmpty
-                ? 'Contrato não informado'
+                ? 'Contrato não disponível'
                 : 'Contrato ${cliente.numeroContrato}',
           ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              IconButton(
-                tooltip: 'Editar cliente',
-                onPressed: () async {
-                  final alterado = await context.push<bool>(
-                    '/clientes/${cliente.id}/editar',
-                  );
-                  if (alterado == true) await onAlterado();
-                },
-                icon: const Icon(LucideIcons.pencil, size: 18),
-              ),
-              IconButton(
-                tooltip: 'Excluir cliente',
-                onPressed: () => _confirmarExclusao(context),
-                icon: const Icon(
-                  LucideIcons.trash_2,
-                  size: 18,
-                  color: Cores.vermelhoErro,
-                ),
-              ),
-            ],
-          ),
+          if (podeEditar || podeExcluir) ...[
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (podeEditar)
+                  IconButton(
+                    tooltip: 'Editar cliente',
+                    onPressed: () async {
+                      final alterado = await context.push<bool>(
+                        '/clientes/${cliente.id}/editar',
+                      );
+                      if (alterado == true) await onAlterado();
+                    },
+                    icon: const Icon(LucideIcons.pencil, size: 18),
+                  ),
+                if (podeExcluir)
+                  IconButton(
+                    tooltip: 'Excluir cliente',
+                    onPressed: () => _confirmarExclusao(context),
+                    icon: const Icon(
+                      LucideIcons.trash_2,
+                      size: 18,
+                      color: Cores.vermelhoErro,
+                    ),
+                  ),
+              ],
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _logomarcaCliente() {
+    final url = cliente.logomarca.trim();
+    if (url.isEmpty) {
+      return const IconeComFundo(
+        cor: Cores.azulAcao,
+        tamanho: 48,
+        raio: 12,
+        icone: LucideIcons.building_2,
+        tamanhoIcone: 24,
+      );
+    }
+
+    final urlCompleta = url.startsWith('http') ? url : '$urlBase$url';
+
+    return Container(
+      width: 48,
+      height: 48,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: Cores.cinzaClaro,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Cores.bordaSutil),
+      ),
+      child: Image.network(
+        urlCompleta,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => const IconeComFundo(
+          cor: Cores.azulAcao,
+          tamanho: 48,
+          raio: 12,
+          icone: LucideIcons.building_2,
+          tamanhoIcone: 24,
+        ),
       ),
     );
   }

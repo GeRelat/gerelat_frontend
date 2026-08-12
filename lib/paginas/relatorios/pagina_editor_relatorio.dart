@@ -5,6 +5,7 @@ import 'package:gerelat_frontend/nucleo/componentes/editor_prosemirror.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Parâmetros passados de [PaginaGerarRelatorio] para o editor de relatório.
 class ArgumentosEditorRelatorio {
@@ -52,11 +53,33 @@ class _PaginaEditorRelatorioState extends State<PaginaEditorRelatorio> {
   final EditorProseMirrorController _controller = EditorProseMirrorController();
   late final RepositorioRelatorios _relatoriosRepositorio;
   bool _gerando = false;
+  String _temaEditor = 'light';
 
   @override
   void initState() {
     super.initState();
+    _carregarTemaEditor();
     _relatoriosRepositorio = widget.repositorioCatalogo;
+  }
+
+  Future<void> _carregarTemaEditor() async {
+    final prefs = await SharedPreferences.getInstance();
+    final escuro = prefs.getBool('editor_tema_escuro') ?? false;
+    if (mounted) {
+      setState(() {
+        _temaEditor = escuro ? 'dark' : 'light';
+      });
+    }
+  }
+
+  Future<void> _salvarTemaEditor(String tema) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('editor_tema_escuro', tema == 'dark');
+    if (mounted) {
+      setState(() {
+        _temaEditor = tema;
+      });
+    }
   }
 
   Future<void> _gerar() async {
@@ -126,6 +149,8 @@ class _PaginaEditorRelatorioState extends State<PaginaEditorRelatorio> {
                 controller: _controller,
                 documentoInicial: widget.argumentos.documento,
                 modo: 'report',
+                temaInicial: _temaEditor,
+                aoMudarTema: _salvarTemaEditor,
               ),
             ),
           ),
@@ -135,16 +160,26 @@ class _PaginaEditorRelatorioState extends State<PaginaEditorRelatorio> {
   }
 
   Widget _barra() {
-    Widget botao(String rotulo, VoidCallback onTap, {String? tooltip}) {
+    Widget botao(
+      String rotulo,
+      VoidCallback onTap, {
+      String? tooltip,
+      IconData? icone,
+    }) {
       return Tooltip(
         message: tooltip ?? rotulo,
         child: OutlinedButton(
           onPressed: onTap,
           style: OutlinedButton.styleFrom(
-            minimumSize: const Size(40, 36),
-            padding: EdgeInsets.zero,
+            minimumSize: const Size(36, 36),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
           ),
-          child: Text(rotulo),
+          child: icone != null
+              ? Icon(icone, size: 16)
+              : Text(
+                  rotulo,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
         ),
       );
     }
@@ -164,10 +199,55 @@ class _PaginaEditorRelatorioState extends State<PaginaEditorRelatorio> {
           ),
           const SizedBox(width: 12),
           botao('B', _controller.negrito, tooltip: 'Negrito'),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           botao('I', _controller.italico, tooltip: 'Itálico'),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           botao('U', _controller.sublinhado, tooltip: 'Sublinhado'),
+          const SizedBox(width: 8),
+          Container(width: 1, height: 20, color: Cores.cinzaClaro),
+          const SizedBox(width: 8),
+          botao('H1', () => _controller.titulo(1), tooltip: 'Título 1'),
+          const SizedBox(width: 4),
+          botao('H2', () => _controller.titulo(2), tooltip: 'Título 2'),
+          const SizedBox(width: 4),
+          botao('H3', () => _controller.titulo(3), tooltip: 'Título 3'),
+          const SizedBox(width: 4),
+          botao('¶', _controller.paragrafo, tooltip: 'Parágrafo'),
+          const SizedBox(width: 8),
+          Container(width: 1, height: 20, color: Cores.cinzaClaro),
+          const SizedBox(width: 8),
+          botao(
+            'Desfazer',
+            _controller.desfazer,
+            tooltip: 'Desfazer',
+            icone: LucideIcons.undo,
+          ),
+          const SizedBox(width: 4),
+          botao(
+            'Refazer',
+            _controller.refazer,
+            tooltip: 'Refazer',
+            icone: LucideIcons.redo,
+          ),
+          const SizedBox(width: 8),
+          Container(width: 1, height: 20, color: Cores.cinzaClaro),
+          const SizedBox(width: 8),
+          Tooltip(
+            message: _temaEditor == 'dark'
+                ? 'Alternar para modo claro'
+                : 'Alternar para modo escuro',
+            child: IconButton(
+              onPressed: () {
+                final novoTema = _temaEditor == 'dark' ? 'light' : 'dark';
+                _salvarTemaEditor(novoTema);
+                _controller.definirTema(novoTema);
+              },
+              icon: Icon(
+                _temaEditor == 'dark' ? LucideIcons.sun : LucideIcons.moon,
+                size: 18,
+              ),
+            ),
+          ),
         ],
       ),
     );

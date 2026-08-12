@@ -1,3 +1,4 @@
+import 'package:gerelat_frontend/dominio/entidades/opcao_selecao.dart';
 import 'package:gerelat_frontend/dominio/entidades/usuario.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_autenticacao.dart';
 import 'package:gerelat_frontend/nucleo/servicos/servico_autenticacao.dart';
@@ -37,12 +38,36 @@ class RepositorioAutenticacaoHttp implements RepositorioAutenticacao {
     required String nomeCompleto,
     required String email,
     required String senha,
+    int? clienteId,
   }) async {
     return _paraResultadoLogin(
       await _servico.cadastrar(
         nomeCompleto: nomeCompleto,
         email: email,
         senha: senha,
+        clienteId: clienteId,
+      ),
+    );
+  }
+
+  @override
+  Future<List<OpcaoSelecao>> listarClientesPublicos() {
+    return _servico.listarClientesPublicos();
+  }
+
+  @override
+  Future<ResultadoLogin> solicitarAcessoCliente({
+    required int clienteId,
+    int? programaId,
+    int? projetoId,
+    String? papelSolicitado,
+  }) async {
+    return _paraResultadoLogin(
+      await _servico.solicitarAcessoCliente(
+        clienteId: clienteId,
+        programaId: programaId,
+        projetoId: projetoId,
+        papelSolicitado: papelSolicitado,
       ),
     );
   }

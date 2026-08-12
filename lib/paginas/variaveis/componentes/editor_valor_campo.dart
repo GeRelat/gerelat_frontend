@@ -3,7 +3,10 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/conversores_valor_campo.dart';
+import 'package:gerelat_frontend/dominio/entidades/asset.dart';
 import 'package:gerelat_frontend/dominio/entidades/campo_tipo.dart';
+import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
+import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
@@ -21,6 +24,11 @@ typedef ResultadoValor = ({Map<String, dynamic>? valor, String? erro});
 class EditorValorCampo extends StatefulWidget {
   final TipoCampo tipo;
   final Map<String, dynamic> valorInicial;
+  final bool readOnly;
+  final RepositorioCatalogo? repositorioCatalogo;
+  final String urlBase;
+  final NivelEscopo? escopo;
+  final int? escopoId;
 
   /// Envia a imagem selecionada e devolve o id do `Asset` criado.
   final Future<int?> Function({
@@ -34,6 +42,11 @@ class EditorValorCampo extends StatefulWidget {
     required this.tipo,
     required this.valorInicial,
     required this.aoEnviarImagem,
+    this.repositorioCatalogo,
+    this.urlBase = '',
+    this.readOnly = false,
+    this.escopo,
+    this.escopoId,
   });
 
   @override
@@ -52,6 +65,7 @@ class EditorValorCampoState extends State<EditorValorCampo> {
   List<Map<String, String>> _linhasTabela = [];
 
   int? _assetIdExistente;
+  Asset? _assetSelecionado;
   Uint8List? _imagemBytesNova;
   String? _imagemNomeNovo;
 
@@ -89,6 +103,7 @@ class EditorValorCampoState extends State<EditorValorCampo> {
     _colunasTabela = [];
     _linhasTabela = [];
     _assetIdExistente = null;
+    _assetSelecionado = null;
     _imagemBytesNova = null;
     _imagemNomeNovo = null;
 
@@ -226,6 +241,29 @@ class EditorValorCampoState extends State<EditorValorCampo> {
     setState(() {
       _imagemBytesNova = arquivo.bytes;
       _imagemNomeNovo = arquivo.nome;
+      _assetSelecionado = null;
+    });
+  }
+
+  Future<void> _abrirSeletorAssetGaleria() async {
+    if (widget.repositorioCatalogo == null) return;
+    final asset = await showDialog<Asset>(
+      context: context,
+      builder: (context) => DialogoSelecaoAsset(
+        repositorioCatalogo: widget.repositorioCatalogo!,
+        urlBase: widget.urlBase,
+        escopo: widget.escopo,
+        escopoId: widget.escopoId,
+      ),
+    );
+
+    if (asset == null || !mounted) return;
+
+    setState(() {
+      _assetIdExistente = asset.id;
+      _assetSelecionado = asset;
+      _imagemBytesNova = null;
+      _imagemNomeNovo = null;
     });
   }
 
@@ -239,6 +277,7 @@ class EditorValorCampoState extends State<EditorValorCampo> {
           hint: 'Digite o texto pré-cadastrado...',
           controller: _textoValor,
           maxLines: 5,
+          enabled: !widget.readOnly,
         );
       case TipoCampo.tabela:
         return _editorTabela();
@@ -263,41 +302,43 @@ class EditorValorCampoState extends State<EditorValorCampo> {
                 .map(
                   (coluna) => Chip(
                     label: Text('${coluna.rotulo} (${coluna.chave})'),
-                    onDeleted: () => _removerColuna(coluna.chave),
+                    onDeleted: widget.readOnly ? null : () => _removerColuna(coluna.chave),
                   ),
                 )
                 .toList(),
           ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _novaColunaChave,
-                decoration: const InputDecoration(
-                  isDense: true,
-                  hintText: 'chave (ex: nome)',
+        if (!widget.readOnly) ...[
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _novaColunaChave,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    hintText: 'chave (ex: nome)',
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                controller: _novaColunaRotulo,
-                decoration: const InputDecoration(
-                  isDense: true,
-                  hintText: 'rótulo (ex: Nome)',
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _novaColunaRotulo,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    hintText: 'rótulo (ex: Nome)',
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            TextButton.icon(
-              onPressed: _adicionarColuna,
-              icon: const Icon(LucideIcons.plus, size: 16),
-              label: const Text('Coluna'),
-            ),
-          ],
-        ),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                onPressed: _adicionarColuna,
+                icon: const Icon(LucideIcons.plus, size: 16),
+                label: const Text('Coluna'),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 18),
         Text(
           'Linhas',
@@ -330,6 +371,7 @@ class EditorValorCampoState extends State<EditorValorCampo> {
                           // até o usuário digitar de novo.
                           key: ValueKey((_linhasTabela[i], coluna.chave)),
                           initialValue: _linhasTabela[i][coluna.chave] ?? '',
+                          readOnly: widget.readOnly,
                           decoration: InputDecoration(
                             isDense: true,
                             hintText: coluna.rotulo,
@@ -339,19 +381,21 @@ class EditorValorCampoState extends State<EditorValorCampo> {
                         ),
                       ),
                     ),
-                  IconButton(
-                    tooltip: 'Remover linha',
-                    onPressed: () => _removerLinha(i),
-                    icon: const Icon(LucideIcons.trash_2, size: 18),
-                  ),
+                  if (!widget.readOnly)
+                    IconButton(
+                      tooltip: 'Remover linha',
+                      onPressed: () => _removerLinha(i),
+                      icon: const Icon(LucideIcons.trash_2, size: 18),
+                    ),
                 ],
               ),
             ),
-          TextButton.icon(
-            onPressed: _adicionarLinha,
-            icon: const Icon(LucideIcons.plus, size: 16),
-            label: const Text('Adicionar linha'),
-          ),
+          if (!widget.readOnly)
+            TextButton.icon(
+              onPressed: _adicionarLinha,
+              icon: const Icon(LucideIcons.plus, size: 16),
+              label: const Text('Adicionar linha'),
+            ),
         ],
       ],
     );
@@ -359,31 +403,89 @@ class EditorValorCampoState extends State<EditorValorCampo> {
 
   Widget _editorImagem() {
     final temImagem = _imagemNomeNovo != null || _assetIdExistente != null;
+    String? urlPreview;
+    if (_assetSelecionado != null && _assetSelecionado!.urlArquivo.isNotEmpty) {
+      urlPreview = _assetSelecionado!.urlArquivo.startsWith('http')
+          ? _assetSelecionado!.urlArquivo
+          : '${widget.urlBase}${_assetSelecionado!.urlArquivo}';
+    }
+
     return _painelEditor(
       children: [
         Text(
           'Imagem',
           style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
         ),
-        const SizedBox(height: 8),
-        Text(
-          _imagemNomeNovo ??
-              (_assetIdExistente != null
-                  ? 'Imagem atual: Asset #$_assetIdExistente (selecione um arquivo para substituir)'
-                  : 'Nenhuma imagem selecionada.'),
-          style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
-        ),
-        const SizedBox(height: 14),
-        BotaoPrimario(
-          texto: temImagem ? 'Substituir Imagem' : 'Selecionar Imagem',
-          icone: temImagem ? LucideIcons.refresh_cw : LucideIcons.upload,
-          onPressed: _selecionarImagem,
-        ),
+        const SizedBox(height: 10),
+        if (_imagemBytesNova != null) ...[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.memory(
+              _imagemBytesNova!,
+              height: 140,
+              fit: BoxFit.contain,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Arquivo novo: $_imagemNomeNovo',
+            style: Tipografia.bodyMedium.copyWith(color: Cores.textoPrincipal),
+          ),
+        ] else if (urlPreview != null) ...[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              urlPreview,
+              height: 140,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => const Icon(
+                LucideIcons.image_off,
+                size: 32,
+                color: Cores.cinzaMedio,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _assetSelecionado!.descricao.isEmpty
+                ? 'Asset #${_assetSelecionado!.id}'
+                : 'Asset #${_assetSelecionado!.id} — ${_assetSelecionado!.descricao}',
+            style: Tipografia.bodyMedium.copyWith(color: Cores.textoPrincipal),
+          ),
+        ] else ...[
+          Text(
+            _assetIdExistente != null
+                ? 'Asset selecionado: #$_assetIdExistente'
+                : 'Nenhuma imagem selecionada.',
+            style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
+          ),
+        ],
+        if (!widget.readOnly) ...[
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              OutlinedButton.icon(
+                onPressed: _selecionarImagem,
+                icon: const Icon(LucideIcons.upload, size: 16),
+                label: Text(temImagem ? 'Enviar Nova Imagem' : 'Upload Imagem'),
+              ),
+              if (widget.repositorioCatalogo != null)
+                OutlinedButton.icon(
+                  onPressed: _abrirSeletorAssetGaleria,
+                  icon: const Icon(LucideIcons.image, size: 16),
+                  label: const Text('Escolher da Galeria'),
+                ),
+            ],
+          ),
+        ],
         const SizedBox(height: 18),
         CampoFormulario(
           label: 'Legenda (opcional)',
           hint: 'Ex: Foto do evento',
           controller: _legenda,
+          enabled: !widget.readOnly,
         ),
         const SizedBox(height: 18),
         Row(
@@ -394,6 +496,7 @@ class EditorValorCampoState extends State<EditorValorCampo> {
                 hint: 'Ex: 120',
                 controller: _largura,
                 keyboardType: TextInputType.number,
+                enabled: !widget.readOnly,
               ),
             ),
             const SizedBox(width: 18),
@@ -403,6 +506,7 @@ class EditorValorCampoState extends State<EditorValorCampo> {
                 hint: 'Ex: 80',
                 controller: _altura,
                 keyboardType: TextInputType.number,
+                enabled: !widget.readOnly,
               ),
             ),
           ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/gerar_relatorio_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
@@ -11,8 +12,13 @@ import 'package:go_router/go_router.dart';
 
 class PaginaGerarRelatorio extends StatefulWidget {
   final RepositorioCatalogo repositorioCatalogo;
+  final SessaoViewModel sessaoViewModel;
 
-  const PaginaGerarRelatorio({super.key, required this.repositorioCatalogo});
+  const PaginaGerarRelatorio({
+    super.key,
+    required this.repositorioCatalogo,
+    required this.sessaoViewModel,
+  });
 
   @override
   State<PaginaGerarRelatorio> createState() => _PaginaGerarRelatorioState();
@@ -27,12 +33,28 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
   @override
   void initState() {
     super.initState();
-    _viewModel = GerarRelatorioViewModel(widget.repositorioCatalogo)
-      ..carregar();
+    _viewModel = GerarRelatorioViewModel(widget.repositorioCatalogo);
+    _viewModel.definirContexto(
+      widget.sessaoViewModel.clienteAtivoId,
+      widget.sessaoViewModel.usuarioAtual,
+    );
+    widget.sessaoViewModel.addListener(_aoMudarSessao);
+    _viewModel.carregar();
+  }
+
+  void _aoMudarSessao() {
+    _viewModel.definirContexto(
+      widget.sessaoViewModel.clienteAtivoId,
+      widget.sessaoViewModel.usuarioAtual,
+    );
+    if (_viewModel.template == null) {
+      setState(() => _templateId = null);
+    }
   }
 
   @override
   void dispose() {
+    widget.sessaoViewModel.removeListener(_aoMudarSessao);
     _nome.dispose();
     _viewModel.dispose();
     super.dispose();
@@ -97,25 +119,38 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CampoSelecao(
-                        label: 'Template',
-                        valor: _templateId,
-                        itens: _viewModel.templates
-                            .where((template) => template.id != null)
-                            .map(
-                              (template) => DropdownMenuItem(
-                                value: template.id,
-                                child: Text(
-                                  '${template.nome} (${template.nivel.rotulo})',
+                      _campoFiltroTemplate(),
+                      const SizedBox(height: 18),
+                      if (_viewModel.templatesFiltrados.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Text(
+                            'Nenhum template encontrado para o escopo selecionado.',
+                            style: Tipografia.bodyMedium.copyWith(
+                              color: Cores.cinzaMedio,
+                            ),
+                          ),
+                        )
+                      else
+                        CampoSelecao(
+                          label: 'Template',
+                          valor: _templateId,
+                          itens: _viewModel.templatesFiltrados
+                              .where((template) => template.id != null)
+                              .map(
+                                (template) => DropdownMenuItem(
+                                  value: template.id,
+                                  child: Text(
+                                    '${template.nome} (${_viewModel.nomeOrigemTemplate(template)})',
+                                  ),
                                 ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          setState(() => _templateId = value);
-                          _viewModel.selecionarTemplate(value);
-                        },
-                      ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            setState(() => _templateId = value);
+                            _viewModel.selecionarTemplate(value);
+                          },
+                        ),
                       if (_templateId != null) ...[
                         const SizedBox(height: 18),
                         ..._seletoresDeEscopo(),
@@ -340,6 +375,78 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _campoFiltroTemplate() {
+    return _painelSecao(
+      children: [
+        Text(
+          'Filtrar templates por nível',
+          style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Selecione o nível do template que deseja utilizar.',
+          style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _viewModel.niveisPermitidos.map((nivel) {
+            return ChoiceChip(
+              label: Text(nivel.rotulo),
+              selected: _viewModel.filtroNivel == nivel,
+              onSelected: (_) {
+                setState(() => _templateId = null);
+                _viewModel.selecionarFiltroNivel(nivel);
+              },
+              selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
+            );
+          }).toList(),
+        ),
+        if (_viewModel.filtroNivel != NivelEscopo.cliente &&
+            _viewModel.opcoesFiltroEscopo.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          CampoSelecao(
+            label: 'Filtrar por ${_viewModel.filtroNivel.rotulo} (opcional)',
+            valor: _viewModel.filtroEscopoId ?? 0,
+            itens: [
+              DropdownMenuItem<int>(
+                value: 0,
+                child: Text('Todos os ${_viewModel.filtroNivel.rotulo.toLowerCase()}s'),
+              ),
+              ..._viewModel.opcoesFiltroEscopo.map(
+                (item) => DropdownMenuItem<int>(
+                  value: item.id,
+                  child: Text(item.nome),
+                ),
+              ),
+            ],
+            onChanged: (value) {
+              setState(() => _templateId = null);
+              _viewModel.selecionarFiltroEscopoId(value == 0 ? null : value);
+            },
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _painelSecao({required List<Widget> children}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Cores.fundoSecao,
+        border: Border.all(color: Cores.bordaSutil),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
       ),
     );
   }

@@ -7,6 +7,9 @@ class Relatorio {
   final String template;
   final String dataGeracao;
   final String status;
+  final String dataCriacao;
+  final String ultimaAtualizacao;
+  final Map<String, dynamic>? documentoJson;
 
   const Relatorio({
     this.id,
@@ -17,5 +20,8 @@ class Relatorio {
     required this.template,
     required this.dataGeracao,
     required this.status,
+    this.dataCriacao = '',
+    this.ultimaAtualizacao = '',
+    this.documentoJson,
   });
 }

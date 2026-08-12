@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:gerelat_frontend/dados/servicos/servico_api_gerelat.dart';
 import 'package:gerelat_frontend/dominio/entidades/assinatura_template.dart';
 import 'package:gerelat_frontend/dominio/entidades/campo_tipo.dart';
+import 'package:gerelat_frontend/dominio/entidades/evento.dart';
 import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/entidades/template_relatorio.dart';
 import 'package:gerelat_frontend/dominio/entidades/variavel_disponivel.dart';
@@ -294,6 +295,35 @@ mixin RepositorioTemplatesHttpMixin implements RepositorioTemplates {
   }
 
   @override
+  Future<List<Evento>> listarEventosDisponiveis(int templateId) async {
+    final meventos = await api.listar(
+      '/templates/$templateId/eventos-disponiveis/',
+    );
+    return meventos.map((evento) {
+      final idProjeto = paraInteiro(evento['projeto']);
+      final idClasse = paraInteiro(evento['classe_evento']);
+      final nomeNoPayload = paraTexto(evento['classe_evento_nome']);
+      return Evento(
+        id: paraInteiro(evento['id']),
+        clienteId: paraInteiro(evento['cliente']),
+        programaId: paraInteiro(evento['programa']),
+        projetoId: idProjeto,
+        classeEventoId: idClasse,
+        nome: paraTexto(evento['nome'], fallback: 'Evento sem nome'),
+        programa: paraTexto(
+          evento['programa_nome'],
+          fallback: 'Escopo direto',
+        ),
+        data: DateTime.tryParse(paraTexto(evento['data'])),
+        local: paraTexto(evento['local']),
+        endereco: paraTexto(evento['endereco']),
+        objetivo: paraTexto(evento['objetivo']),
+        classeEventoNome: nomeNoPayload,
+      );
+    }).toList();
+  }
+
+  @override
   Future<Map<String, dynamic>> previsualizarTemplate({
     required int templateId,
     int? clienteId,
@@ -343,6 +373,7 @@ mixin RepositorioTemplatesHttpMixin implements RepositorioTemplates {
             ),
             origem: OrigemVariavel.porValorApi(paraTexto(variavel['origem'])),
             obrigatorio: variavel['obrigatorio'] == true,
+            escopoNome: paraTexto(variavel['escopo_nome']),
           ),
         )
         .toList();

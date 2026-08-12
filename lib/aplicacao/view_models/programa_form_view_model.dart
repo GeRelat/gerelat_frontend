@@ -14,9 +14,11 @@ class ProgramaFormViewModel extends BaseViewModel {
   Programa? get programa => _programa;
   List<OpcaoSelecao> get clientes => List.unmodifiable(_clientes);
 
-  Future<void> carregarClientes() async {
+  Future<void> carregarClientes({int? clienteAtivoId}) async {
     try {
-      _clientes = await _repositorioClientes.listarClientesSelecao();
+      _clientes = await _repositorioClientes.listarClientesSelecao(
+        clienteId: clienteAtivoId,
+      );
       notifyListeners();
     } catch (_) {
       // A lista de clientes é opcional no formulário; falha ao carregar
@@ -24,11 +26,11 @@ class ProgramaFormViewModel extends BaseViewModel {
     }
   }
 
-  Future<void> carregar(int programaId) async {
+  Future<void> carregar(int programaId, {int? clienteAtivoId}) async {
     iniciarCarregamento();
     try {
       _programa = await _repositorio.obterPrograma(programaId);
-      await carregarClientes();
+      await carregarClientes(clienteAtivoId: clienteAtivoId);
       finalizarCarregamento();
     } catch (erro) {
       definirErro(erro);

@@ -10,6 +10,7 @@ import 'repositorio_catalogo_http/equipe_projeto_http.dart';
 import 'repositorio_catalogo_http/eventos_http.dart';
 import 'repositorio_catalogo_http/programas_http.dart';
 import 'repositorio_catalogo_http/relatorios_http.dart';
+import 'repositorio_catalogo_http/solicitacoes_membros_http.dart';
 import 'repositorio_catalogo_http/templates_http.dart';
 
 class RepositorioCatalogoHttp
@@ -23,7 +24,10 @@ class RepositorioCatalogoHttp
         RepositorioTemplatesHttpMixin,
         RepositorioRelatoriosHttpMixin,
         RepositorioProgramasHttpMixin,
-        RepositorioDashboardHttpMixin
+        RepositorioDashboardHttpMixin,
+        RepositorioSolicitacoesHttpMixin,
+        RepositorioMembrosClienteHttpMixin,
+        RepositorioMembrosGeRelatHttpMixin
     implements RepositorioCatalogo {
   final ServicoApiGerelat _api;
 

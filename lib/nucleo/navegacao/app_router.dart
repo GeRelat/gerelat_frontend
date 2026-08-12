@@ -4,8 +4,10 @@ import 'package:gerelat_frontend/nucleo/componentes/app_shell.dart';
 import 'package:gerelat_frontend/nucleo/navegacao/pagina_nao_encontrada.dart';
 import 'package:gerelat_frontend/paginas/assets/pagina_assets.dart';
 import 'package:gerelat_frontend/paginas/cadastro/pagina_cadastro.dart';
+import 'package:gerelat_frontend/paginas/clientes/pagina_aprovacoes.dart';
 import 'package:gerelat_frontend/paginas/clientes/pagina_clientes.dart';
 import 'package:gerelat_frontend/paginas/clientes/pagina_formulario_cliente.dart';
+import 'package:gerelat_frontend/paginas/clientes/pagina_membros.dart';
 import 'package:gerelat_frontend/paginas/configuracoes/pagina_configuracoes.dart';
 import 'package:gerelat_frontend/paginas/dashboard/dashboard.dart';
 import 'package:gerelat_frontend/paginas/eventos/pagina_classes_evento.dart';
@@ -21,9 +23,11 @@ import 'package:gerelat_frontend/paginas/programas/pagina_projetos_programa.dart
 import 'package:gerelat_frontend/paginas/recuperar_senha/pagina_email_enviado.dart';
 import 'package:gerelat_frontend/paginas/recuperar_senha/pagina_nova_senha.dart';
 import 'package:gerelat_frontend/paginas/recuperar_senha/pagina_recuperar_senha.dart';
+import 'package:gerelat_frontend/paginas/relatorios/pagina_agendar_relatorio.dart';
 import 'package:gerelat_frontend/paginas/relatorios/pagina_editor_relatorio.dart';
 import 'package:gerelat_frontend/paginas/relatorios/pagina_gerar_relatorio.dart';
 import 'package:gerelat_frontend/paginas/relatorios/pagina_relatorios.dart';
+import 'package:gerelat_frontend/paginas/solicitar_acesso/pagina_solicitar_acesso.dart';
 import 'package:gerelat_frontend/paginas/sucesso_cadastro/pagina_sucesso_cadastro.dart';
 import 'package:gerelat_frontend/paginas/templates/pagina_editor_template.dart';
 import 'package:gerelat_frontend/paginas/templates/pagina_formulario_template.dart';
@@ -54,6 +58,12 @@ const _rotasPublicas = <String>[
 /// a partir do caminho da rota, evitando repetir essa informação em cada página.
 ({SecaoApp secao, String titulo}) _chromeParaRota(String caminho) {
   if (caminho.startsWith('/clientes')) {
+    if (caminho == '/clientes/aprovacoes') {
+      return (secao: SecaoApp.aprovacoes, titulo: 'Aprovações de Acesso');
+    }
+    if (caminho == '/clientes/membros') {
+      return (secao: SecaoApp.membros, titulo: 'Membros do Cliente');
+    }
     final titulo = caminho.endsWith('/editar')
         ? 'Editar Cliente'
         : caminho.endsWith('/novo')
@@ -104,9 +114,11 @@ const _rotasPublicas = <String>[
     return (secao: SecaoApp.templates, titulo: titulo);
   }
   if (caminho.startsWith('/relatorios')) {
-    final titulo = caminho.endsWith('/gerar')
-        ? 'Gerar Relatório'
-        : 'Relatórios';
+    final titulo = caminho.endsWith('/agendar')
+        ? 'Geração Autônoma'
+        : caminho.endsWith('/gerar')
+            ? 'Gerar Relatório'
+            : 'Relatórios';
     return (secao: SecaoApp.relatorios, titulo: titulo);
   }
   if (caminho.startsWith('/assets')) {
@@ -149,6 +161,18 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
       if (autenticado && indoParaRotaPublica && !indoParaRedefinirSenha) {
         return '/dashboard';
       }
+
+      // Usuário autenticado mas sem nenhum vínculo de acesso: redireciona para
+      // a tela de solicitação de acesso, exceto se já estiver lá.
+      final indoParaSolicitarAcesso =
+          state.matchedLocation == '/solicitar-acesso';
+      if (autenticado && !indoParaRotaPublica && !indoParaSolicitarAcesso) {
+        final usuario = sessao.usuarioAtual;
+        if (usuario != null && !usuario.possuiContextoAcesso) {
+          return '/solicitar-acesso';
+        }
+      }
+
       return null;
     },
     errorBuilder: (context, state) {
@@ -178,6 +202,13 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
         path: '/recuperar-senha',
         builder: (context, state) => PaginaRecuperarSenha(
           repositorioAutenticacao: repositorioAutenticacao,
+        ),
+      ),
+      GoRoute(
+        path: '/solicitar-acesso',
+        builder: (context, state) => PaginaSolicitarAcesso(
+          repositorioAutenticacao: repositorioAutenticacao,
+          sessao: sessao,
         ),
       ),
       GoRoute(
@@ -245,18 +276,39 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
         routes: [
           GoRoute(
             path: '/dashboard',
-            builder: (context, state) =>
-                DashboardPage(repositorioCatalogo: repositorioCatalogo),
+            builder: (context, state) => DashboardPage(
+              repositorioCatalogo: repositorioCatalogo,
+              sessaoViewModel: sessao,
+            ),
           ),
           GoRoute(
             path: '/clientes',
-            builder: (context, state) =>
-                PaginaClientes(repositorioCatalogo: repositorioCatalogo),
+            builder: (context, state) => PaginaClientes(
+              repositorioCatalogo: repositorioCatalogo,
+              urlBase: urlBase,
+              sessaoViewModel: sessao,
+            ),
+          ),
+          GoRoute(
+            path: '/clientes/aprovacoes',
+            builder: (context, state) => PaginaAprovacoes(
+              repositorioCatalogo: repositorioCatalogo,
+              sessaoViewModel: sessao,
+            ),
+          ),
+          GoRoute(
+            path: '/clientes/membros',
+            builder: (context, state) => PaginaMembros(
+              repositorioCatalogo: repositorioCatalogo,
+              sessaoViewModel: sessao,
+            ),
           ),
           GoRoute(
             path: '/clientes/novo',
             builder: (context, state) => PaginaFormularioCliente(
               repositorioCatalogo: repositorioCatalogo,
+              urlBase: urlBase,
+              sessaoViewModel: sessao,
             ),
           ),
           GoRoute(
@@ -270,19 +322,24 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
                 edicao: true,
                 clienteId: clienteId,
                 repositorioCatalogo: repositorioCatalogo,
+                urlBase: urlBase,
+                sessaoViewModel: sessao,
               );
             },
           ),
           GoRoute(
             path: '/programas',
-            builder: (context, state) =>
-                PaginaProgramas(repositorioCatalogo: repositorioCatalogo),
+            builder: (context, state) => PaginaProgramas(
+              repositorioCatalogo: repositorioCatalogo,
+              sessaoViewModel: sessao,
+            ),
           ),
           GoRoute(
             path: '/programas/novo',
             builder: (context, state) => PaginaFormularioPrograma(
               repositorioCatalogo: repositorioCatalogo,
               urlBase: urlBase,
+              sessaoViewModel: sessao,
             ),
           ),
           GoRoute(
@@ -297,6 +354,7 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
                 programaId: programaId,
                 repositorioCatalogo: repositorioCatalogo,
                 urlBase: urlBase,
+                sessaoViewModel: sessao,
               );
             },
           ),
@@ -306,6 +364,7 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
               programaIdInicial: state.extra as int?,
               repositorioCatalogo: repositorioCatalogo,
               urlBase: urlBase,
+              sessaoViewModel: sessao,
             ),
           ),
           GoRoute(
@@ -320,6 +379,7 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
                 projetoId: projetoId,
                 repositorioCatalogo: repositorioCatalogo,
                 urlBase: urlBase,
+                sessaoViewModel: sessao,
               );
             },
           ),
@@ -333,6 +393,7 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
               return PaginaProjetosPrograma(
                 programaId: programaId,
                 repositorioCatalogo: repositorioCatalogo,
+                sessaoViewModel: sessao,
               );
             },
           ),
@@ -346,6 +407,7 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
               return PaginaEquipePrograma(
                 programaId: programaId,
                 repositorioCatalogo: repositorioCatalogo,
+                sessaoViewModel: sessao,
               );
             },
           ),
@@ -358,27 +420,36 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
             path: '/variaveis/definicoes',
             builder: (context, state) => PaginaDefinicoesVariaveis(
               repositorioCatalogo: repositorioCatalogo,
+              sessaoViewModel: sessao,
             ),
           ),
           GoRoute(
             path: '/variaveis/valores',
-            builder: (context, state) =>
-                PaginaValoresVariaveis(repositorioCatalogo: repositorioCatalogo),
+            builder: (context, state) => PaginaValoresVariaveis(
+              repositorioCatalogo: repositorioCatalogo,
+              urlBase: urlBase,
+              sessaoViewModel: sessao,
+            ),
           ),
           GoRoute(
             path: '/eventos',
-            builder: (context, state) =>
-                PaginaEventos(repositorioCatalogo: repositorioCatalogo),
+            builder: (context, state) => PaginaEventos(
+              repositorioCatalogo: repositorioCatalogo,
+              sessaoViewModel: sessao,
+            ),
           ),
           GoRoute(
             path: '/eventos/classes-evento',
-            builder: (context, state) =>
-                PaginaClassesEvento(repositorioCatalogo: repositorioCatalogo),
+            builder: (context, state) => PaginaClassesEvento(
+              repositorioCatalogo: repositorioCatalogo,
+              sessaoViewModel: sessao,
+            ),
           ),
           GoRoute(
             path: '/eventos/novo',
             builder: (context, state) => PaginaFormularioEvento(
               repositorioCatalogo: repositorioCatalogo,
+              sessaoViewModel: sessao,
             ),
           ),
           GoRoute(
@@ -392,18 +463,22 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
                 edicao: true,
                 eventoId: eventoId,
                 repositorioCatalogo: repositorioCatalogo,
+                sessaoViewModel: sessao,
               );
             },
           ),
           GoRoute(
             path: '/templates',
-            builder: (context, state) =>
-                PaginaTemplates(repositorioCatalogo: repositorioCatalogo),
+            builder: (context, state) => PaginaTemplates(
+              repositorioCatalogo: repositorioCatalogo,
+              sessaoViewModel: sessao,
+            ),
           ),
           GoRoute(
             path: '/templates/novo',
             builder: (context, state) => PaginaFormularioTemplate(
               repositorioCatalogo: repositorioCatalogo,
+              sessaoViewModel: sessao,
             ),
           ),
           GoRoute(
@@ -417,30 +492,44 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
                 edicao: true,
                 templateId: templateId,
                 repositorioCatalogo: repositorioCatalogo,
+                sessaoViewModel: sessao,
               );
             },
           ),
           GoRoute(
             path: '/relatorios',
-            builder: (context, state) =>
-                PaginaRelatorios(repositorioCatalogo: repositorioCatalogo),
+            builder: (context, state) => PaginaRelatorios(
+              repositorioCatalogo: repositorioCatalogo,
+              sessaoViewModel: sessao,
+            ),
           ),
           GoRoute(
             path: '/relatorios/gerar',
-            builder: (context, state) =>
-                PaginaGerarRelatorio(repositorioCatalogo: repositorioCatalogo),
+            builder: (context, state) => PaginaGerarRelatorio(
+              repositorioCatalogo: repositorioCatalogo,
+              sessaoViewModel: sessao,
+            ),
+          ),
+          GoRoute(
+            path: '/relatorios/agendar',
+            builder: (context, state) => PaginaAgendarRelatorio(
+              repositorioCatalogo: repositorioCatalogo,
+              sessaoViewModel: sessao,
+            ),
           ),
           GoRoute(
             path: '/assets',
             builder: (context, state) => PaginaAssets(
               repositorioCatalogo: repositorioCatalogo,
               urlBase: urlBase,
+              sessaoViewModel: sessao,
             ),
           ),
           GoRoute(
             path: '/configuracoes',
             builder: (context, state) => PaginaConfiguracoes(
               repositorioAutenticacao: repositorioAutenticacao,
+              sessaoViewModel: sessao,
             ),
           ),
         ],

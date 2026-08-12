@@ -32,6 +32,7 @@ class VariavelDisponivel {
   final NivelAplicacao nivelAplicacao;
   final OrigemVariavel origem;
   final bool obrigatorio;
+  final String? escopoNome;
 
   const VariavelDisponivel({
     required this.referencia,
@@ -40,5 +41,6 @@ class VariavelDisponivel {
     required this.nivelAplicacao,
     required this.origem,
     this.obrigatorio = false,
+    this.escopoNome,
   });
 }

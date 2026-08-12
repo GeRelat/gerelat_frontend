@@ -29,6 +29,7 @@ class ClienteFormViewModel extends BaseViewModel {
     required String foneContato,
     required String numeroContrato,
     required DateTime dataTerminoContrato,
+    String logomarca = '',
   }) {
     return _executarAcao(() async {
       if (clienteId == null) {
@@ -40,6 +41,7 @@ class ClienteFormViewModel extends BaseViewModel {
           foneContato: foneContato,
           numeroContrato: numeroContrato,
           dataTerminoContrato: dataTerminoContrato,
+          logomarca: logomarca,
         );
       } else {
         await _repositorio.atualizarCliente(
@@ -51,6 +53,7 @@ class ClienteFormViewModel extends BaseViewModel {
           foneContato: foneContato,
           numeroContrato: numeroContrato,
           dataTerminoContrato: dataTerminoContrato,
+          logomarca: logomarca,
         );
       }
     });

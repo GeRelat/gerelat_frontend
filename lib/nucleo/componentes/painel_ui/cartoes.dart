@@ -179,12 +179,14 @@ class EstadoVazio extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 24),
-          BotaoPrimario(
-            texto: acao,
-            icone: LucideIcons.plus,
-            onPressed: onAcao,
-          ),
+          if (onAcao != null) ...[
+            const SizedBox(height: 24),
+            BotaoPrimario(
+              texto: acao,
+              icone: LucideIcons.plus,
+              onPressed: onAcao,
+            ),
+          ],
         ],
       ),
     );

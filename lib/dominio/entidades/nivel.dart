@@ -30,6 +30,19 @@ enum NivelEscopo {
     NivelEscopo.programa => NivelAplicacao.programa,
     NivelEscopo.projeto => NivelAplicacao.projeto,
   };
+
+  static NivelEscopo? deAplicacao(NivelAplicacao aplicacao) {
+    switch (aplicacao) {
+      case NivelAplicacao.cliente:
+        return NivelEscopo.cliente;
+      case NivelAplicacao.programa:
+        return NivelEscopo.programa;
+      case NivelAplicacao.projeto:
+        return NivelEscopo.projeto;
+      case NivelAplicacao.evento:
+        return null;
+    }
+  }
 }
 
 /// Nível da entidade à qual uma variável se aplica (o alvo de um `CampoValor`).
@@ -62,11 +75,14 @@ enum NivelAplicacao {
     return null;
   }
 
-  /// Níveis iguais ou mais profundos que este, na ordem da hierarquia.
+  /// Níveis iguais ou mais profundos que este (exceto evento, que não suporta variáveis customizadas).
   /// Espelha a constraint `campodef_nivel_geq_escopo` do backend.
   static List<NivelAplicacao> aPartirDe(NivelEscopo escopo) {
     return NivelAplicacao.values
-        .where((nivel) => nivel.ordem >= escopo.ordem)
+        .where(
+          (nivel) =>
+              nivel != NivelAplicacao.evento && nivel.ordem >= escopo.ordem,
+        )
         .toList();
   }
 }

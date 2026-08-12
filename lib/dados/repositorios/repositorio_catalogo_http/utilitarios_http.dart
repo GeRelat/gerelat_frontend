@@ -30,11 +30,14 @@ int idCriado(Map<String, dynamic> resposta, String chave, String recurso) {
 /// Usado para "juntar" o nome de uma entidade relacionada (cliente de um
 /// programa, programa de um evento, evento/template de um relatório etc.)
 /// sem precisar de uma requisição por item.
-Map<int, String> mapaIdNome(List<Map<String, dynamic>> itens) {
+Map<int, String> mapaIdNome(
+  List<Map<String, dynamic>> itens, {
+  String campoNome = 'nome',
+}) {
   return {
     for (final item in itens)
       if (paraInteiro(item['id']) != null)
-        paraInteiro(item['id'])!: paraTexto(item['nome']),
+        paraInteiro(item['id'])!: paraTexto(item[campoNome]),
   };
 }
 

@@ -92,7 +92,17 @@ class HierarquiaEscopo {
           eventoId: null,
         );
       case NivelAplicacao.evento:
-        final projetoId = eventoPorId(id)?.projetoId;
+        final evento = eventoPorId(id);
+        if (evento != null && evento.escopo != null && evento.escopoId != null) {
+          final c = cadeiaDeEscopo(evento.escopo!, evento.escopoId);
+          return (
+            clienteId: c.clienteId,
+            programaId: c.programaId,
+            projetoId: c.projetoId,
+            eventoId: id,
+          );
+        }
+        final projetoId = evento?.projetoId;
         final programaId = projetoPorId(projetoId)?.programaId;
         return (
           clienteId: programaPorId(programaId)?.clienteId,
@@ -108,6 +118,7 @@ class HierarquiaEscopo {
 
   /// Nome da instância, para rótulos e mensagens.
   String nomeDe(NivelAplicacao nivel, int? id) {
+    if (id == null) return 'Não informado';
     final nome = switch (nivel) {
       NivelAplicacao.cliente => clientePorId(id)?.nome,
       NivelAplicacao.programa => programaPorId(id)?.nome,
@@ -134,7 +145,8 @@ class HierarquiaEscopo {
       case NivelAplicacao.cliente:
         return [
           for (final cliente in clientes)
-            if (cliente.id != null)
+            if (cliente.id != null &&
+                (clienteId == null || cliente.id == clienteId))
               OpcaoSelecao(id: cliente.id!, nome: cliente.nome),
         ];
       case NivelAplicacao.programa:
@@ -166,22 +178,26 @@ class HierarquiaEscopo {
         return [
           for (final evento in eventos)
             if (evento.id != null &&
-                (projetoId == null || evento.projetoId == projetoId) &&
-                (programaId == null ||
-                    projetoPorId(evento.projetoId)?.programaId == programaId))
+                (projetoId != null
+                    ? (evento.projetoId == projetoId)
+                    : (programaId != null
+                        ? (evento.programaId == programaId)
+                        : (clienteId == null || evento.clienteId == clienteId))))
               OpcaoSelecao(
                 id: evento.id!,
                 nome: _comSufixo(
                   evento.nome,
-                  projetoPorId(evento.projetoId)?.nome ?? '',
+                  evento.escopo != null
+                      ? nomeDeEscopo(evento.escopo!, evento.escopoId)
+                      : (projetoPorId(evento.projetoId)?.nome ?? ''),
                 ),
               ),
         ];
     }
   }
 
-  List<OpcaoSelecao> opcoesDeEscopo(NivelEscopo escopo) =>
-      opcoesDe(escopo.comoAplicacao);
+  List<OpcaoSelecao> opcoesDeEscopo(NivelEscopo escopo, {int? clienteId}) =>
+      opcoesDe(escopo.comoAplicacao, clienteId: clienteId);
 
   String _comSufixo(String nome, String pai) =>
       pai.isEmpty ? nome : '$nome — $pai';

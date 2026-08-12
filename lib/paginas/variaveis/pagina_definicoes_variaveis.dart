@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/campo_definicao_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/campo_definicao.dart';
 import 'package:gerelat_frontend/dominio/entidades/campo_tipo.dart';
 import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
@@ -15,10 +16,12 @@ import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 /// os valores são preenchidos na tela "Valores de Variáveis".
 class PaginaDefinicoesVariaveis extends StatefulWidget {
   final RepositorioCatalogo repositorioCatalogo;
+  final SessaoViewModel sessaoViewModel;
 
   const PaginaDefinicoesVariaveis({
     super.key,
     required this.repositorioCatalogo,
+    required this.sessaoViewModel,
   });
 
   @override
@@ -42,12 +45,25 @@ class _PaginaDefinicoesVariaveisState extends State<PaginaDefinicoesVariaveis> {
   @override
   void initState() {
     super.initState();
-    _viewModel = CampoDefinicaoViewModel(widget.repositorioCatalogo)
-      ..carregarHierarquia();
+    _viewModel = CampoDefinicaoViewModel(widget.repositorioCatalogo);
+    _viewModel.definirContexto(
+      widget.sessaoViewModel.clienteAtivoId,
+      widget.sessaoViewModel.usuarioAtual,
+    );
+    _viewModel.carregarHierarquia();
+    widget.sessaoViewModel.addListener(_aoMudarSessao);
+  }
+
+  void _aoMudarSessao() {
+    _viewModel.definirContexto(
+      widget.sessaoViewModel.clienteAtivoId,
+      widget.sessaoViewModel.usuarioAtual,
+    );
   }
 
   @override
   void dispose() {
+    widget.sessaoViewModel.removeListener(_aoMudarSessao);
     _referencia.dispose();
     _descricao.dispose();
     _focoReferencia.dispose();
@@ -160,8 +176,10 @@ class _PaginaDefinicoesVariaveisState extends State<PaginaDefinicoesVariaveis> {
               if (_viewModel.escopoId == null)
                 _avisoEscopoNaoSelecionado()
               else ...[
-                _formularioDefinicao(),
-                const SizedBox(height: 32),
+                if (_viewModel.podeEditar) ...[
+                  _formularioDefinicao(),
+                  const SizedBox(height: 32),
+                ],
                 _conteudoLista(),
               ],
             ],
@@ -401,29 +419,34 @@ class _PaginaDefinicoesVariaveisState extends State<PaginaDefinicoesVariaveis> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final podeEditar = _viewModel.podeEditar;
+
     if (_viewModel.definicoes.isEmpty) {
       return EstadoVazio(
         icone: LucideIcons.tags,
         titulo: 'Nenhuma variável declarada',
         descricao:
-            'Adicione a primeira variável de ${_viewModel.nomeEscopoSelecionado}.',
+            'Nenhuma variável declarada em ${_viewModel.nomeEscopoSelecionado}.',
         acao: 'Adicionar variável',
-        onAcao: () => _focoReferencia.requestFocus(),
+        onAcao: podeEditar ? () => _focoReferencia.requestFocus() : null,
       );
     }
+
+    final colunas = podeEditar ? _colunasComAcoes : _colunasSemAcoes;
 
     return CartaoConteudo(
       padding: EdgeInsets.zero,
       child: Column(
         children: [
-          const CabecalhoTabelaCrud(colunas: _colunas),
-          for (final definicao in _viewModel.definicoes) _linha(definicao),
+          CabecalhoTabelaCrud(colunas: colunas),
+          for (final definicao in _viewModel.definicoes)
+            _linha(definicao, podeEditar: podeEditar, colunas: colunas),
         ],
       ),
     );
   }
 
-  static const _colunas = [
+  static const _colunasComAcoes = [
     ColunaTabelaCrud(rotulo: 'Referência', flex: 2),
     ColunaTabelaCrud(rotulo: 'Descrição', flex: 3),
     ColunaTabelaCrud(rotulo: 'Tipo', flex: 1),
@@ -432,9 +455,21 @@ class _PaginaDefinicoesVariaveisState extends State<PaginaDefinicoesVariaveis> {
     ColunaTabelaCrud(rotulo: 'Ações', flex: 1),
   ];
 
-  Widget _linha(CampoDefinicao definicao) {
+  static const _colunasSemAcoes = [
+    ColunaTabelaCrud(rotulo: 'Referência', flex: 2),
+    ColunaTabelaCrud(rotulo: 'Descrição', flex: 3),
+    ColunaTabelaCrud(rotulo: 'Tipo', flex: 1),
+    ColunaTabelaCrud(rotulo: 'Aplica-se a', flex: 1),
+    ColunaTabelaCrud(rotulo: 'Obrigatória', flex: 1),
+  ];
+
+  Widget _linha(
+    CampoDefinicao definicao, {
+    required bool podeEditar,
+    required List<ColunaTabelaCrud> colunas,
+  }) {
     return LinhaTabelaCrud(
-      colunas: _colunas,
+      colunas: colunas,
       celulas: [
         Text(
           definicao.referencia,
@@ -451,24 +486,25 @@ class _PaginaDefinicoesVariaveisState extends State<PaginaDefinicoesVariaveis> {
           size: 18,
           color: definicao.obrigatorio ? Cores.verdeSucesso : Cores.cinzaMedio,
         ),
-        Row(
-          children: [
-            IconButton(
-              tooltip: 'Editar',
-              onPressed: () => _iniciarEdicao(definicao),
-              icon: const Icon(LucideIcons.pencil, size: 18),
-            ),
-            IconButton(
-              tooltip: 'Remover',
-              onPressed: () => _confirmarExclusao(definicao),
-              icon: const Icon(
-                LucideIcons.trash_2,
-                size: 18,
-                color: Cores.vermelhoErro,
+        if (podeEditar)
+          Row(
+            children: [
+              IconButton(
+                tooltip: 'Editar',
+                onPressed: () => _iniciarEdicao(definicao),
+                icon: const Icon(LucideIcons.pencil, size: 18),
               ),
-            ),
-          ],
-        ),
+              IconButton(
+                tooltip: 'Remover',
+                onPressed: () => _confirmarExclusao(definicao),
+                icon: const Icon(
+                  LucideIcons.trash_2,
+                  size: 18,
+                  color: Cores.vermelhoErro,
+                ),
+              ),
+            ],
+          ),
       ],
     );
   }

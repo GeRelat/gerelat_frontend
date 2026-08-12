@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
+import 'package:gerelat_frontend/dominio/entidades/asset.dart';
+import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/servicos/arquivo_web.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
@@ -14,5 +16,6 @@ part 'painel_ui/cabecalho_pagina.dart';
 part 'painel_ui/cartoes.dart';
 part 'painel_ui/campos_formulario.dart';
 part 'painel_ui/seletor_logomarca.dart';
+part 'painel_ui/dialogo_selecao_asset.dart';
 part 'painel_ui/barra_acoes_formulario.dart';
 part 'painel_ui/tabela_crud.dart';

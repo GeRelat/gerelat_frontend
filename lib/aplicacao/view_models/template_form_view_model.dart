@@ -10,6 +10,7 @@ import 'package:gerelat_frontend/dominio/entidades/membro_equipe_projeto.dart';
 import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/entidades/opcao_selecao.dart';
 import 'package:gerelat_frontend/dominio/entidades/template_relatorio.dart';
+import 'package:gerelat_frontend/dominio/entidades/usuario.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 
 class TemplateFormViewModel extends BaseViewModel {
@@ -22,6 +23,8 @@ class TemplateFormViewModel extends BaseViewModel {
   HierarquiaEscopo _hierarquia = const HierarquiaEscopo();
   NivelEscopo _nivel = NivelEscopo.projeto;
   int? _escopoId;
+  int? _clienteAtivoId;
+  Usuario? _usuarioAtual;
 
   List<ClasseEvento> _classesDisponiveis = [];
   Set<int> _classesSelecionadas = {};
@@ -50,7 +53,41 @@ class TemplateFormViewModel extends BaseViewModel {
   HierarquiaEscopo get hierarquia => _hierarquia;
   NivelEscopo get nivel => _nivel;
   int? get escopoId => _escopoId;
-  List<OpcaoSelecao> get opcoesEscopo => _hierarquia.opcoesDeEscopo(_nivel);
+  int? get clienteAtivoId => _clienteAtivoId;
+  Usuario? get usuarioAtual => _usuarioAtual;
+
+  List<NivelEscopo> get niveisPermitidos {
+    final usuario = _usuarioAtual;
+    if (usuario == null) return NivelEscopo.values;
+    if (usuario.isAdminGeRelat || usuario.eAdminDoCliente(_clienteAtivoId)) {
+      return const [NivelEscopo.cliente, NivelEscopo.programa, NivelEscopo.projeto];
+    }
+
+    final eMembroPrograma = usuario.contextosAcesso.programas.any((p) {
+      if (_clienteAtivoId == null) return true;
+      final cId = int.tryParse('${p['cliente_id']}');
+      return cId == _clienteAtivoId;
+    });
+
+    if (eMembroPrograma) {
+      return const [NivelEscopo.programa, NivelEscopo.projeto];
+    }
+
+    final eMembroProjeto = usuario.contextosAcesso.projetos.any((p) {
+      if (_clienteAtivoId == null) return true;
+      final cId = int.tryParse('${p['cliente_id']}');
+      return cId == _clienteAtivoId;
+    });
+
+    if (eMembroProjeto) {
+      return const [NivelEscopo.projeto];
+    }
+
+    return const [NivelEscopo.projeto];
+  }
+
+  List<OpcaoSelecao> get opcoesEscopo =>
+      _hierarquia.opcoesDeEscopo(_nivel, clienteId: _clienteAtivoId);
 
   List<ClasseEvento> get classesDisponiveis =>
       List.unmodifiable(_classesDisponiveis);
@@ -72,6 +109,24 @@ class TemplateFormViewModel extends BaseViewModel {
   String nomePrograma(int? programaId) =>
       _hierarquia.nomeDe(NivelAplicacao.programa, programaId);
 
+  String nomeCliente(int? clienteId) =>
+      _hierarquia.nomeDe(NivelAplicacao.cliente, clienteId);
+
+  String nomeOrigemClasse(ClasseEvento classe) {
+    if (classe.clienteId != null &&
+        classe.programaId == null &&
+        classe.projetoId == null) {
+      return 'Cliente: ${nomeCliente(classe.clienteId)}';
+    }
+    if (classe.programaId != null && classe.projetoId == null) {
+      return 'Programa: ${nomePrograma(classe.programaId)}';
+    }
+    if (classe.projetoId != null) {
+      return 'Projeto: ${nomeProjeto(classe.projetoId)}';
+    }
+    return 'Geral';
+  }
+
   Future<void> carregarOpcoes() async {
     iniciarCarregamento();
     try {
@@ -79,28 +134,64 @@ class TemplateFormViewModel extends BaseViewModel {
         _catalogo,
         comEventos: false,
       );
+      _ajustarSelecaoEscopo();
+      final escopoId = _escopoId;
+      if (escopoId != null) {
+        await _carregarEscopo(_nivel, escopoId);
+      }
       finalizarCarregamento();
     } catch (erro) {
       definirErro(erro);
     }
   }
 
+  void definirContexto(int? clienteAtivoId, Usuario? usuarioAtual) {
+    final mudou = _clienteAtivoId != clienteAtivoId || _usuarioAtual != usuarioAtual;
+    _clienteAtivoId = clienteAtivoId;
+    _usuarioAtual = usuarioAtual;
+
+    _ajustarSelecaoEscopo();
+
+    if (mudou && _escopoId != null) {
+      _carregarEscopo(_nivel, _escopoId!);
+    }
+    notifyListeners();
+  }
+
+  void _ajustarSelecaoEscopo() {
+    final permitidos = niveisPermitidos;
+    if (permitidos.isNotEmpty && !permitidos.contains(_nivel)) {
+      _nivel = permitidos.first;
+    }
+    final opcoes = opcoesEscopo;
+    if (_escopoId != null && !opcoes.any((o) => o.id == _escopoId)) {
+      _escopoId = opcoes.isNotEmpty ? opcoes.first.id : null;
+    } else if (_escopoId == null && opcoes.isNotEmpty) {
+      _escopoId = opcoes.first.id;
+    }
+  }
+
   /// Projetos e programas alcançados pelo escopo — em nível cliente ou
   /// programa, um template cobre todos os descendentes, então classes de
   /// evento e possíveis signatários vêm agregados de todos eles.
-  ({Set<int> programaIds, Set<int> projetoIds}) _descendentes(
+  ({int? clienteId, Set<int> programaIds, Set<int> projetoIds}) _descendentes(
     NivelEscopo nivel,
     int escopoId,
   ) {
     switch (nivel) {
       case NivelEscopo.projeto:
         final projeto = _hierarquia.projetoPorId(escopoId);
+        final programa =
+            projeto != null ? _hierarquia.programaPorId(projeto.programaId) : null;
         return (
-          programaIds: {?projeto?.programaId},
+          clienteId: programa?.clienteId,
+          programaIds: {if (projeto?.programaId != null) projeto!.programaId!},
           projetoIds: {escopoId},
         );
       case NivelEscopo.programa:
+        final programa = _hierarquia.programaPorId(escopoId);
         return (
+          clienteId: programa?.clienteId,
           programaIds: {escopoId},
           projetoIds: _hierarquia.projetos
               .where((projeto) => projeto.programaId == escopoId)
@@ -115,6 +206,7 @@ class TemplateFormViewModel extends BaseViewModel {
             .whereType<int>()
             .toSet();
         return (
+          clienteId: escopoId,
           programaIds: programaIds,
           projetoIds: _hierarquia.projetos
               .where((projeto) => programaIds.contains(projeto.programaId))
@@ -127,15 +219,20 @@ class TemplateFormViewModel extends BaseViewModel {
 
   Future<void> selecionarEscopo(NivelEscopo nivel, int? escopoId) async {
     _nivel = nivel;
-    _escopoId = escopoId;
-    if (escopoId == null) {
+    final opcoes = _hierarquia.opcoesDeEscopo(nivel, clienteId: _clienteAtivoId);
+    if (escopoId != null) {
+      _escopoId = escopoId;
+    } else {
+      _escopoId = opcoes.isNotEmpty ? opcoes.first.id : null;
+    }
+    if (_escopoId == null) {
       _limparEscopo();
       notifyListeners();
       return;
     }
     iniciarCarregamento();
     try {
-      await _carregarEscopo(nivel, escopoId);
+      await _carregarEscopo(nivel, _escopoId!);
       finalizarCarregamento();
     } catch (erro) {
       definirErro(erro);
@@ -154,8 +251,10 @@ class TemplateFormViewModel extends BaseViewModel {
   Future<void> _carregarEscopo(NivelEscopo nivel, int escopoId) async {
     final alcance = _descendentes(nivel, escopoId);
 
-    _classesDisponiveis = await _eventosRepositorio
-        .listarClassesEventoDeProjetos(alcance.projetoIds);
+    _classesDisponiveis = await _eventosRepositorio.listarClassesEventoDetalhadas(
+      escopo: nivel,
+      escopoId: escopoId,
+    );
     _membrosPrograma = await _equipeProgramaRepositorio.listarEquipeDeProgramas(
       alcance.programaIds,
     );

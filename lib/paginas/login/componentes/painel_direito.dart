@@ -55,8 +55,14 @@ class _PainelDireitoState extends State<PainelDireito> {
     if (!mounted) return;
 
     if (sucesso) {
+      final usuario = await widget.repositorioAutenticacao.obterUsuarioAtual();
+      if (!mounted) return;
       widget.sessao.notificarMudancaAutenticacao();
-      context.go('/dashboard');
+      context.go(
+        usuario != null && !usuario.possuiContextoAcesso
+            ? '/solicitar-acesso'
+            : '/dashboard',
+      );
       return;
     }
 

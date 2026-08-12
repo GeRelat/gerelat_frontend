@@ -30,23 +30,38 @@ import { C as EditorState, S as EditorView, _ as baseKeymap, a as insertVarText,
 *   { type: 'DOC_RESULT', id: '...', doc: {...} }           reply to GET_DOC
 */
 var reportModePlugin = new Plugin({ filterTransaction(tr, state) {
-	if (!tr.docChanged) return true;
-	let allowed = true;
-	tr.steps.forEach((step) => {
-		if (!allowed) return;
-		if (typeof step.from !== "number") return;
-		let startInside = false;
-		let endInside = false;
+	if (tr.docChanged) {
+		let allowed = true;
+		tr.steps.forEach((step) => {
+			if (!allowed) return;
+			if (typeof step.from !== "number") return;
+			let startInside = false;
+			let endInside = false;
+			try {
+				const $from = state.doc.resolve(step.from);
+				for (let i = $from.depth; i > 0; i--) if ($from.node(i).type.name === "custom_text") startInside = true;
+				const $to = state.doc.resolve(step.to ?? step.from);
+				for (let i = $to.depth; i > 0; i--) if ($to.node(i).type.name === "custom_text") endInside = true;
+			} catch {}
+			if (!startInside || !endInside) allowed = false;
+		});
+		if (!allowed) return false;
+	}
+	if (tr.selectionSet) {
 		try {
-			const $from = state.doc.resolve(step.from);
-			for (let i = $from.depth; i > 0; i--) if ($from.node(i).type.name === "custom_text") startInside = true;
-			const $to = state.doc.resolve(step.to ?? step.from);
-			for (let i = $to.depth; i > 0; i--) if ($to.node(i).type.name === "custom_text") endInside = true;
+			const $head = tr.selection.$head;
+			if (!isInsideCustomText($head)) return false;
 		} catch {}
-		if (!startInside || !endInside) allowed = false;
-	});
-	return allowed;
+	}
+	return true;
 } });
+function isInsideCustomText($pos) {
+	if (!$pos) return false;
+	for (let i = $pos.depth; i > 0; i--) {
+		if ($pos.node(i).type.name === "custom_text") return true;
+	}
+	return false;
+}
 function pluginsForMode(mode) {
 	const base = [
 		history(),
@@ -65,6 +80,11 @@ function pluginsForMode(mode) {
 	return [buildInputRules(), ...base];
 }
 var currentMode = "template";
+function updateToolbarVisibility() {
+	const tb = document.getElementById("toolbar");
+	if (tb) tb.style.display = currentMode === "report" ? "none" : "flex";
+	document.body.classList.toggle("mode-report", currentMode === "report");
+}
 function emit(msg) {
 	const target = window.parent !== window ? window.parent : window.opener;
 	if (target) target.postMessage(msg, "*");
@@ -84,6 +104,23 @@ var _changeTimer = null;
 var view = new EditorView(document.getElementById("editor-mount"), {
 	state,
 	nodeViews,
+	handleDOMEvents: {
+		mousedown(view, event) {
+			if (currentMode !== "report") return false;
+			const coords = view.posAtCoords({ left: event.clientX, top: event.clientY });
+			if (coords && typeof coords.pos === "number") {
+				const $pos = view.state.doc.resolve(coords.pos);
+				if (!isInsideCustomText($pos)) {
+					event.preventDefault();
+					return true;
+				}
+			} else {
+				event.preventDefault();
+				return true;
+			}
+			return false;
+		}
+	},
 	dispatchTransaction(tr) {
 		const newState = view.state.apply(tr);
 		view.updateState(newState);
@@ -130,11 +167,32 @@ document.getElementById("btn-undo").addEventListener("click", () => {
 	undo(view.state, view.dispatch);
 	view.focus();
 });
-document.getElementById("btn-redo").addEventListener("click", () => {
-	redo(view.state, view.dispatch);
-	view.focus();
-});
-window.addEventListener("message", (event) => {
+	document.getElementById("btn-redo").addEventListener("click", () => {
+		redo(view.state, view.dispatch);
+		view.focus();
+	});
+
+	function updateThemeUI(theme) {
+		const isDark = theme === "dark";
+		document.body.classList.toggle("dark-theme", isDark);
+		document.body.classList.toggle("light-theme", !isDark);
+		const icon = document.getElementById("theme-icon");
+		const label = document.getElementById("theme-label");
+		if (icon) icon.textContent = isDark ? "☀️" : "🌙";
+		if (label) label.textContent = isDark ? "Modo claro" : "Modo escuro";
+	}
+
+	const btnTheme = document.getElementById("btn-theme");
+	if (btnTheme) {
+		btnTheme.addEventListener("click", () => {
+			const isDark = document.body.classList.contains("dark-theme");
+			const nextTheme = isDark ? "light" : "dark";
+			updateThemeUI(nextTheme);
+			emit({ type: "THEME_CHANGED", theme: nextTheme });
+		});
+	}
+
+	window.addEventListener("message", (event) => {
 	let msg = event.data;
 	if (!msg) return;
 	if (typeof msg === "string") try {
@@ -146,6 +204,7 @@ window.addEventListener("message", (event) => {
 	switch (msg.type) {
 		case "SET_MODE": {
 			currentMode = msg.mode === "report" ? "report" : "template";
+			updateToolbarVisibility();
 			const newState = EditorState.create({
 				doc: view.state.doc,
 				plugins: pluginsForMode(currentMode)
@@ -156,6 +215,7 @@ window.addEventListener("message", (event) => {
 		case "SET_DOC":
 			try {
 				if (typeof msg.mode === "string") currentMode = msg.mode === "report" ? "report" : "template";
+				updateToolbarVisibility();
 				const doc = schema.nodeFromJSON(msg.doc ?? EMPTY_DOC);
 				const newState = EditorState.create({
 					doc,
@@ -229,6 +289,9 @@ window.addEventListener("message", (event) => {
 		case "REDO":
 			redo(view.state, view.dispatch);
 			view.focus();
+			break;
+		case "SET_THEME":
+			updateThemeUI(msg.theme === "dark" ? "dark" : "light");
 			break;
 	}
 });

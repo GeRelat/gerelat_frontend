@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/programa_form_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
+import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
@@ -12,6 +14,7 @@ class PaginaFormularioPrograma extends StatefulWidget {
   final int? programaId;
   final RepositorioCatalogo repositorioCatalogo;
   final String urlBase;
+  final SessaoViewModel sessaoViewModel;
 
   const PaginaFormularioPrograma({
     super.key,
@@ -19,6 +22,7 @@ class PaginaFormularioPrograma extends StatefulWidget {
     this.programaId,
     required this.repositorioCatalogo,
     required this.urlBase,
+    required this.sessaoViewModel,
   });
 
   @override
@@ -42,21 +46,31 @@ class _PaginaFormularioProgramaState extends State<PaginaFormularioPrograma> {
     final repositorio = widget.repositorioCatalogo;
     _viewModel = ProgramaFormViewModel(repositorio, repositorio);
     final programaId = widget.programaId;
+    _clienteId = widget.sessaoViewModel.clienteAtivoId;
     if (widget.edicao && programaId != null) {
-      _viewModel.carregar(programaId).then((_) {
-        final programa = _viewModel.programa;
-        if (!mounted || programa == null) return;
-        _nome.text = programa.nome;
-        _leiCriacao.text = programa.leiCriacao;
-        _convenio.text = programa.convenioDados;
-        _rodape.text = programa.rodape;
-        setState(() {
-          _logomarca = programa.logomarca;
-          _clienteId = programa.clienteId;
-        });
-      });
+      _viewModel
+          .carregar(
+            programaId,
+            clienteAtivoId: widget.sessaoViewModel.clienteAtivoId,
+          )
+          .then((_) {
+            final programa = _viewModel.programa;
+            if (!mounted || programa == null) return;
+            _nome.text = programa.nome;
+            _leiCriacao.text = programa.leiCriacao;
+            _convenio.text = programa.convenioDados;
+            _rodape.text = programa.rodape;
+            setState(() {
+              _logomarca = programa.logomarca;
+              if (programa.clienteId != null) {
+                _clienteId = programa.clienteId;
+              }
+            });
+          });
     } else {
-      _viewModel.carregarClientes();
+      _viewModel.carregarClientes(
+        clienteAtivoId: widget.sessaoViewModel.clienteAtivoId,
+      );
     }
   }
 
@@ -118,7 +132,7 @@ class _PaginaFormularioProgramaState extends State<PaginaFormularioPrograma> {
                     ),
                     const SizedBox(height: 18),
                     CampoSelecao(
-                      label: 'Cliente (opcional)',
+                      label: 'Cliente',
                       valor: _clienteId,
                       itens: _viewModel.clientes
                           .map(
@@ -155,6 +169,15 @@ class _PaginaFormularioProgramaState extends State<PaginaFormularioPrograma> {
                       aoAlterar: (url) => setState(() => _logomarca = url),
                       repositorioCatalogo: widget.repositorioCatalogo,
                       urlBase: widget.urlBase,
+                      escopo:
+                          widget.edicao && widget.programaId != null
+                              ? NivelEscopo.programa
+                              : NivelEscopo.cliente,
+                      escopoId:
+                          (widget.edicao && widget.programaId != null)
+                              ? widget.programaId
+                              : (_clienteId ??
+                                  widget.sessaoViewModel.clienteAtivoId),
                     ),
                     const SizedBox(height: 18),
                     CampoFormulario(

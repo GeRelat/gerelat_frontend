@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/evento_form_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
+import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
@@ -12,12 +14,14 @@ class PaginaFormularioEvento extends StatefulWidget {
   final bool edicao;
   final int? eventoId;
   final RepositorioCatalogo repositorioCatalogo;
+  final SessaoViewModel sessaoViewModel;
 
   const PaginaFormularioEvento({
     super.key,
     this.edicao = false,
     this.eventoId,
     required this.repositorioCatalogo,
+    required this.sessaoViewModel,
   });
 
   @override
@@ -32,7 +36,6 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
   final _local = TextEditingController();
   final _endereco = TextEditingController();
   final _objetivo = TextEditingController();
-  final _novaClasse = TextEditingController();
 
   late final EventoFormViewModel _viewModel;
 
@@ -44,9 +47,11 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
     super.initState();
 
     _viewModel = EventoFormViewModel(widget.repositorioCatalogo);
-
-    // Classe existente e nova classe são opções mutuamente exclusivas.
-    _novaClasse.addListener(_aoDigitarNovaClasse);
+    _viewModel.definirContexto(
+      widget.sessaoViewModel.clienteAtivoId,
+      widget.sessaoViewModel.usuarioAtual,
+    );
+    widget.sessaoViewModel.addListener(_aoMudarSessao);
 
     final eventoId = widget.eventoId;
 
@@ -58,7 +63,7 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
           return;
         }
 
-        _projetoId = evento.projetoId;
+        _projetoId = evento.escopoId;
         _classeId = evento.classeEventoId;
         _nome.text = evento.nome;
         _data.text = evento.data == null ? '' : _formatarData(evento.data!);
@@ -73,27 +78,25 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
     }
   }
 
+  void _aoMudarSessao() {
+    _viewModel.definirContexto(
+      widget.sessaoViewModel.clienteAtivoId,
+      widget.sessaoViewModel.usuarioAtual,
+    );
+  }
+
   @override
   void dispose() {
-    _novaClasse.removeListener(_aoDigitarNovaClasse);
+    widget.sessaoViewModel.removeListener(_aoMudarSessao);
 
     _nome.dispose();
     _data.dispose();
     _local.dispose();
     _endereco.dispose();
     _objetivo.dispose();
-    _novaClasse.dispose();
     _viewModel.dispose();
 
     super.dispose();
-  }
-
-  void _aoDigitarNovaClasse() {
-    if (_classeId != null && _novaClasse.text.trim().isNotEmpty) {
-      setState(() {
-        _classeId = null;
-      });
-    }
   }
 
   Future<void> _salvar() async {
@@ -104,16 +107,20 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
     }
 
     final data = _parseData(_data.text);
+    final escopoId = _viewModel.escopoId ?? _projetoId;
 
-    if (data == null || _projetoId == null) {
+    if (data == null || escopoId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecione um escopo e informe uma data válida.')),
+      );
       return;
     }
 
     final sucesso = await _viewModel.salvar(
       eventoId: widget.eventoId,
-      projetoId: _projetoId!,
+      escopo: _viewModel.escopo,
+      escopoId: escopoId,
       classeEventoId: _classeId,
-      nomeNovaClasse: _novaClasse.text.trim(),
       nome: _nome.text.trim(),
       data: data,
       local: _local.text.trim(),
@@ -160,38 +167,9 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final telaPequena = constraints.maxWidth < 700;
-
-                          if (telaPequena) {
-                            return Column(
-                              children: [
-                                _campoProjeto(),
-                                const SizedBox(height: 18),
-                                _campoClasse(),
-                              ],
-                            );
-                          }
-
-                          return Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(child: _campoProjeto()),
-                              const SizedBox(width: 18),
-                              Expanded(child: _campoClasse()),
-                            ],
-                          );
-                        },
-                      ),
+                      _seletorEscopo(),
                       const SizedBox(height: 18),
-                      CampoFormulario(
-                        label: 'Nova classe de evento',
-                        hint: 'Preencha quando a classe ainda não existir',
-                        icone: LucideIcons.tags,
-                        controller: _novaClasse,
-                        maxLength: 150,
-                      ),
+                      _campoClasse(),
                       const SizedBox(height: 18),
                       CampoFormulario(
                         label: 'Nome do Evento',
@@ -262,19 +240,51 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
     );
   }
 
-  /// Seleção de projeto — usada nos dois layouts (compacto e amplo) de
-  /// [build].
-  Widget _campoProjeto() {
-    return CampoSelecao(
-      label: 'Projeto',
-      valor: _projetoId,
-      itens: _viewModel.projetos
-          .map(
-            (item) =>
-                DropdownMenuItem<int>(value: item.id, child: Text(item.nome)),
-          )
-          .toList(),
-      onChanged: _aoSelecionarProjeto,
+  Widget _seletorEscopo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Escopo do evento',
+          style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _viewModel.niveisPermitidos.map((escopo) {
+            return ChoiceChip(
+              label: Text(escopo.rotulo),
+              selected: _viewModel.escopo == escopo,
+              onSelected: (_) {
+                setState(() {
+                  _classeId = null;
+                });
+                _viewModel.selecionarEscopo(escopo, null);
+              },
+              selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 14),
+        CampoSelecao(
+          label: _viewModel.escopo.rotulo,
+          valor: _viewModel.escopoId,
+          itens: _viewModel.opcoesEscopo
+              .map(
+                (item) =>
+                    DropdownMenuItem<int>(value: item.id, child: Text(item.nome)),
+              )
+              .toList(),
+          onChanged: (value) {
+            setState(() {
+              _projetoId = value;
+              _classeId = null;
+            });
+            _viewModel.selecionarEscopo(_viewModel.escopo, value);
+          },
+        ),
+      ],
     );
   }
 
@@ -295,30 +305,15 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
     );
   }
 
-  Future<void> _aoSelecionarProjeto(int? value) async {
-    setState(() {
-      _projetoId = value;
-      _classeId = null;
-    });
-
-    if (value != null) {
-      await _viewModel.carregarClassesProjeto(value);
-    }
-  }
-
   void _aoSelecionarClasse(int? value) {
     setState(() {
       _classeId = value;
-
-      if (value != null) {
-        _novaClasse.clear();
-      }
     });
   }
 
   String? _validarClasseEvento(int? value) {
-    if (value == null && _novaClasse.text.trim().isEmpty) {
-      return 'Selecione ou informe uma nova classe';
+    if (value == null) {
+      return 'Selecione uma classe de evento';
     }
 
     return null;

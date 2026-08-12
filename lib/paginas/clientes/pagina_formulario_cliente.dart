@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/cliente_form_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
+import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/dialogo_confirmacao_exclusao.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
@@ -14,12 +16,16 @@ class PaginaFormularioCliente extends StatefulWidget {
   final bool edicao;
   final int? clienteId;
   final RepositorioCatalogo repositorioCatalogo;
+  final String urlBase;
+  final SessaoViewModel sessaoViewModel;
 
   const PaginaFormularioCliente({
     super.key,
     this.edicao = false,
     this.clienteId,
     required this.repositorioCatalogo,
+    this.urlBase = '',
+    required this.sessaoViewModel,
   });
 
   @override
@@ -36,6 +42,7 @@ class _PaginaFormularioClienteState extends State<PaginaFormularioCliente> {
   final _foneContato = TextEditingController();
   final _numeroContrato = TextEditingController();
   final _dataTerminoContrato = TextEditingController();
+  String _logomarca = '';
   late final ClienteFormViewModel _viewModel;
 
   @override
@@ -56,6 +63,9 @@ class _PaginaFormularioClienteState extends State<PaginaFormularioCliente> {
         _dataTerminoContrato.text = cliente.dataTerminoContrato == null
             ? ''
             : _formatarData(cliente.dataTerminoContrato!);
+        setState(() {
+          _logomarca = cliente.logomarca;
+        });
       });
     }
   }
@@ -75,8 +85,19 @@ class _PaginaFormularioClienteState extends State<PaginaFormularioCliente> {
 
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
-    final data = _parseData(_dataTerminoContrato.text);
-    if (data == null) return;
+    final eAdminGeRelat =
+        widget.sessaoViewModel.usuarioAtual?.isAdminGeRelat ?? false;
+
+    DateTime? data;
+    if (_dataTerminoContrato.text.trim().isEmpty && !eAdminGeRelat) {
+      data = _viewModel.cliente?.dataTerminoContrato;
+    } else {
+      data = _parseData(_dataTerminoContrato.text);
+    }
+    if (data == null) {
+      if (eAdminGeRelat) return;
+      data = _viewModel.cliente?.dataTerminoContrato ?? DateTime.now();
+    }
 
     final sucesso = await _viewModel.salvar(
       clienteId: widget.clienteId,
@@ -87,6 +108,7 @@ class _PaginaFormularioClienteState extends State<PaginaFormularioCliente> {
       foneContato: _foneContato.text.trim(),
       numeroContrato: _numeroContrato.text.trim(),
       dataTerminoContrato: data,
+      logomarca: _logomarca,
     );
     if (!mounted) return;
     if (sucesso) {
@@ -157,6 +179,9 @@ class _PaginaFormularioClienteState extends State<PaginaFormularioCliente> {
   }
 
   Widget _conteudoFormulario(BuildContext context) {
+    final eAdminGeRelat =
+        widget.sessaoViewModel.usuarioAtual?.isAdminGeRelat ?? false;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(32),
       child: Form(
@@ -263,11 +288,25 @@ class _PaginaFormularioClienteState extends State<PaginaFormularioCliente> {
                           hint: 'Ex: 123/2026',
                           icone: LucideIcons.signature,
                           controller: _numeroContrato,
-                          validator: _obrigatorio,
+                          enabled: eAdminGeRelat,
+                          validator: eAdminGeRelat ? _obrigatorio : null,
                           maxLength: 100,
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 18),
+                  SeletorLogomarca(
+                    urlAtual: _logomarca,
+                    aoAlterar: (url) => setState(() => _logomarca = url),
+                    repositorioCatalogo: widget.repositorioCatalogo,
+                    urlBase: widget.urlBase,
+                    escopo: widget.edicao && widget.clienteId != null
+                        ? NivelEscopo.cliente
+                        : null,
+                    escopoId: widget.edicao && widget.clienteId != null
+                        ? widget.clienteId
+                        : null,
                   ),
                   const SizedBox(height: 18),
                   CampoFormulario(
@@ -275,10 +314,13 @@ class _PaginaFormularioClienteState extends State<PaginaFormularioCliente> {
                     hint: 'DD/MM/AAAA',
                     icone: LucideIcons.calendar_days,
                     controller: _dataTerminoContrato,
+                    enabled: eAdminGeRelat,
                     keyboardType: TextInputType.number,
                     inputFormatters: [FormatadorData()],
-                    validator: (valor) => _parseData(valor ?? '') == null
-                        ? 'Informe uma data válida'
+                    validator: eAdminGeRelat
+                        ? (valor) => _parseData(valor ?? '') == null
+                            ? 'Informe uma data válida'
+                            : null
                         : null,
                   ),
                   const SizedBox(height: 28),

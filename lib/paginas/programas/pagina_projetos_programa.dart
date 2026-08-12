@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/projetos_programa_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/projeto.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/dialogo_confirmacao_exclusao.dart';
@@ -12,11 +13,13 @@ import 'package:go_router/go_router.dart';
 class PaginaProjetosPrograma extends StatefulWidget {
   final int programaId;
   final RepositorioCatalogo repositorioCatalogo;
+  final SessaoViewModel sessaoViewModel;
 
   const PaginaProjetosPrograma({
     super.key,
     required this.programaId,
     required this.repositorioCatalogo,
+    required this.sessaoViewModel,
   });
 
   @override
@@ -81,6 +84,16 @@ class _PaginaProjetosProgramaState extends State<PaginaProjetosPrograma> {
 
   @override
   Widget build(BuildContext context) {
+    final usuario = widget.sessaoViewModel.usuarioAtual;
+    final clienteAtivoId = widget.sessaoViewModel.clienteAtivoId;
+    final eAdmin = usuario?.eAdminDoCliente(clienteAtivoId) ?? false;
+    final eMembroDoPrograma = usuario?.contextosAcesso.programas.any(
+          (p) => int.tryParse('${p['id']}') == widget.programaId,
+        ) ??
+        false;
+
+    final podeCriarEExcluir = eAdmin || eMembroDoPrograma;
+
     return AnimatedBuilder(
       animation: _viewModel,
       builder: (context, _) {
@@ -115,15 +128,16 @@ class _PaginaProjetosProgramaState extends State<PaginaProjetosPrograma> {
                       ],
                     ),
                   ),
-                  BotaoPrimario(
-                    texto: 'Novo Projeto',
-                    icone: LucideIcons.plus,
-                    onPressed: _novoProjeto,
-                  ),
+                  if (podeCriarEExcluir)
+                    BotaoPrimario(
+                      texto: 'Novo Projeto',
+                      icone: LucideIcons.plus,
+                      onPressed: _novoProjeto,
+                    ),
                 ],
               ),
               const SizedBox(height: 24),
-              _conteudo(),
+              _conteudo(podeCriarEExcluir: podeCriarEExcluir, usuario: usuario),
             ],
           ),
         );
@@ -131,7 +145,10 @@ class _PaginaProjetosProgramaState extends State<PaginaProjetosPrograma> {
     );
   }
 
-  Widget _conteudo() {
+  Widget _conteudo({
+    required bool podeCriarEExcluir,
+    required dynamic usuario,
+  }) {
     if (_viewModel.carregando && _viewModel.projetos.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -150,37 +167,70 @@ class _PaginaProjetosProgramaState extends State<PaginaProjetosPrograma> {
       return EstadoVazio(
         icone: LucideIcons.git_branch,
         titulo: 'Nenhum projeto cadastrado',
-        descricao: 'Cadastre o primeiro projeto vinculado a este programa.',
+        descricao: podeCriarEExcluir
+            ? 'Cadastre o primeiro projeto vinculado a este programa.'
+            : 'Não há projetos cadastrados vinculados a este programa.',
         acao: 'Novo Projeto',
-        onAcao: _novoProjeto,
+        onAcao: podeCriarEExcluir ? _novoProjeto : null,
       );
     }
+
+    final temAcoes = _viewModel.projetos.any((p) {
+      final eMembroDoP = usuario?.contextosAcesso.projetos.any(
+            (item) => int.tryParse('${item['id']}') == p.id,
+          ) ??
+          false;
+      return podeCriarEExcluir || eMembroDoP;
+    });
+
+    final colunas = temAcoes
+        ? const [
+            ColunaTabelaCrud(rotulo: 'Nome', flex: 2),
+            ColunaTabelaCrud(rotulo: 'Parceira', flex: 2),
+            ColunaTabelaCrud(rotulo: 'Sigla', flex: 1),
+            ColunaTabelaCrud(rotulo: 'Ações', flex: 1),
+          ]
+        : const [
+            ColunaTabelaCrud(rotulo: 'Nome', flex: 2),
+            ColunaTabelaCrud(rotulo: 'Parceira', flex: 2),
+            ColunaTabelaCrud(rotulo: 'Sigla', flex: 1),
+          ];
 
     return CartaoConteudo(
       padding: EdgeInsets.zero,
       child: Column(
         children: [
-          _cabecalhoTabela(),
-          for (final projeto in _viewModel.projetos) _linha(projeto),
+          CabecalhoTabelaCrud(colunas: colunas),
+          for (final projeto in _viewModel.projetos)
+            _linha(
+              projeto: projeto,
+              colunas: colunas,
+              podeCriarEExcluir: podeCriarEExcluir,
+              usuario: usuario,
+              temAcoes: temAcoes,
+            ),
         ],
       ),
     );
   }
 
-  static const _colunas = [
-    ColunaTabelaCrud(rotulo: 'Nome', flex: 2),
-    ColunaTabelaCrud(rotulo: 'Parceira', flex: 2),
-    ColunaTabelaCrud(rotulo: 'Sigla', flex: 1),
-    ColunaTabelaCrud(rotulo: 'Ações', flex: 1),
-  ];
+  Widget _linha({
+    required Projeto projeto,
+    required List<ColunaTabelaCrud> colunas,
+    required bool podeCriarEExcluir,
+    required dynamic usuario,
+    required bool temAcoes,
+  }) {
+    final eMembroDoProjeto = usuario?.contextosAcesso.projetos.any(
+          (p) => int.tryParse('${p['id']}') == projeto.id,
+        ) ??
+        false;
 
-  Widget _cabecalhoTabela() {
-    return const CabecalhoTabelaCrud(colunas: _colunas);
-  }
+    final podeEditar = podeCriarEExcluir || eMembroDoProjeto;
+    final podeExcluir = podeCriarEExcluir;
 
-  Widget _linha(Projeto projeto) {
     return LinhaTabelaCrud(
-      colunas: _colunas,
+      colunas: colunas,
       celulas: [
         Text(
           projeto.nome,
@@ -194,27 +244,30 @@ class _PaginaProjetosProgramaState extends State<PaginaProjetosPrograma> {
           projeto.sigla.isEmpty ? '—' : projeto.sigla,
           style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
         ),
-        Row(
-          children: [
-            IconButton(
-              tooltip: 'Editar',
-              onPressed: () {
-                final projetoId = projeto.id;
-                if (projetoId != null) _editarProjeto(projetoId);
-              },
-              icon: const Icon(LucideIcons.pencil, size: 18),
-            ),
-            IconButton(
-              tooltip: 'Excluir',
-              onPressed: () => _confirmarExclusao(projeto),
-              icon: const Icon(
-                LucideIcons.trash_2,
-                size: 18,
-                color: Cores.vermelhoErro,
-              ),
-            ),
-          ],
-        ),
+        if (temAcoes)
+          Row(
+            children: [
+              if (podeEditar)
+                IconButton(
+                  tooltip: 'Editar',
+                  onPressed: () {
+                    final projetoId = projeto.id;
+                    if (projetoId != null) _editarProjeto(projetoId);
+                  },
+                  icon: const Icon(LucideIcons.pencil, size: 18),
+                ),
+              if (podeExcluir)
+                IconButton(
+                  tooltip: 'Excluir',
+                  onPressed: () => _confirmarExclusao(projeto),
+                  icon: const Icon(
+                    LucideIcons.trash_2,
+                    size: 18,
+                    color: Cores.vermelhoErro,
+                  ),
+                ),
+            ],
+          ),
       ],
     );
   }

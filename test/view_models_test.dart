@@ -8,13 +8,17 @@ import 'package:gerelat_frontend/aplicacao/view_models/evento_form_view_model.da
 import 'package:gerelat_frontend/aplicacao/view_models/gerar_relatorio_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/login_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/programa_form_view_model.dart';
+import 'package:gerelat_frontend/dominio/entidades/agendamento_relatorio.dart';
 import 'package:gerelat_frontend/dominio/entidades/asset.dart';
 import 'package:gerelat_frontend/dominio/entidades/assinatura_template.dart';
 import 'package:gerelat_frontend/dominio/entidades/classe_evento.dart';
 import 'package:gerelat_frontend/dominio/entidades/cliente.dart';
 import 'package:gerelat_frontend/dominio/entidades/evento.dart';
+import 'package:gerelat_frontend/dominio/entidades/membro_cliente.dart';
+import 'package:gerelat_frontend/dominio/entidades/membro_gerelat.dart';
 import 'package:gerelat_frontend/dominio/entidades/membro_equipe_programa.dart';
 import 'package:gerelat_frontend/dominio/entidades/membro_equipe_projeto.dart';
+import 'package:gerelat_frontend/dominio/entidades/solicitacao_cliente.dart';
 import 'package:gerelat_frontend/dominio/entidades/campo_definicao.dart';
 import 'package:gerelat_frontend/dominio/entidades/campo_tipo.dart';
 import 'package:gerelat_frontend/dominio/entidades/campo_valor.dart';
@@ -24,6 +28,7 @@ import 'package:gerelat_frontend/dominio/entidades/programa.dart';
 import 'package:gerelat_frontend/dominio/entidades/projeto.dart';
 import 'package:gerelat_frontend/dominio/entidades/relatorio.dart';
 import 'package:gerelat_frontend/dominio/entidades/usuario.dart';
+import 'package:gerelat_frontend/dominio/entidades/usuario_cliente.dart';
 import 'package:gerelat_frontend/dominio/entidades/resumo_dashboard.dart';
 import 'package:gerelat_frontend/dominio/entidades/template_relatorio.dart';
 import 'package:gerelat_frontend/dominio/entidades/variavel_disponivel.dart';
@@ -57,6 +62,7 @@ void main() {
         nomeCompleto: 'Pessoa Teste',
         email: 'teste@gerelat.dev',
         senha: '12345678',
+        clienteId: 1,
       );
 
       expect(sucesso, isFalse);
@@ -334,11 +340,10 @@ void main() {
       expect(viewModel.niveisAplicacaoPermitidos, [
         NivelAplicacao.programa,
         NivelAplicacao.projeto,
-        NivelAplicacao.evento,
       ]);
 
       await viewModel.salvar(
-        nivelAplicacao: NivelAplicacao.evento,
+        nivelAplicacao: NivelAplicacao.projeto,
         referencia: 'local_evento',
         descricao: 'Local do evento',
         tipo: TipoCampo.texto,
@@ -453,7 +458,19 @@ class _RepositorioAutenticacaoFake implements RepositorioAutenticacao {
     required String nomeCompleto,
     required String email,
     required String senha,
+    int? clienteId,
   }) async => resultadoCadastro;
+
+  @override
+  Future<List<OpcaoSelecao>> listarClientesPublicos() async => const [];
+
+  @override
+  Future<ResultadoLogin> solicitarAcessoCliente({
+    required int clienteId,
+    int? programaId,
+    int? projetoId,
+    String? papelSolicitado,
+  }) async => const ResultadoLogin.sucesso();
 
   @override
   Future<ResultadoLogin> solicitarRecuperacaoSenha({
@@ -514,7 +531,7 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   ];
 
   @override
-  Future<List<OpcaoSelecao>> listarClientesSelecao() async => const [];
+  Future<List<OpcaoSelecao>> listarClientesSelecao({int? clienteId}) async => const [];
 
   @override
   Future<Cliente> obterCliente(int clienteId) async =>
@@ -529,6 +546,7 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
     String foneContato = '',
     String numeroContrato = '',
     required DateTime dataTerminoContrato,
+    String logomarca = '',
   }) async {}
 
   @override
@@ -541,6 +559,7 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
     String foneContato = '',
     String numeroContrato = '',
     required DateTime dataTerminoContrato,
+    String logomarca = '',
   }) async {}
 
   @override
@@ -585,7 +604,7 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   Future<void> excluirPrograma(int programaId) async {}
 
   @override
-  Future<List<OpcaoSelecao>> listarProgramasSelecao() async => const [
+  Future<List<OpcaoSelecao>> listarProgramasSelecao({int? clienteId}) async => const [
     OpcaoSelecao(id: 1, nome: 'Programa'),
   ];
 
@@ -705,11 +724,13 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   Future<void> excluirValor(int valorId) async {}
 
   @override
-  Future<int> criarAsset({
+  Future<Asset> criarAsset({
     required Uint8List arquivoBytes,
     required String nomeArquivo,
+    NivelEscopo? escopo,
+    int? escopoId,
     String descricao = '',
-  }) async => 1;
+  }) async => const Asset(id: 1, urlArquivo: '/assets/test.png');
 
   @override
   Future<List<Asset>> listarAssets() async => const [];
@@ -762,7 +783,9 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
 
   @override
   Future<void> criarEvento({
-    required int projetoId,
+    int? projetoId,
+    NivelEscopo? escopo,
+    int? escopoId,
     required int classeEventoId,
     required String nome,
     required DateTime data,
@@ -781,24 +804,34 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
     nome: 'Evento',
     programa: 'Programa',
     data: DateTime(2026, 6, 21),
-    status: 'Confirmado',
   );
 
   @override
   Future<int> criarClasseEvento({
-    required int projetoId,
+    int? projetoId,
+    NivelEscopo? escopo,
+    int? escopoId,
     required String nomeClasse,
   }) async => 2;
 
   @override
   Future<List<ClasseEvento>> listarClassesEventoDetalhadas({
-    required int projetoId,
+    int? projetoId,
+    NivelEscopo? escopo,
+    int? escopoId,
   }) async => const [];
 
   @override
   Future<List<ClasseEvento>> listarClassesEventoDeProjetos(
     Set<int> projetoIds,
   ) async => const [];
+
+  @override
+  Future<List<ClasseEvento>> listarClassesEventoDoAlcance({
+    int? clienteId,
+    Set<int> programaIds = const {},
+    Set<int> projetoIds = const {},
+  }) async => const [];
 
   @override
   Future<void> atualizarClasseEvento({
@@ -815,11 +848,45 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   @override
   Future<void> atualizarRelatorio({
     required int relatorioId,
-    required String nome,
+    String? nome,
+    Map<String, dynamic>? documentoJson,
   }) async {}
 
   @override
   Future<void> excluirRelatorio(int relatorioId) async {}
+
+  @override
+  Future<void> agendarRelatorio({
+    required String nome,
+    required int templateId,
+    int? clienteId,
+    int? programaId,
+    int? projetoId,
+    int? eventoId,
+    Map<String, dynamic>? documentoJson,
+    required String tipoAgendamento,
+    DateTime? dataHoraExecucao,
+    String? recorrencia,
+    String? horarioExecucao,
+    int? diaSemana,
+    int? diaMes,
+    bool ativo = true,
+  }) async {}
+
+  @override
+  Future<List<AgendamentoRelatorio>> listarAgendamentos({
+    int? clienteId,
+  }) async =>
+      const [];
+
+  @override
+  Future<void> alterarStatusAgendamento({
+    required int agendamentoId,
+    required bool ativo,
+  }) async {}
+
+  @override
+  Future<void> excluirAgendamento(int agendamentoId) async {}
 
   @override
   Future<Map<int, int>> listarVinculosClasseTemplate(int templateId) async =>
@@ -897,6 +964,10 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   Future<Uint8List> baixarArquivoTemplate(int templateId) async => Uint8List(0);
 
   @override
+  Future<List<Evento>> listarEventosDisponiveis(int templateId) async =>
+      const [];
+
+  @override
   Future<Map<String, dynamic>> previsualizarTemplate({
     required int templateId,
     int? clienteId,
@@ -919,6 +990,63 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
     required NivelEscopo escopo,
     required int escopoId,
   }) async => variaveisDisponiveis;
+
+  @override
+  Future<List<SolicitacaoClienteModel>> listarSolicitacoes({
+    int? clienteId,
+    String? status,
+  }) async => const [];
+
+  @override
+  Future<bool> aprovarSolicitacao(
+    int id, {
+    bool eAdminCliente = false,
+    List<Map<String, dynamic>> programas = const [],
+    List<Map<String, dynamic>> projetos = const [],
+  }) async =>
+      true;
+
+  @override
+  Future<bool> recusarSolicitacao(int id) async => true;
+
+  @override
+  Future<List<MembroClienteModel>> listarMembrosCliente({int? clienteId}) async => const [];
+
+  @override
+  Future<void> criarMembroCliente({required int clienteId, required int userId}) async {}
+
+  @override
+  Future<void> excluirMembroCliente(int id) async {}
+
+  @override
+  Future<List<UsuarioClienteModel>> listarUsuariosCliente(
+          {required int clienteId}) async =>
+      const [];
+
+  @override
+  Future<void> removerUsuarioDoCliente(
+      {required int clienteId, required int userId}) async {}
+
+  @override
+  Future<void> atualizarPermissoesUsuario({
+    required int clienteId,
+    required int userId,
+    required bool eAdminCliente,
+    required List<int> programaIds,
+    required List<int> projetoIds,
+  }) async {}
+
+  @override
+  Future<List<MembroGeRelatModel>> listarMembrosGeRelat() async => const [];
+
+  @override
+  Future<List<UsuarioDisponivelModel>> listarUsuariosDisponiveisGeRelat() async => const [];
+
+  @override
+  Future<void> criarMembroGeRelat({required int userId}) async {}
+
+  @override
+  Future<void> excluirMembroGeRelat(int id) async {}
 
   @override
   Future<TemplateRelatorio> obterTemplate(int templateId) async =>
@@ -949,8 +1077,11 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   ];
 
   @override
-  Future<List<OpcaoSelecao>> listarClassesEvento({int? projetoId}) async =>
-      const [OpcaoSelecao(id: 2, nome: 'Oficina')];
+  Future<List<OpcaoSelecao>> listarClassesEvento({
+    int? projetoId,
+    NivelEscopo? escopo,
+    int? escopoId,
+  }) async => const [OpcaoSelecao(id: 2, nome: 'Oficina')];
 
   @override
   Future<List<Evento>> listarEventos() async => [
@@ -960,7 +1091,6 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
       nome: 'Evento',
       programa: 'Programa',
       data: DateTime(2026, 6, 21),
-      status: 'Confirmado',
     ),
   ];
 
@@ -993,7 +1123,9 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   @override
   Future<void> atualizarEvento({
     required int eventoId,
-    required int projetoId,
+    int? projetoId,
+    NivelEscopo? escopo,
+    int? escopoId,
     required int classeEventoId,
     required String nome,
     required DateTime data,
@@ -1011,11 +1143,12 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   Future<List<Relatorio>> listarRelatorios() async => const [];
 
   @override
-  Future<ResumoDashboard> obterResumoDashboard() async => const ResumoDashboard(
-    programas: 0,
-    projetos: 0,
-    eventos: 0,
-    templates: 0,
-    relatorios: 0,
-  );
+  Future<ResumoDashboard> obterResumoDashboard({int? clienteId}) async =>
+      const ResumoDashboard(
+        programas: 0,
+        projetos: 0,
+        eventos: 0,
+        templates: 0,
+        relatorios: 0,
+      );
 }

@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/alterar_senha_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/usuario.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_autenticacao.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
+import 'package:gerelat_frontend/nucleo/servicos/cliente_http.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:gerelat_frontend/nucleo/utils/validadores.dart';
 
 class PaginaConfiguracoes extends StatefulWidget {
   final RepositorioAutenticacao repositorioAutenticacao;
+  final SessaoViewModel? sessaoViewModel;
 
-  const PaginaConfiguracoes({super.key, required this.repositorioAutenticacao});
+  const PaginaConfiguracoes({
+    super.key,
+    required this.repositorioAutenticacao,
+    this.sessaoViewModel,
+  });
 
   @override
   State<PaginaConfiguracoes> createState() => _PaginaConfiguracoesState();
@@ -105,21 +112,69 @@ class _PaginaConfiguracoesState extends State<PaginaConfiguracoes> {
   }
 
   Widget _construirCartaoConta() {
+    final sessao = widget.sessaoViewModel;
+    if (sessao != null) {
+      return ListenableBuilder(
+        listenable: sessao,
+        builder: (context, _) => _construirConteudoCartaoConta(),
+      );
+    }
+    return _construirConteudoCartaoConta();
+  }
+
+  Widget _construirConteudoCartaoConta() {
+    final usuario = widget.sessaoViewModel?.usuarioAtual ?? _usuario;
+    final clientes = usuario?.todosClientesDisponiveis ?? [];
+    final clienteAtivoId = widget.sessaoViewModel?.clienteAtivoId;
+
+    ItemContextoCliente? clienteAtivo;
+    if (clienteAtivoId != null) {
+      for (final c in clientes) {
+        if (c.id == clienteAtivoId) {
+          clienteAtivo = c;
+          break;
+        }
+      }
+    }
+    clienteAtivo ??= clientes.isNotEmpty ? clientes.first : null;
+
+    final logoUrl = clienteAtivo?.logomarca.trim() ?? '';
+    final temLogo = logoUrl.isNotEmpty;
+    final urlCompleta = logoUrl.startsWith('http')
+        ? logoUrl
+        : '${ClienteHttp.urlBasePadrao}$logoUrl';
+
     return CartaoConteudo(
       child: Row(
         children: [
           Container(
             width: 56,
             height: 56,
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: Cores.azulAcao.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(999),
+              shape: BoxShape.circle,
+              border: Border.all(color: Cores.bordaSutil, width: 1.5),
             ),
-            child: const Icon(
-              LucideIcons.user,
-              color: Cores.azulAcao,
-              size: 26,
-            ),
+            child: temLogo
+                ? Image.network(
+                    urlCompleta,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => const Center(
+                      child: Icon(
+                        LucideIcons.user,
+                        color: Cores.azulAcao,
+                        size: 26,
+                      ),
+                    ),
+                  )
+                : const Center(
+                    child: Icon(
+                      LucideIcons.user,
+                      color: Cores.azulAcao,
+                      size: 26,
+                    ),
+                  ),
           ),
           const SizedBox(width: 20),
           Expanded(child: _construirDadosConta()),

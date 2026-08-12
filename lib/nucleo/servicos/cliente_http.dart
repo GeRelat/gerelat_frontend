@@ -24,7 +24,7 @@ class ClienteHttp {
   /// alterar código via `flutter run/build --dart-define=API_BASE_URL=...`.
   static const String urlBasePadrao = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://api.gerelat.tech',
+    defaultValue: 'http://localhost:8000/',
   );
 
   /// Mesmo valor para todas as requisições (inclusive a renovação de token),

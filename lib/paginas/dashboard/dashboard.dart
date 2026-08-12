@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/dashboard_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/resumo_dashboard.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
@@ -10,8 +11,13 @@ import 'package:go_router/go_router.dart';
 
 class DashboardPage extends StatefulWidget {
   final RepositorioCatalogo repositorioCatalogo;
+  final SessaoViewModel sessaoViewModel;
 
-  const DashboardPage({super.key, required this.repositorioCatalogo});
+  const DashboardPage({
+    super.key,
+    required this.repositorioCatalogo,
+    required this.sessaoViewModel,
+  });
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -23,21 +29,28 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
-    _viewModel = DashboardViewModel(widget.repositorioCatalogo)..carregar();
+    _viewModel = DashboardViewModel(widget.repositorioCatalogo);
+    widget.sessaoViewModel.addListener(_aoMudarSessao);
+    _viewModel.carregar(clienteId: widget.sessaoViewModel.clienteAtivoId);
+  }
+
+  void _aoMudarSessao() {
+    if (_viewModel.clienteId != widget.sessaoViewModel.clienteAtivoId) {
+      _viewModel.carregar(clienteId: widget.sessaoViewModel.clienteAtivoId);
+    }
   }
 
   @override
   void dispose() {
+    widget.sessaoViewModel.removeListener(_aoMudarSessao);
     _viewModel.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Só `_conteudoResumo()` depende de `_viewModel` — título, atalhos de
-    // ação e sincronização são estáticos e vão no `child`.
     return AnimatedBuilder(
-      animation: _viewModel,
+      animation: Listenable.merge([_viewModel, widget.sessaoViewModel]),
       builder: (context, child) {
         return SingleChildScrollView(
           padding: const EdgeInsets.all(32),
@@ -81,7 +94,8 @@ class _DashboardPageState extends State<DashboardPage> {
         titulo: 'Não foi possivel carregar o resumo',
         descricao: _viewModel.mensagemErro!,
         acao: 'Tentar novamente',
-        onAcao: _viewModel.carregar,
+        onAcao: () =>
+            _viewModel.carregar(clienteId: widget.sessaoViewModel.clienteAtivoId),
       );
     }
 

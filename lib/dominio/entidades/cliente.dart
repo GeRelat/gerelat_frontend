@@ -7,6 +7,7 @@ class Cliente {
   final String foneContato;
   final String numeroContrato;
   final DateTime? dataTerminoContrato;
+  final String logomarca;
 
   const Cliente({
     this.id,
@@ -17,5 +18,6 @@ class Cliente {
     this.foneContato = '',
     this.numeroContrato = '',
     this.dataTerminoContrato,
+    this.logomarca = '',
   });
 }

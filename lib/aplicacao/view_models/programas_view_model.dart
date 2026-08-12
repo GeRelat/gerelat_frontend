@@ -4,10 +4,19 @@ import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart'
 
 class ProgramasViewModel extends BaseViewModel {
   final RepositorioProgramas _repositorio;
+  int? _clienteAtivoId;
   List<Programa> _programas = [];
   String _termoBusca = '';
 
   ProgramasViewModel(this._repositorio);
+
+  int? get clienteAtivoId => _clienteAtivoId;
+
+  void definirClienteAtivoId(int? clienteId) {
+    if (_clienteAtivoId == clienteId) return;
+    _clienteAtivoId = clienteId;
+    carregar();
+  }
 
   List<Programa> get programas {
     final termo = _termoBusca.trim().toLowerCase();
@@ -31,7 +40,12 @@ class ProgramasViewModel extends BaseViewModel {
   Future<void> carregar() async {
     iniciarCarregamento();
     try {
-      _programas = await _repositorio.listarProgramas();
+      final todos = await _repositorio.listarProgramas();
+      if (_clienteAtivoId != null) {
+        _programas = todos.where((p) => p.clienteId == _clienteAtivoId).toList();
+      } else {
+        _programas = todos;
+      }
       finalizarCarregamento();
     } catch (erro) {
       definirErro(erro);

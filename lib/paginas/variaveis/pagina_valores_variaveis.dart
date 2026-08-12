@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/campo_valor_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
@@ -16,8 +17,15 @@ import 'package:go_router/go_router.dart';
 /// nível de aplicação é o do alvo escolhido.
 class PaginaValoresVariaveis extends StatefulWidget {
   final RepositorioCatalogo repositorioCatalogo;
+  final String urlBase;
+  final SessaoViewModel sessaoViewModel;
 
-  const PaginaValoresVariaveis({super.key, required this.repositorioCatalogo});
+  const PaginaValoresVariaveis({
+    super.key,
+    required this.repositorioCatalogo,
+    required this.urlBase,
+    required this.sessaoViewModel,
+  });
 
   @override
   State<PaginaValoresVariaveis> createState() => _PaginaValoresVariaveisState();
@@ -29,12 +37,25 @@ class _PaginaValoresVariaveisState extends State<PaginaValoresVariaveis> {
   @override
   void initState() {
     super.initState();
-    _viewModel = CampoValorViewModel(widget.repositorioCatalogo)
-      ..carregarHierarquia();
+    _viewModel = CampoValorViewModel(widget.repositorioCatalogo);
+    _viewModel.definirContexto(
+      widget.sessaoViewModel.clienteAtivoId,
+      widget.sessaoViewModel.usuarioAtual,
+    );
+    _viewModel.carregarHierarquia();
+    widget.sessaoViewModel.addListener(_aoMudarSessao);
+  }
+
+  void _aoMudarSessao() {
+    _viewModel.definirContexto(
+      widget.sessaoViewModel.clienteAtivoId,
+      widget.sessaoViewModel.usuarioAtual,
+    );
   }
 
   @override
   void dispose() {
+    widget.sessaoViewModel.removeListener(_aoMudarSessao);
     _viewModel.dispose();
     super.dispose();
   }
@@ -98,7 +119,9 @@ class _PaginaValoresVariaveisState extends State<PaginaValoresVariaveis> {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: NivelAplicacao.values.map((nivel) {
+            children: NivelAplicacao.values
+                .where((nivel) => nivel != NivelAplicacao.evento)
+                .map((nivel) {
               return ChoiceChip(
                 label: Text(nivel.rotulo),
                 selected: _viewModel.alvo == nivel,
@@ -148,6 +171,8 @@ class _PaginaValoresVariaveisState extends State<PaginaValoresVariaveis> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final podeEditar = _viewModel.podeEditar;
+
     if (_viewModel.variaveis.isEmpty) {
       return EstadoVazio(
         icone: LucideIcons.tags,
@@ -156,14 +181,14 @@ class _PaginaValoresVariaveisState extends State<PaginaValoresVariaveis> {
             'Nenhuma variável declarada para ${_viewModel.nomeAlvoSelecionado} '
             'ou para um escopo acima dele se aplica a este nível.',
         acao: 'Declarar variável',
-        onAcao: () => context.go('/variaveis/definicoes'),
+        onAcao: podeEditar ? () => context.go('/variaveis/definicoes') : null,
       );
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (_viewModel.totalPendentes > 0) ...[
+        if (podeEditar && _viewModel.totalPendentes > 0) ...[
           _avisoPendentes(_viewModel.totalPendentes),
           const SizedBox(height: 16),
         ],
@@ -179,6 +204,8 @@ class _PaginaValoresVariaveisState extends State<PaginaValoresVariaveis> {
               ),
               variavel: variavel,
               viewModel: _viewModel,
+              repositorioCatalogo: widget.repositorioCatalogo,
+              urlBase: widget.urlBase,
             ),
           ),
       ],
@@ -220,11 +247,15 @@ class _PaginaValoresVariaveisState extends State<PaginaValoresVariaveis> {
 class _CartaoVariavel extends StatefulWidget {
   final VariavelDoAlvo variavel;
   final CampoValorViewModel viewModel;
+  final RepositorioCatalogo repositorioCatalogo;
+  final String urlBase;
 
   const _CartaoVariavel({
     super.key,
     required this.variavel,
     required this.viewModel,
+    required this.repositorioCatalogo,
+    required this.urlBase,
   });
 
   @override
@@ -282,6 +313,7 @@ class _CartaoVariavelState extends State<_CartaoVariavel> {
   @override
   Widget build(BuildContext context) {
     final definicao = widget.variavel.definicao;
+    final podeEditar = widget.viewModel.podeEditar;
     return CartaoConteudo(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -331,7 +363,7 @@ class _CartaoVariavelState extends State<_CartaoVariavel> {
                   ],
                 ),
               ),
-              if (widget.variavel.preenchida)
+              if (podeEditar && widget.variavel.preenchida)
                 TextButton.icon(
                   onPressed: widget.viewModel.carregando ? null : _limpar,
                   icon: const Icon(LucideIcons.eraser, size: 16),
@@ -345,20 +377,27 @@ class _CartaoVariavelState extends State<_CartaoVariavel> {
             tipo: definicao.tipo,
             valorInicial: widget.variavel.valor?.valor ?? const {},
             aoEnviarImagem: widget.viewModel.enviarImagem,
+            repositorioCatalogo: widget.repositorioCatalogo,
+            urlBase: widget.urlBase,
+            escopo: widget.viewModel.alvoNivel,
+            escopoId: widget.viewModel.alvoId,
+            readOnly: !podeEditar,
           ),
-          const SizedBox(height: 18),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              BotaoPrimario(
-                texto: _salvando ? 'Salvando...' : 'Salvar valor',
-                icone: LucideIcons.save,
-                onPressed: _salvando || widget.viewModel.carregando
-                    ? null
-                    : _salvar,
-              ),
-            ],
-          ),
+          if (podeEditar) ...[
+            const SizedBox(height: 18),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                BotaoPrimario(
+                  texto: _salvando ? 'Salvando...' : 'Salvar valor',
+                  icone: LucideIcons.save,
+                  onPressed: _salvando || widget.viewModel.carregando
+                      ? null
+                      : _salvar,
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

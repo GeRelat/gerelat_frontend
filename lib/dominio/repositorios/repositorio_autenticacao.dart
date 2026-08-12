@@ -1,3 +1,4 @@
+import 'package:gerelat_frontend/dominio/entidades/opcao_selecao.dart';
 import 'package:gerelat_frontend/dominio/entidades/usuario.dart';
 
 class ResultadoLogin {
@@ -21,6 +22,16 @@ abstract class RepositorioAutenticacao {
     required String nomeCompleto,
     required String email,
     required String senha,
+    int? clienteId,
+  });
+
+  Future<List<OpcaoSelecao>> listarClientesPublicos();
+
+  Future<ResultadoLogin> solicitarAcessoCliente({
+    required int clienteId,
+    int? programaId,
+    int? projetoId,
+    String? papelSolicitado,
   });
 
   Future<ResultadoLogin> solicitarRecuperacaoSenha({required String email});

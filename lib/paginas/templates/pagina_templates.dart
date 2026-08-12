@@ -2,7 +2,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/templates_view_model.dart';
+import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/entidades/template_relatorio.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/dialogo_confirmacao_exclusao.dart';
@@ -14,8 +16,13 @@ import 'package:go_router/go_router.dart';
 
 class PaginaTemplates extends StatefulWidget {
   final RepositorioCatalogo repositorioCatalogo;
+  final SessaoViewModel sessaoViewModel;
 
-  const PaginaTemplates({super.key, required this.repositorioCatalogo});
+  const PaginaTemplates({
+    super.key,
+    required this.repositorioCatalogo,
+    required this.sessaoViewModel,
+  });
 
   @override
   State<PaginaTemplates> createState() => _PaginaTemplatesState();
@@ -28,11 +35,24 @@ class _PaginaTemplatesState extends State<PaginaTemplates> {
   @override
   void initState() {
     super.initState();
-    _viewModel = TemplatesViewModel(widget.repositorioCatalogo)..carregar();
+    _viewModel = TemplatesViewModel(widget.repositorioCatalogo);
+    _viewModel.definirContexto(
+      widget.sessaoViewModel.clienteAtivoId,
+      widget.sessaoViewModel.usuarioAtual,
+    );
+    widget.sessaoViewModel.addListener(_aoMudarSessao);
+  }
+
+  void _aoMudarSessao() {
+    _viewModel.definirContexto(
+      widget.sessaoViewModel.clienteAtivoId,
+      widget.sessaoViewModel.usuarioAtual,
+    );
   }
 
   @override
   void dispose() {
+    widget.sessaoViewModel.removeListener(_aoMudarSessao);
     _controladorBusca.dispose();
     _viewModel.dispose();
     super.dispose();
@@ -40,7 +60,6 @@ class _PaginaTemplatesState extends State<PaginaTemplates> {
 
   @override
   Widget build(BuildContext context) {
-    // Cabeçalho e busca não leem `_viewModel` — passados como `child`.
     return AnimatedBuilder(
       animation: _viewModel,
       builder: (context, child) {
@@ -48,22 +67,22 @@ class _PaginaTemplatesState extends State<PaginaTemplates> {
           padding: const EdgeInsets.all(32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [child!, const SizedBox(height: 24), _conteudo()],
+            children: [
+              _cabecalho(context),
+              const SizedBox(height: 20),
+              CampoBusca(
+                controlador: _controladorBusca,
+                dica: 'Pesquisar templates...',
+                aoAlterar: _viewModel.definirBusca,
+              ),
+              const SizedBox(height: 16),
+              _filtrosEscopo(),
+              const SizedBox(height: 24),
+              _conteudo(),
+            ],
           ),
         );
       },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _cabecalho(context),
-          const SizedBox(height: 20),
-          CampoBusca(
-            controlador: _controladorBusca,
-            dica: 'Pesquisar templates...',
-            aoAlterar: _viewModel.definirBusca,
-          ),
-        ],
-      ),
     );
   }
 
@@ -80,6 +99,76 @@ class _PaginaTemplatesState extends State<PaginaTemplates> {
           if (criado == true) await _viewModel.carregar();
         },
       ),
+    );
+  }
+
+  Widget _filtrosEscopo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Nível:',
+              style: Tipografia.bodyMedium.copyWith(
+                color: Cores.cinzaEscuro,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Todos'),
+                    selected: _viewModel.filtroNivel == null,
+                    onSelected: (_) => _viewModel.definirFiltroNivel(null),
+                    selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
+                  ),
+                  for (final nivel in _viewModel.niveisPermitidos)
+                    ChoiceChip(
+                      label: Text(nivel.rotulo),
+                      selected: _viewModel.filtroNivel == nivel,
+                      onSelected: (_) => _viewModel.definirFiltroNivel(nivel),
+                      selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        if (_viewModel.filtroNivel != null &&
+            _viewModel.filtroNivel != NivelEscopo.cliente &&
+            _viewModel.opcoesFiltroEscopo.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            width: 320,
+            child: CampoSelecao(
+              label: 'Filtrar por ${_viewModel.filtroNivel!.rotulo}',
+              valor: _viewModel.filtroEscopoId ?? 0,
+              itens: [
+                DropdownMenuItem<int>(
+                  value: 0,
+                  child: Text(
+                    'Todos os ${_viewModel.filtroNivel!.rotulo.toLowerCase()}s',
+                  ),
+                ),
+                ..._viewModel.opcoesFiltroEscopo.map(
+                  (item) => DropdownMenuItem<int>(
+                    value: item.id,
+                    child: Text(item.nome),
+                  ),
+                ),
+              ],
+              onChanged: (value) =>
+                  _viewModel.definirFiltroEscopoId(value == 0 ? null : value),
+            ),
+          ),
+        ],
+      ],
     );
   }
 

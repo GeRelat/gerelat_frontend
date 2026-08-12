@@ -1,10 +1,12 @@
 import 'package:gerelat_frontend/aplicacao/hierarquia_escopo.dart';
 import 'package:gerelat_frontend/aplicacao/variaveis_do_escopo.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/base_view_model.dart';
+import 'package:gerelat_frontend/dominio/entidades/evento.dart';
 import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/entidades/opcao_selecao.dart';
 import 'package:gerelat_frontend/dominio/entidades/template_relatorio.dart';
 import 'package:gerelat_frontend/dominio/entidades/variavel_disponivel.dart';
+import 'package:gerelat_frontend/dominio/entidades/usuario.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/utils/gaps_prosemirror.dart';
 
@@ -16,6 +18,7 @@ class GerarRelatorioViewModel extends BaseViewModel {
   List<TemplateRelatorio> _templates = [];
 
   TemplateRelatorio? _template;
+  List<Evento>? _eventosDisponiveis;
   List<VariavelDisponivel> _variaveisDisponiveis = [];
   Set<String> _refsUsadas = {};
   List<String> _refsNaoContempladas = [];
@@ -26,6 +29,11 @@ class GerarRelatorioViewModel extends BaseViewModel {
   int? _programaId;
   int? _projetoId;
   int? _eventoId;
+
+  int? _clienteAtivoId;
+  Usuario? _usuarioAtual;
+  NivelEscopo _filtroNivel = NivelEscopo.projeto;
+  int? _filtroEscopoId;
 
   GerarRelatorioViewModel(RepositorioCatalogo repositorio)
     : _templatesRepositorio = repositorio,
@@ -39,6 +47,128 @@ class GerarRelatorioViewModel extends BaseViewModel {
   int? get programaId => _programaId;
   int? get projetoId => _projetoId;
   int? get eventoId => _eventoId;
+
+  int? get clienteAtivoId => _clienteAtivoId;
+  Usuario? get usuarioAtual => _usuarioAtual;
+  NivelEscopo get filtroNivel => _filtroNivel;
+  int? get filtroEscopoId => _filtroEscopoId;
+
+  List<NivelEscopo> get niveisPermitidos {
+    final usuario = _usuarioAtual;
+    if (usuario == null) return NivelEscopo.values;
+    if (usuario.isAdminGeRelat || usuario.eAdminDoCliente(_clienteAtivoId)) {
+      return const [NivelEscopo.cliente, NivelEscopo.programa, NivelEscopo.projeto];
+    }
+
+    final eMembroPrograma = usuario.contextosAcesso.programas.any((p) {
+      if (_clienteAtivoId == null) return true;
+      final cId = int.tryParse('${p['cliente_id']}');
+      return cId == _clienteAtivoId;
+    });
+
+    if (eMembroPrograma) {
+      return const [NivelEscopo.programa, NivelEscopo.projeto];
+    }
+
+    final eMembroProjeto = usuario.contextosAcesso.projetos.any((p) {
+      if (_clienteAtivoId == null) return true;
+      final cId = int.tryParse('${p['cliente_id']}');
+      return cId == _clienteAtivoId;
+    });
+
+    if (eMembroProjeto) {
+      return const [NivelEscopo.projeto];
+    }
+
+    return const [NivelEscopo.projeto];
+  }
+
+  void definirContexto(int? clienteAtivoId, Usuario? usuarioAtual) {
+    final mudou = _clienteAtivoId != clienteAtivoId || _usuarioAtual != usuarioAtual;
+    _clienteAtivoId = clienteAtivoId;
+    _usuarioAtual = usuarioAtual;
+
+    _ajustarFiltros();
+
+    if (mudou) {
+      _template = null;
+      notifyListeners();
+    }
+  }
+
+  void _ajustarFiltros() {
+    final permitidos = niveisPermitidos;
+    if (permitidos.isNotEmpty && !permitidos.contains(_filtroNivel)) {
+      _filtroNivel = permitidos.first;
+    }
+    final opcoes = opcoesFiltroEscopo;
+    if (_filtroEscopoId != null && !opcoes.any((o) => o.id == _filtroEscopoId)) {
+      _filtroEscopoId = null;
+    }
+  }
+
+  void selecionarFiltroNivel(NivelEscopo nivel) {
+    _filtroNivel = nivel;
+    _filtroEscopoId = null;
+    _template = null;
+    notifyListeners();
+  }
+
+  void selecionarFiltroEscopoId(int? id) {
+    _filtroEscopoId = id;
+    _template = null;
+    notifyListeners();
+  }
+
+  List<OpcaoSelecao> get opcoesFiltroEscopo =>
+      _hierarquia.opcoesDeEscopo(_filtroNivel, clienteId: _clienteAtivoId);
+
+  List<TemplateRelatorio> get templatesFiltrados {
+    return _templates.where((t) {
+      // 1. Cliente ativo
+      if (_clienteAtivoId != null) {
+        final cId = resolverClienteIdDoTemplate(t);
+        if (cId != _clienteAtivoId) return false;
+      }
+
+      // 2. Filtro de Nível
+      if (t.nivel != _filtroNivel) return false;
+
+      // 3. Filtro específico de escopo (Programa ou Projeto)
+      if (_filtroEscopoId != null) {
+        if (_filtroNivel == NivelEscopo.programa && t.programaId != _filtroEscopoId) {
+          return false;
+        }
+        if (_filtroNivel == NivelEscopo.projeto && t.projetoId != _filtroEscopoId) {
+          return false;
+        }
+      }
+
+      return true;
+    }).toList();
+  }
+
+  int? resolverClienteIdDoTemplate(TemplateRelatorio t) {
+    if (t.clienteId != null) return t.clienteId;
+    if (t.programaId != null) {
+      return _hierarquia.programaPorId(t.programaId)?.clienteId;
+    }
+    if (t.projetoId != null) {
+      return _hierarquia.cadeiaDe(NivelAplicacao.projeto, t.projetoId).clienteId;
+    }
+    return null;
+  }
+
+  String nomeOrigemTemplate(TemplateRelatorio t) {
+    switch (t.nivel) {
+      case NivelEscopo.cliente:
+        return 'Cliente: ${_hierarquia.nomeDe(NivelAplicacao.cliente, t.clienteId)}';
+      case NivelEscopo.programa:
+        return 'Programa: ${_hierarquia.nomeDe(NivelAplicacao.programa, t.programaId)}';
+      case NivelEscopo.projeto:
+        return 'Projeto: ${_hierarquia.nomeDe(NivelAplicacao.projeto, t.projetoId)}';
+    }
+  }
 
   /// Nível mais profundo que o documento do template exige para resolver todas
   /// as suas variáveis. `null` quando nenhuma variável depende de instância.
@@ -62,39 +192,96 @@ class GerarRelatorioViewModel extends BaseViewModel {
       )
       .toList();
 
-  /// Níveis que o usuário precisa escolher: do nível do próprio template até o
-  /// exigido pelo documento. Vazio quando o escopo do template já basta.
+  /// Níveis que o usuário precisa escolher: os níveis abaixo do escopo do template
+  /// cujas variáveis são usadas no documento (mais ancestrais necessários).
+  /// Se houver variáveis de evento, a opção de Evento é posicionada em primeiro.
   List<NivelAplicacao> get niveisASelecionar {
     final template = _template;
-    final exigido = _nivelExigido;
-    if (template == null || exigido == null) return const [];
-    return NivelAplicacao.values
-        .where(
-          (nivel) =>
-              nivel.ordem > template.nivel.ordem && nivel.ordem <= exigido.ordem,
-        )
-        .toList();
+    if (template == null) return const [];
+
+    final exigidos = niveisExigidos;
+    if (exigidos.isEmpty) return const [];
+
+    final selecionar = <NivelAplicacao>{};
+    for (final nivel in exigidos) {
+      selecionar.add(nivel);
+      if (nivel == NivelAplicacao.projeto && template.nivel == NivelEscopo.cliente) {
+        selecionar.add(NivelAplicacao.programa);
+      }
+    }
+
+    final lista = selecionar.toList();
+    lista.sort((a, b) {
+      if (a == NivelAplicacao.evento) return -1;
+      if (b == NivelAplicacao.evento) return 1;
+      return a.ordem.compareTo(b.ordem);
+    });
+    return lista;
   }
 
-  /// `true` quando toda a cadeia exigida já foi informada.
-  bool get escopoCompleto {
-    final exigido = _nivelExigido;
-    if (exigido == null) return _template != null;
-    return switch (exigido) {
-      NivelAplicacao.cliente => _clienteId != null,
-      NivelAplicacao.programa => _programaId != null,
-      NivelAplicacao.projeto => _projetoId != null,
-      NivelAplicacao.evento => _eventoId != null,
+  /// Níveis cujas variáveis (ou referências de sistema) são efetivamente
+  /// usadas no documento do template.
+  Set<NivelAplicacao> get niveisExigidos {
+    final template = _template;
+    if (template == null) return {};
+
+    final mapaRefs = {
+      for (final v in _variaveisDisponiveis) v.referencia: v.nivelAplicacao
     };
+
+    final exigidos = <NivelAplicacao>{};
+    for (final ref in _refsUsadas) {
+      if (ref.startsWith('sistema.cliente.') || ref.startsWith('cliente.')) {
+        exigidos.add(NivelAplicacao.cliente);
+      } else if (ref.startsWith('sistema.programa.') || ref.startsWith('programa.')) {
+        exigidos.add(NivelAplicacao.programa);
+      } else if (ref.startsWith('sistema.projeto.') || ref.startsWith('projeto.')) {
+        exigidos.add(NivelAplicacao.projeto);
+      } else if (ref.startsWith('sistema.evento.') || ref.startsWith('evento.')) {
+        exigidos.add(NivelAplicacao.evento);
+      } else if (mapaRefs.containsKey(ref)) {
+        exigidos.add(mapaRefs[ref]!);
+      }
+    }
+
+    return exigidos
+        .where((nivel) => nivel.ordem > template.nivel.ordem)
+        .toSet();
+  }
+
+  /// `true` quando toda a cadeia de níveis exigida pelo template já foi informada.
+  bool get escopoCompleto {
+    final template = _template;
+    if (template == null) return false;
+    final exigidos = niveisExigidos;
+    if (exigidos.isEmpty) return true;
+
+    for (final nivel in exigidos) {
+      final preenchido = switch (nivel) {
+        NivelAplicacao.cliente => _clienteId != null,
+        NivelAplicacao.programa => _programaId != null,
+        NivelAplicacao.projeto => _projetoId != null,
+        NivelAplicacao.evento => _eventoId != null,
+      };
+      if (!preenchido) return false;
+    }
+    return true;
   }
 
   String? get mensagemEscopoIncompleto {
     if (escopoCompleto) return null;
-    final exigido = _nivelExigido;
-    if (exigido == null) return null;
-    final rotulo = exigido.rotulo.toLowerCase();
-    return 'Este template usa variáveis de nível $rotulo. '
-        'Selecione o $rotulo para gerar o relatório.';
+    final niveisFaltando = niveisExigidos.where((nivel) {
+      return switch (nivel) {
+        NivelAplicacao.cliente => _clienteId == null,
+        NivelAplicacao.programa => _programaId == null,
+        NivelAplicacao.projeto => _projetoId == null,
+        NivelAplicacao.evento => _eventoId == null,
+      };
+    }).map((n) => n.rotulo.toLowerCase()).toList();
+
+    if (niveisFaltando.isEmpty) return null;
+    return 'Este template requer a seleção de: ${niveisFaltando.join(', ')}. '
+        'Selecione os valores correspondentes para gerar o relatório.';
   }
 
   Future<void> carregar() async {
@@ -102,24 +289,55 @@ class GerarRelatorioViewModel extends BaseViewModel {
     try {
       _hierarquia = await HierarquiaEscopo.carregar(_catalogo);
       _templates = await _templatesRepositorio.listarTemplates();
+      _ajustarFiltros();
       finalizarCarregamento();
     } catch (erro) {
       definirErro(erro);
     }
   }
 
-  List<OpcaoSelecao> opcoesDe(NivelAplicacao nivel) => _hierarquia.opcoesDe(
-    nivel,
-    clienteId: _clienteId,
-    programaId: _programaId,
-    projetoId: _projetoId,
-  );
+  List<OpcaoSelecao> opcoesDe(NivelAplicacao nivel) {
+    if (nivel == NivelAplicacao.evento &&
+        _template != null &&
+        _eventosDisponiveis != null) {
+      final templateNivel = _template!.nivel;
+      final listaFiltrada = _eventosDisponiveis!.where((evento) {
+        if (evento.id == null) return false;
+
+        switch (templateNivel) {
+          case NivelEscopo.cliente:
+            return evento.clienteId == _clienteId;
+          case NivelEscopo.programa:
+            return evento.programaId == _programaId;
+          case NivelEscopo.projeto:
+            return evento.projetoId == _projetoId;
+        }
+      });
+
+      return [
+        for (final evento in listaFiltrada)
+          OpcaoSelecao(
+            id: evento.id!,
+            nome: evento.classeEventoNome.isNotEmpty
+                ? '${evento.nome} (${evento.classeEventoNome})'
+                : evento.nome,
+          ),
+      ];
+    }
+    return _hierarquia.opcoesDe(
+      nivel,
+      clienteId: _clienteId,
+      programaId: _programaId,
+      projetoId: _projetoId,
+    );
+  }
 
   /// Carrega o documento e as variáveis do template escolhido e calcula, no
   /// cliente, o que o backend validaria só na hora de gerar: nível exigido e
   /// referências sem definição.
   Future<void> selecionarTemplate(int? templateId) async {
     _template = null;
+    _eventosDisponiveis = null;
     _variaveisDisponiveis = [];
     _refsUsadas = {};
     _refsNaoContempladas = [];
@@ -165,6 +383,10 @@ class GerarRelatorioViewModel extends BaseViewModel {
 
       _refsUsadas = extrairRefsDeVariaveis(documento);
       _blocosManuais = extrairLabelsDeBlocosManuais(documento);
+
+      _eventosDisponiveis = await _templatesRepositorio.listarEventosDisponiveis(
+        templateId,
+      );
 
       final nivelPorReferencia = {
         for (final variavel in _variaveisDisponiveis)
@@ -212,11 +434,40 @@ class GerarRelatorioViewModel extends BaseViewModel {
       return;
     }
 
-    final cadeia = _hierarquia.cadeiaDe(nivel, id);
-    _clienteId = cadeia.clienteId ?? _clienteId;
-    _programaId = cadeia.programaId;
-    _projetoId = cadeia.projetoId;
-    _eventoId = cadeia.eventoId;
+    if (nivel == NivelAplicacao.evento) {
+      _eventoId = id;
+      final eventoSel = _eventosDisponiveis?.firstWhere(
+        (e) => e.id == id,
+        orElse: () => _hierarquia.eventoPorId(id) ?? const Evento(nome: '', programa: '', data: null),
+      );
+      if (eventoSel != null) {
+        if (eventoSel.projetoId != null) {
+          final c = _hierarquia.cadeiaDe(NivelAplicacao.projeto, eventoSel.projetoId);
+          _projetoId = eventoSel.projetoId;
+          _programaId = c.programaId ?? _programaId;
+          _clienteId = c.clienteId ?? _clienteId;
+        } else if (eventoSel.programaId != null) {
+          final c = _hierarquia.cadeiaDe(NivelAplicacao.programa, eventoSel.programaId);
+          _programaId = eventoSel.programaId;
+          _clienteId = c.clienteId ?? _clienteId;
+        } else if (eventoSel.clienteId != null) {
+          _clienteId = eventoSel.clienteId;
+        }
+      }
+    } else {
+      final cadeia = _hierarquia.cadeiaDe(nivel, id);
+      _clienteId = cadeia.clienteId ?? _clienteId;
+      _programaId = cadeia.programaId ?? _programaId;
+
+      if (nivel == NivelAplicacao.projeto) {
+        _projetoId = id;
+      } else if (nivel == NivelAplicacao.programa) {
+        _programaId = id;
+        _projetoId = null;
+      } else if (nivel == NivelAplicacao.cliente) {
+        _clienteId = id;
+      }
+    }
     notifyListeners();
   }
 

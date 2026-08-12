@@ -33,6 +33,7 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
   final _controladorSenha = TextEditingController();
   final _controladorConfirmarSenha = TextEditingController();
   late final CadastroViewModel _viewModel;
+  int? _clienteSelecionadoId;
 
   // Controla visibilidade do campo senha
   bool _senhaVisivel = false;
@@ -42,6 +43,7 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
   void initState() {
     super.initState();
     _viewModel = CadastroViewModel(widget.repositorioAutenticacao);
+    _viewModel.carregarClientes();
   }
 
   @override
@@ -63,6 +65,7 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
       nomeCompleto: _controladorNome.text.trim(),
       email: _controladorEmail.text.trim(),
       senha: _controladorSenha.text,
+      clienteId: _clienteSelecionadoId,
     );
 
     // Verifica se o widget ainda está na tela antes de usar context
@@ -109,6 +112,11 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
             _construirCampoNome(),
             const SizedBox(height: 24),
             _construirCampoEmail(),
+            const SizedBox(height: 24),
+            AnimatedBuilder(
+              animation: _viewModel,
+              builder: (context, _) => _construirCampoCliente(),
+            ),
             const SizedBox(height: 24),
             _construirCampoSenha(),
             const SizedBox(height: 24),
@@ -190,6 +198,29 @@ class _FormularioCadastroState extends State<FormularioCadastro> {
           if (!emailValido(valor)) return 'E-mail inválido';
           return null;
         },
+      ),
+    );
+  }
+
+  Widget _construirCampoCliente() {
+    return _construirGrupoCampo(
+      rotulo: 'Cliente',
+      campo: DropdownButtonFormField<int>(
+        initialValue: _clienteSelecionadoId,
+        isExpanded: true,
+        decoration: _decoracaoCampo(
+          dica: _viewModel.clientes.isEmpty
+              ? 'Nenhum cliente disponível'
+              : 'Selecione o cliente',
+          icone: Icons.business_outlined,
+        ),
+        items: [
+          for (final cliente in _viewModel.clientes)
+            DropdownMenuItem(value: cliente.id, child: Text(cliente.nome)),
+        ],
+        onChanged: _viewModel.clientes.isEmpty
+            ? null
+            : (valor) => setState(() => _clienteSelecionadoId = valor),
       ),
     );
   }

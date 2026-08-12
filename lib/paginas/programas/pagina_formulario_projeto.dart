@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/projeto_form_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
+import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/dialogo_confirmacao_exclusao.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
@@ -14,6 +16,7 @@ class PaginaFormularioProjeto extends StatefulWidget {
   final int? programaIdInicial;
   final RepositorioCatalogo repositorioCatalogo;
   final String urlBase;
+  final SessaoViewModel sessaoViewModel;
 
   const PaginaFormularioProjeto({
     super.key,
@@ -22,6 +25,7 @@ class PaginaFormularioProjeto extends StatefulWidget {
     this.programaIdInicial,
     required this.repositorioCatalogo,
     required this.urlBase,
+    required this.sessaoViewModel,
   });
 
   @override
@@ -44,20 +48,27 @@ class _PaginaFormularioProjetoState extends State<PaginaFormularioProjeto> {
     _viewModel = ProjetoFormViewModel(widget.repositorioCatalogo);
     final projetoId = widget.projetoId;
     if (widget.edicao && projetoId != null) {
-      _viewModel.carregar(projetoId).then((_) {
-        final projeto = _viewModel.projeto;
-        if (!mounted || projeto == null) return;
-        _nome.text = projeto.nome;
-        _parceira.text = projeto.parceira;
-        _sigla.text = projeto.sigla;
-        setState(() {
-          _logomarca = projeto.logomarca;
-          _programaId = projeto.programaId;
-        });
-      });
+      _viewModel
+          .carregar(
+            projetoId,
+            clienteAtivoId: widget.sessaoViewModel.clienteAtivoId,
+          )
+          .then((_) {
+            final projeto = _viewModel.projeto;
+            if (!mounted || projeto == null) return;
+            _nome.text = projeto.nome;
+            _parceira.text = projeto.parceira;
+            _sigla.text = projeto.sigla;
+            setState(() {
+              _logomarca = projeto.logomarca;
+              _programaId = projeto.programaId;
+            });
+          });
     } else {
       _programaId = widget.programaIdInicial;
-      _viewModel.carregarOpcoes();
+      _viewModel.carregarOpcoes(
+        clienteAtivoId: widget.sessaoViewModel.clienteAtivoId,
+      );
     }
   }
 
@@ -212,6 +223,17 @@ class _PaginaFormularioProjetoState extends State<PaginaFormularioProjeto> {
                         aoAlterar: (url) => setState(() => _logomarca = url),
                         repositorioCatalogo: widget.repositorioCatalogo,
                         urlBase: widget.urlBase,
+                        escopo:
+                            widget.edicao && widget.projetoId != null
+                                ? NivelEscopo.projeto
+                                : (_programaId != null
+                                    ? NivelEscopo.programa
+                                    : NivelEscopo.cliente),
+                        escopoId:
+                            (widget.edicao && widget.projetoId != null)
+                                ? widget.projetoId
+                                : (_programaId ??
+                                    widget.sessaoViewModel.clienteAtivoId),
                       ),
                       const SizedBox(height: 28),
                       BarraAcoesFormulario(

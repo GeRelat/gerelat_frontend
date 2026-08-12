@@ -8,6 +8,7 @@ import 'package:gerelat_frontend/nucleo/componentes/editor_prosemirror.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Editor de conteúdo do template: painel lateral com as variáveis do projeto
 /// (inseríveis como nós) + blocos manuais, e o editor ProseMirror embarcado.
@@ -29,6 +30,7 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
   late final EditorTemplateViewModel _viewModel;
   final EditorProseMirrorController _controller = EditorProseMirrorController();
   bool _salvouAlgumaVez = false;
+  String _temaEditor = 'light';
 
   // O editor roda num `<iframe>` (ver `EditorProseMirror`). Se navegarmos pra
   // fora enquanto ele ainda está montado, o Flutter tenta compor a transição
@@ -40,8 +42,29 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
   @override
   void initState() {
     super.initState();
+    _carregarTemaEditor();
     _viewModel = EditorTemplateViewModel(widget.repositorioCatalogo)
       ..carregar(widget.templateId);
+  }
+
+  Future<void> _carregarTemaEditor() async {
+    final prefs = await SharedPreferences.getInstance();
+    final escuro = prefs.getBool('editor_tema_escuro') ?? false;
+    if (mounted) {
+      setState(() {
+        _temaEditor = escuro ? 'dark' : 'light';
+      });
+    }
+  }
+
+  Future<void> _salvarTemaEditor(String tema) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('editor_tema_escuro', tema == 'dark');
+    if (mounted) {
+      setState(() {
+        _temaEditor = tema;
+      });
+    }
   }
 
   @override
@@ -226,6 +249,8 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
               controller: _controller,
               documentoInicial: _viewModel.documentoInicial,
               modo: 'template',
+              temaInicial: _temaEditor,
+              aoMudarTema: _salvarTemaEditor,
             ),
           ),
         ),
@@ -389,7 +414,7 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
                       ),
                     ),
                     Text(
-                      '${variavel.tipo.rotulo} · ${variavel.nivelAplicacao.rotulo}',
+                      '${variavel.tipo.rotulo} · ${variavel.nivelAplicacao.rotulo}${variavel.escopoNome != null && variavel.escopoNome!.isNotEmpty ? ' (${variavel.escopoNome})' : ''}',
                       style: Tipografia.bodySmall.copyWith(
                         color: Cores.cinzaMedio,
                       ),

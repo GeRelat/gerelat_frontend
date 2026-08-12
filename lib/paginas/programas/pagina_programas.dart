@@ -1,18 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/programas_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/programa.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/dialogo_confirmacao_exclusao.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
+import 'package:gerelat_frontend/nucleo/temas/sombras.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:go_router/go_router.dart';
 
 class PaginaProgramas extends StatefulWidget {
   final RepositorioCatalogo repositorioCatalogo;
+  final SessaoViewModel sessaoViewModel;
 
-  const PaginaProgramas({super.key, required this.repositorioCatalogo});
+  const PaginaProgramas({
+    super.key,
+    required this.repositorioCatalogo,
+    required this.sessaoViewModel,
+  });
 
   @override
   State<PaginaProgramas> createState() => _PaginaProgramasState();
@@ -25,11 +32,18 @@ class _PaginaProgramasState extends State<PaginaProgramas> {
   @override
   void initState() {
     super.initState();
-    _viewModel = ProgramasViewModel(widget.repositorioCatalogo)..carregar();
+    _viewModel = ProgramasViewModel(widget.repositorioCatalogo);
+    _viewModel.definirClienteAtivoId(widget.sessaoViewModel.clienteAtivoId);
+    widget.sessaoViewModel.addListener(_aoMudarSessao);
+  }
+
+  void _aoMudarSessao() {
+    _viewModel.definirClienteAtivoId(widget.sessaoViewModel.clienteAtivoId);
   }
 
   @override
   void dispose() {
+    widget.sessaoViewModel.removeListener(_aoMudarSessao);
     _controladorBusca.dispose();
     _viewModel.dispose();
     super.dispose();
@@ -37,7 +51,6 @@ class _PaginaProgramasState extends State<PaginaProgramas> {
 
   @override
   Widget build(BuildContext context) {
-    // Cabeçalho e busca não leem `_viewModel` — passados como `child`.
     return AnimatedBuilder(
       animation: _viewModel,
       builder: (context, child) {
@@ -46,7 +59,13 @@ class _PaginaProgramasState extends State<PaginaProgramas> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              child!,
+              _cabecalho(context),
+              const SizedBox(height: 20),
+              CampoBusca(
+                controlador: _controladorBusca,
+                dica: 'Pesquisar programas...',
+                aoAlterar: _viewModel.definirBusca,
+              ),
               const SizedBox(height: 24),
               _resumo(),
               const SizedBox(height: 32),
@@ -55,78 +74,100 @@ class _PaginaProgramasState extends State<PaginaProgramas> {
           ),
         );
       },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _cabecalho(context),
-          const SizedBox(height: 20),
-          CampoBusca(
-            controlador: _controladorBusca,
-            dica: 'Pesquisar programas...',
-            aoAlterar: _viewModel.definirBusca,
-          ),
-        ],
-      ),
     );
   }
 
   Widget _cabecalho(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Programas institucionais',
-                style: Tipografia.headlineMedium.copyWith(
-                  color: Cores.textoPrincipal,
-                ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final modoCompacto = constraints.maxWidth < 960;
+
+        final usuario = widget.sessaoViewModel.usuarioAtual;
+        final clienteAtivoId = widget.sessaoViewModel.clienteAtivoId;
+        final eAdminCliente = usuario?.eAdminDoCliente(clienteAtivoId) ?? false;
+        final eMembroPrograma = usuario?.contextosAcesso.programas.any((p) {
+          if (clienteAtivoId == null) return true;
+          final cId = int.tryParse('${p['cliente_id']}');
+          return cId == clienteAtivoId;
+        }) ?? false;
+
+        final podeCriarPrograma = eAdminCliente;
+        final podeCriarProjeto = eAdminCliente || eMembroPrograma;
+
+        final informacoes = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Programas institucionais',
+              style: Tipografia.headlineMedium.copyWith(
+                color: Cores.textoPrincipal,
               ),
-              const SizedBox(height: 6),
-              Text(
-                'Organize programas, projetos relacionados e equipes responsáveis.',
-                style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
-              ),
-            ],
-          ),
-        ),
-        Row(
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Organize programas, projetos relacionados e equipes responsáveis.',
+              style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
+            ),
+          ],
+        );
+
+        final acoes = Wrap(
+          spacing: 12,
+          runSpacing: 12,
           children: [
             BotaoPrimario(
               texto: 'Variáveis',
               icone: LucideIcons.variable,
               onPressed: () => context.push('/variaveis/definicoes'),
             ),
-            const SizedBox(width: 12),
             BotaoPrimario(
               texto: 'Equipe da Parceira',
               icone: LucideIcons.users,
               onPressed: () => context.push('/projetos/equipe'),
             ),
-            const SizedBox(width: 12),
-            BotaoPrimario(
-              texto: 'Novo Projeto',
-              icone: LucideIcons.git_branch_plus,
-              onPressed: () async {
-                final criado = await context.push<bool>(
-                  '/programas/projetos/novo',
-                );
-                if (criado == true) await _viewModel.carregar();
-              },
-            ),
-            const SizedBox(width: 12),
-            BotaoPrimario(
-              texto: 'Novo Programa',
-              icone: LucideIcons.plus,
-              onPressed: () async {
-                final criado = await context.push<bool>('/programas/novo');
-                if (criado == true) await _viewModel.carregar();
-              },
-            ),
+            if (podeCriarProjeto)
+              BotaoPrimario(
+                texto: 'Novo Projeto',
+                icone: LucideIcons.git_branch_plus,
+                onPressed: () async {
+                  final criado = await context.push<bool>(
+                    '/programas/projetos/novo',
+                  );
+                  if (criado == true) await _viewModel.carregar();
+                },
+              ),
+            if (podeCriarPrograma)
+              BotaoPrimario(
+                texto: 'Novo Programa',
+                icone: LucideIcons.plus,
+                onPressed: () async {
+                  final criado = await context.push<bool>('/programas/novo');
+                  if (criado == true) await _viewModel.carregar();
+                },
+              ),
           ],
-        ),
-      ],
+        );
+
+        if (modoCompacto) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              informacoes,
+              const SizedBox(height: 16),
+              acoes,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: informacoes),
+            const SizedBox(width: 16),
+            acoes,
+          ],
+        );
+      },
     );
   }
 
@@ -225,6 +266,7 @@ class _PaginaProgramasState extends State<PaginaProgramas> {
                   width: largura,
                   child: _CartaoPrograma(
                     programa,
+                    sessaoViewModel: widget.sessaoViewModel,
                     onEditado: _viewModel.carregar,
                     onExcluir: _viewModel.excluir,
                   ),
@@ -237,124 +279,470 @@ class _PaginaProgramasState extends State<PaginaProgramas> {
   }
 }
 
-class _CartaoPrograma extends StatelessWidget {
+class _CartaoPrograma extends StatefulWidget {
   final Programa programa;
+  final SessaoViewModel sessaoViewModel;
   final Future<void> Function() onEditado;
   final Future<bool> Function(int) onExcluir;
 
   const _CartaoPrograma(
     this.programa, {
+    required this.sessaoViewModel,
     required this.onEditado,
     required this.onExcluir,
   });
 
   @override
+  State<_CartaoPrograma> createState() => _CartaoProgramaState();
+}
+
+class _CartaoProgramaState extends State<_CartaoPrograma> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    return CartaoConteudo(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    final usuario = widget.sessaoViewModel.usuarioAtual;
+    final clienteAtivoId = widget.sessaoViewModel.clienteAtivoId;
+    final eAdminCliente = usuario?.eAdminDoCliente(clienteAtivoId) ?? false;
+    final eMembroDoPrograma =
+        usuario?.contextosAcesso.programas.any(
+          (p) => int.tryParse('${p['id']}') == widget.programa.id,
+        ) ??
+        false;
+
+    final podeEditar = eAdminCliente || eMembroDoPrograma;
+    final podeExcluir = eAdminCliente;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: () => _exibirDetalhesPrograma(context, podeEditar, podeExcluir),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Cores.branco,
+            border: Border.all(
+              color: _hovered ? Cores.azulAcao : Cores.bordaSutil,
+              width: _hovered ? 1.5 : 1.0,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: _hovered ? Sombras.cartaoEstatistica : null,
+          ),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const IconeComFundo(
-                cor: Cores.azulAcao,
-                tamanho: 48,
-                raio: 12,
-                icone: LucideIcons.folder_kanban,
-                tamanhoIcone: 24,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      programa.nome,
-                      style: Tipografia.titleLarge.copyWith(
-                        color: Cores.textoPrincipal,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      programa.descricao,
-                      style: Tipografia.bodyMedium.copyWith(
-                        color: Cores.cinzaEscuro,
-                        height: 1.45,
-                      ),
-                    ),
-                    if (programa.clienteNome.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          const Icon(
-                            LucideIcons.building_2,
-                            size: 14,
-                            color: Cores.cinzaMedio,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const IconeComFundo(
+                    cor: Cores.azulAcao,
+                    tamanho: 48,
+                    raio: 12,
+                    icone: LucideIcons.folder_kanban,
+                    tamanhoIcone: 24,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.programa.nome,
+                          style: Tipografia.titleLarge.copyWith(
+                            color: Cores.textoPrincipal,
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            programa.clienteNome,
-                            style: Tipografia.bodySmall.copyWith(
-                              color: Cores.cinzaMedio,
-                            ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          widget.programa.descricao,
+                          style: Tipografia.bodyMedium.copyWith(
+                            color: Cores.cinzaEscuro,
+                            height: 1.45,
+                          ),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (widget.programa.clienteNome.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const Icon(
+                                LucideIcons.building_2,
+                                size: 14,
+                                color: Cores.cinzaMedio,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                widget.programa.clienteNome,
+                                style: Tipografia.bodySmall.copyWith(
+                                  color: Cores.cinzaMedio,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  _metrica('${widget.programa.projetos}', 'Projetos'),
+                  const SizedBox(width: 24),
+                  _metrica('${widget.programa.eventos}', 'Eventos'),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: 'Projetos do programa',
+                    onPressed: () async {
+                      await context.push(
+                        '/programas/${widget.programa.id}/projetos',
+                      );
+                      await widget.onEditado();
+                    },
+                    icon: const Icon(LucideIcons.git_branch, size: 18),
+                  ),
+                  IconButton(
+                    tooltip: 'Equipe fixa do programa',
+                    onPressed: () => context.push(
+                      '/programas/${widget.programa.id}/equipe',
+                    ),
+                    icon: const Icon(LucideIcons.users, size: 18),
+                  ),
+                  if (podeEditar)
+                    IconButton(
+                      tooltip: 'Editar programa',
+                      onPressed: () async {
+                        final alterado = await context.push<bool>(
+                          '/programas/${widget.programa.id}/editar',
+                        );
+                        if (alterado == true) {
+                          await widget.onEditado();
+                        }
+                      },
+                      icon: const Icon(LucideIcons.pencil, size: 18),
+                    ),
+                  if (podeExcluir)
+                    IconButton(
+                      tooltip: 'Excluir programa',
+                      onPressed: () => _confirmarExclusao(context),
+                      icon: const Icon(
+                        LucideIcons.trash_2,
+                        size: 18,
+                        color: Cores.vermelhoErro,
                       ),
-                    ],
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _exibirDetalhesPrograma(
+    BuildContext context,
+    bool podeEditar,
+    bool podeExcluir,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          backgroundColor: Cores.branco,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 560),
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const IconeComFundo(
+                      cor: Cores.azulAcao,
+                      tamanho: 48,
+                      raio: 12,
+                      icone: LucideIcons.folder_kanban,
+                      tamanhoIcone: 24,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.programa.nome,
+                            style: Tipografia.headlineMedium.copyWith(
+                              color: Cores.textoPrincipal,
+                              fontSize: 20,
+                            ),
+                          ),
+                          if (widget.programa.clienteNome.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                const Icon(
+                                  LucideIcons.building_2,
+                                  size: 14,
+                                  color: Cores.cinzaMedio,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  widget.programa.clienteNome,
+                                  style: Tipografia.bodySmall.copyWith(
+                                    color: Cores.cinzaMedio,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(LucideIcons.x, size: 20),
+                      onPressed: () => Navigator.of(context).pop(),
+                      tooltip: 'Fechar',
+                    ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 22),
-          Row(
-            children: [
-              _metrica('${programa.projetos}', 'Projetos'),
-              const SizedBox(width: 24),
-              _metrica('${programa.eventos}', 'Eventos'),
-              const Spacer(),
-              _status(programa.status),
-              const SizedBox(width: 8),
-              IconButton(
-                tooltip: 'Projetos do programa',
-                onPressed: () async {
-                  await context.push('/programas/${programa.id}/projetos');
-                  await onEditado();
-                },
-                icon: const Icon(LucideIcons.git_branch, size: 18),
-              ),
-              IconButton(
-                tooltip: 'Equipe fixa do programa',
-                onPressed: () =>
-                    context.push('/programas/${programa.id}/equipe'),
-                icon: const Icon(LucideIcons.users, size: 18),
-              ),
-              IconButton(
-                tooltip: 'Editar programa',
-                onPressed: () async {
-                  final alterado = await context.push<bool>(
-                    '/programas/${programa.id}/editar',
-                  );
-                  if (alterado == true) {
-                    await onEditado();
-                  }
-                },
-                icon: const Icon(LucideIcons.pencil, size: 18),
-              ),
-              IconButton(
-                tooltip: 'Excluir programa',
-                onPressed: () => _confirmarExclusao(context),
-                icon: const Icon(
-                  LucideIcons.trash_2,
-                  size: 18,
-                  color: Cores.vermelhoErro,
+                const SizedBox(height: 20),
+                const Divider(height: 1, color: Cores.bordaSutil),
+                const SizedBox(height: 20),
+                Text(
+                  'Descrição',
+                  style: Tipografia.labelLarge.copyWith(
+                    color: Cores.cinzaEscuro,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  widget.programa.descricao.isEmpty
+                      ? 'Nenhuma descrição informada.'
+                      : widget.programa.descricao,
+                  style: Tipografia.bodyMedium.copyWith(
+                    color: Cores.textoPrincipal,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Cores.fundoSecao,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Cores.bordaSutil),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Text(
+                              '${widget.programa.projetos}',
+                              style: Tipografia.headlineMedium.copyWith(
+                                color: Cores.textoPrincipal,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Projetos vinculados',
+                              style: Tipografia.bodySmall.copyWith(
+                                color: Cores.cinzaMedio,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        height: 36,
+                        width: 1,
+                        color: Cores.bordaSutil,
+                      ),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Text(
+                              '${widget.programa.eventos}',
+                              style: Tipografia.headlineMedium.copyWith(
+                                color: Cores.textoPrincipal,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Eventos mapeados',
+                              style: Tipografia.bodySmall.copyWith(
+                                color: Cores.cinzaMedio,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 28),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final modoCompacto = constraints.maxWidth < 480;
+
+                    return Row(
+                      children: [
+                        if (podeExcluir)
+                          modoCompacto
+                              ? IconButton(
+                                  tooltip: 'Excluir programa',
+                                  style: IconButton.styleFrom(
+                                    foregroundColor: Cores.vermelhoErro,
+                                    side: const BorderSide(
+                                      color: Cores.vermelhoErro,
+                                    ),
+                                  ),
+                                  onPressed: () async {
+                                    Navigator.of(context).pop();
+                                    await _confirmarExclusao(context);
+                                  },
+                                  icon: const Icon(
+                                    LucideIcons.trash_2,
+                                    size: 18,
+                                  ),
+                                )
+                              : OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Cores.vermelhoErro,
+                                    side: const BorderSide(
+                                      color: Cores.vermelhoErro,
+                                    ),
+                                  ),
+                                  onPressed: () async {
+                                    Navigator.of(context).pop();
+                                    await _confirmarExclusao(context);
+                                  },
+                                  icon: const Icon(
+                                    LucideIcons.trash_2,
+                                    size: 16,
+                                  ),
+                                  label: const Text('Excluir'),
+                                ),
+                        const Spacer(),
+                        modoCompacto
+                            ? IconButton(
+                                tooltip: 'Projetos do programa',
+                                onPressed: () async {
+                                  Navigator.of(context).pop();
+                                  await context.push(
+                                    '/programas/${widget.programa.id}/projetos',
+                                  );
+                                  await widget.onEditado();
+                                },
+                                icon: const Icon(
+                                  LucideIcons.git_branch,
+                                  size: 18,
+                                ),
+                              )
+                            : OutlinedButton.icon(
+                                onPressed: () async {
+                                  Navigator.of(context).pop();
+                                  await context.push(
+                                    '/programas/${widget.programa.id}/projetos',
+                                  );
+                                  await widget.onEditado();
+                                },
+                                icon: const Icon(
+                                  LucideIcons.git_branch,
+                                  size: 16,
+                                ),
+                                label: const Text('Projetos'),
+                              ),
+                        const SizedBox(width: 8),
+                        modoCompacto
+                            ? IconButton(
+                                tooltip: 'Equipe do programa',
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                  context.push(
+                                    '/programas/${widget.programa.id}/equipe',
+                                  );
+                                },
+                                icon: const Icon(
+                                  LucideIcons.users,
+                                  size: 18,
+                                ),
+                              )
+                            : OutlinedButton.icon(
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                  context.push(
+                                    '/programas/${widget.programa.id}/equipe',
+                                  );
+                                },
+                                icon: const Icon(
+                                  LucideIcons.users,
+                                  size: 16,
+                                ),
+                                label: const Text('Equipe'),
+                              ),
+                        if (podeEditar) ...[
+                          const SizedBox(width: 8),
+                          modoCompacto
+                              ? IconButton(
+                                  tooltip: 'Editar programa',
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: Cores.azulAcao,
+                                    foregroundColor: Cores.branco,
+                                  ),
+                                  onPressed: () async {
+                                    Navigator.of(context).pop();
+                                    final alterado = await context.push<bool>(
+                                      '/programas/${widget.programa.id}/editar',
+                                    );
+                                    if (alterado == true) {
+                                      await widget.onEditado();
+                                    }
+                                  },
+                                  icon: const Icon(
+                                    LucideIcons.pencil,
+                                    size: 18,
+                                  ),
+                                )
+                              : ElevatedButton.icon(
+                                  onPressed: () async {
+                                    Navigator.of(context).pop();
+                                    final alterado = await context.push<bool>(
+                                      '/programas/${widget.programa.id}/editar',
+                                    );
+                                    if (alterado == true) {
+                                      await widget.onEditado();
+                                    }
+                                  },
+                                  icon: const Icon(
+                                    LucideIcons.pencil,
+                                    size: 16,
+                                  ),
+                                  label: const Text('Editar'),
+                                ),
+                        ],
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -363,16 +751,16 @@ class _CartaoPrograma extends StatelessWidget {
       context,
       titulo: 'Excluir programa',
       mensagem:
-          'Tem certeza de que deseja excluir "${programa.nome}"? '
+          'Tem certeza de que deseja excluir "${widget.programa.nome}"? '
           'Todos os projetos, eventos, templates e relatórios vinculados a '
           'este programa também serão excluídos. Esta ação não pode ser desfeita.',
     );
     if (!confirmou || !context.mounted) return;
 
-    final programaId = programa.id;
+    final programaId = widget.programa.id;
     if (programaId == null) return;
 
-    final sucesso = await onExcluir(programaId);
+    final sucesso = await widget.onExcluir(programaId);
     if (!context.mounted || sucesso) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -393,25 +781,6 @@ class _CartaoPrograma extends StatelessWidget {
           style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
         ),
       ],
-    );
-  }
-
-  Widget _status(String texto) {
-    final ativo = texto == 'Ativo';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: (ativo ? Cores.verdeSucesso : Cores.azulAcao).withValues(
-          alpha: 0.1,
-        ),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        texto,
-        style: Tipografia.labelMedium.copyWith(
-          color: ativo ? Cores.verdeSucesso : Cores.azulAcao,
-        ),
-      ),
     );
   }
 }

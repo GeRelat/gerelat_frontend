@@ -140,7 +140,7 @@ class PaginaSucessoCadastro extends StatelessWidget {
             children: [
               const TextSpan(
                 text:
-                    'Sua conta foi configurada e está pronta para uso. Explore todas as ferramentas do ',
+                    'Sua conta foi criada e a solicitação de acesso foi enviada. Após a aprovação, você poderá usar as ferramentas do ',
               ),
               // "GeRelat" destacado em azul → LabelLarge (Roboto SemiBold 14px)
               TextSpan(

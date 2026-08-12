@@ -151,10 +151,15 @@ mixin RepositorioProgramasHttpMixin implements RepositorioProgramas {
   }
 
   @override
-  Future<List<OpcaoSelecao>> listarProgramasSelecao() async {
+  Future<List<OpcaoSelecao>> listarProgramasSelecao({int? clienteId}) async {
     final programas = await api.listar('/programas/');
+    final filtrados = clienteId == null
+        ? programas
+        : programas
+            .where((p) => paraInteiro(p['cliente']) == clienteId)
+            .toList();
     return paraOpcoes(
-      programas,
+      filtrados,
       campoNome: 'nome',
       fallback: 'Programa sem nome',
     );

@@ -4,6 +4,7 @@ import 'package:gerelat_frontend/dominio/entidades/campo_definicao.dart';
 import 'package:gerelat_frontend/dominio/entidades/campo_tipo.dart';
 import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/entidades/opcao_selecao.dart';
+import 'package:gerelat_frontend/dominio/entidades/usuario.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/utils/gaps_prosemirror.dart';
 
@@ -16,6 +17,8 @@ class CampoDefinicaoViewModel extends BaseViewModel {
   final RepositorioCatalogo _repositorio;
 
   HierarquiaEscopo _hierarquia = const HierarquiaEscopo();
+  int? _clienteAtivoId;
+  Usuario? _usuarioAtual;
   NivelEscopo _escopo = NivelEscopo.projeto;
   int? _escopoId;
   List<CampoDefinicao> _definicoes = [];
@@ -23,11 +26,67 @@ class CampoDefinicaoViewModel extends BaseViewModel {
   CampoDefinicaoViewModel(this._repositorio);
 
   HierarquiaEscopo get hierarquia => _hierarquia;
+  int? get clienteAtivoId => _clienteAtivoId;
+  Usuario? get usuarioAtual => _usuarioAtual;
   NivelEscopo get escopo => _escopo;
   int? get escopoId => _escopoId;
   List<CampoDefinicao> get definicoes => List.unmodifiable(_definicoes);
 
-  List<OpcaoSelecao> get opcoesEscopo => _hierarquia.opcoesDeEscopo(_escopo);
+  void definirContexto(int? clienteId, Usuario? usuarioAtual) {
+    final mudou = _clienteAtivoId != clienteId || _usuarioAtual != usuarioAtual;
+    _clienteAtivoId = clienteId;
+    _usuarioAtual = usuarioAtual;
+
+    if (mudou) {
+      final opcoes = opcoesEscopo;
+      if (opcoes.isNotEmpty) {
+        if (!opcoes.any((o) => o.id == _escopoId)) {
+          selecionarEscopo(_escopo, opcoes.first.id);
+        }
+      } else {
+        selecionarEscopo(_escopo, null);
+      }
+    }
+  }
+
+  void definirClienteAtivoId(int? clienteId) {
+    definirContexto(clienteId, _usuarioAtual);
+  }
+
+  bool podeEditarEscopo(NivelEscopo escopo, int? escopoId) {
+    final usuario = _usuarioAtual;
+    if (usuario == null) return true;
+    if (usuario.isAdminGeRelat) return true;
+    if (_clienteAtivoId != null && usuario.eAdminDoCliente(_clienteAtivoId)) {
+      return true;
+    }
+    if (escopoId == null) return false;
+
+    switch (escopo) {
+      case NivelEscopo.cliente:
+        return false;
+
+      case NivelEscopo.programa:
+        return usuario.contextosAcesso.programas
+            .any((p) => int.tryParse('${p['id']}') == escopoId);
+
+      case NivelEscopo.projeto:
+        final eMembroDoProjeto = usuario.contextosAcesso.projetos
+            .any((p) => int.tryParse('${p['id']}') == escopoId);
+        if (eMembroDoProjeto) return true;
+
+        final progPaiId = _hierarquia.projetoPorId(escopoId)?.programaId;
+        final eMembroDoProgramaPai = progPaiId != null &&
+            usuario.contextosAcesso.programas
+                .any((p) => int.tryParse('${p['id']}') == progPaiId);
+        return eMembroDoProgramaPai;
+    }
+  }
+
+  bool get podeEditar => podeEditarEscopo(_escopo, _escopoId);
+
+  List<OpcaoSelecao> get opcoesEscopo =>
+      _hierarquia.opcoesDeEscopo(_escopo, clienteId: _clienteAtivoId);
 
   /// Níveis que o escopo atual pode alcançar — espelha a constraint
   /// `campodef_nivel_geq_escopo` (uma definição não pode se aplicar a algo
@@ -45,7 +104,13 @@ class CampoDefinicaoViewModel extends BaseViewModel {
         _repositorio,
         comEventos: false,
       );
-      finalizarCarregamento();
+      final opcoes = opcoesEscopo;
+      if (opcoes.isNotEmpty &&
+          (_escopoId == null || !opcoes.any((o) => o.id == _escopoId))) {
+        await selecionarEscopo(_escopo, opcoes.first.id);
+      } else {
+        finalizarCarregamento();
+      }
     } catch (erro) {
       definirErro(erro);
     }

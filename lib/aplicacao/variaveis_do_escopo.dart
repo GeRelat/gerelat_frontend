@@ -24,30 +24,8 @@ Future<List<VariavelDisponivel>> carregarVariaveisDoEscopo(
   required NivelEscopo escopo,
   required int escopoId,
 }) async {
-  final disponiveis = await repositorio.listarVariaveisDisponiveis(
+  return repositorio.listarVariaveisDisponiveis(
     escopo: escopo,
     escopoId: escopoId,
   );
-
-  final cadeia = hierarquia.cadeiaDeEscopo(escopo, escopoId);
-  final definicoes = await repositorio.listarDefinicoesVisiveis(
-    clienteId: cadeia.clienteId,
-    programaId: cadeia.programaId,
-    projetoId: cadeia.projetoId,
-  );
-
-  final referenciasConhecidas = disponiveis.map((v) => v.referencia).toSet();
-  return [
-    ...disponiveis,
-    for (final definicao in definicoes)
-      if (referenciasConhecidas.add(definicao.referencia))
-        VariavelDisponivel(
-          referencia: definicao.referencia,
-          descricao: definicao.descricao,
-          tipo: definicao.tipo,
-          nivelAplicacao: definicao.nivelAplicacao,
-          origem: OrigemVariavel.customizado,
-          obrigatorio: definicao.obrigatorio,
-        ),
-  ];
 }

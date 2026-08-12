@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/classe_evento_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/classe_evento.dart';
+import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/dialogo_confirmacao_exclusao.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
@@ -10,8 +12,13 @@ import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 
 class PaginaClassesEvento extends StatefulWidget {
   final RepositorioCatalogo repositorioCatalogo;
+  final SessaoViewModel sessaoViewModel;
 
-  const PaginaClassesEvento({super.key, required this.repositorioCatalogo});
+  const PaginaClassesEvento({
+    super.key,
+    required this.repositorioCatalogo,
+    required this.sessaoViewModel,
+  });
 
   @override
   State<PaginaClassesEvento> createState() => _PaginaClassesEventoState();
@@ -27,12 +34,25 @@ class _PaginaClassesEventoState extends State<PaginaClassesEvento> {
   @override
   void initState() {
     super.initState();
-    _viewModel = ClasseEventoViewModel(widget.repositorioCatalogo)
-      ..carregarProjetos();
+    _viewModel = ClasseEventoViewModel(widget.repositorioCatalogo);
+    _viewModel.definirContexto(
+      widget.sessaoViewModel.clienteAtivoId,
+      widget.sessaoViewModel.usuarioAtual,
+    );
+    _viewModel.carregarHierarquia();
+    widget.sessaoViewModel.addListener(_aoMudarSessao);
+  }
+
+  void _aoMudarSessao() {
+    _viewModel.definirContexto(
+      widget.sessaoViewModel.clienteAtivoId,
+      widget.sessaoViewModel.usuarioAtual,
+    );
   }
 
   @override
   void dispose() {
+    widget.sessaoViewModel.removeListener(_aoMudarSessao);
     _nomeClasse.dispose();
     _focoNome.dispose();
     _viewModel.dispose();
@@ -117,26 +137,9 @@ class _PaginaClassesEventoState extends State<PaginaClassesEvento> {
             children: [
               child!,
               const SizedBox(height: 24),
-              CartaoConteudo(
-                child: CampoSelecao(
-                  label: 'Projeto',
-                  valor: _viewModel.projetoSelecionadoId,
-                  itens: _viewModel.projetos
-                      .map(
-                        (item) => DropdownMenuItem(
-                          value: item.id,
-                          child: Text(item.nome),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    _cancelarEdicao();
-                    _viewModel.selecionarProjeto(value);
-                  },
-                ),
-              ),
+              _seletorEscopo(),
               const SizedBox(height: 24),
-              if (_viewModel.projetoSelecionadoId == null)
+              if (_viewModel.escopoId == null)
                 CartaoConteudo(
                   child: Row(
                     children: [
@@ -148,7 +151,7 @@ class _PaginaClassesEventoState extends State<PaginaClassesEvento> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Escolha um projeto acima para ver e gerenciar suas classes de evento.',
+                          'Escolha um escopo acima para ver e gerenciar suas classes de evento.',
                           style: Tipografia.bodyMedium.copyWith(
                             color: Cores.cinzaEscuro,
                           ),
@@ -179,6 +182,51 @@ class _PaginaClassesEventoState extends State<PaginaClassesEvento> {
           Text(
             'Categorias usadas para classificar os eventos de cada projeto.',
             style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _seletorEscopo() {
+    return CartaoConteudo(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Escopo das classes de evento',
+            style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _viewModel.niveisPermitidos.map((escopo) {
+              return ChoiceChip(
+                label: Text(escopo.rotulo),
+                selected: _viewModel.escopo == escopo,
+                onSelected: (_) {
+                  _cancelarEdicao();
+                  _viewModel.selecionarEscopo(escopo, null);
+                },
+                selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 18),
+          CampoSelecao(
+            label: _viewModel.escopo.rotulo,
+            valor: _viewModel.escopoId,
+            itens: _viewModel.opcoesEscopo
+                .map(
+                  (item) =>
+                      DropdownMenuItem(value: item.id, child: Text(item.nome)),
+                )
+                .toList(),
+            onChanged: (value) {
+              _cancelarEdicao();
+              _viewModel.selecionarEscopo(_viewModel.escopo, value);
+            },
           ),
         ],
       ),

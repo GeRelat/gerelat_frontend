@@ -72,6 +72,9 @@ class EditorProseMirrorController {
   void definirModo(String modo) =>
       _ponte?.enviar({'type': 'SET_MODE', 'mode': modo});
 
+  void definirTema(String tema) =>
+      _ponte?.enviar({'type': 'SET_THEME', 'theme': tema});
+
   void definirDocumento(Map<String, dynamic> doc, {String? modo}) =>
       _ponte?.enviar({'type': 'SET_DOC', 'doc': doc, 'mode': ?modo});
 
@@ -111,7 +114,10 @@ class EditorProseMirror extends StatefulWidget {
     required this.controller,
     this.documentoInicial,
     this.modo = 'template',
+    this.temaInicial,
+    this.aoMudarTema,
     this.aoFicarPronto,
+    this.aoAlterarDocumento,
   });
 
   final EditorProseMirrorController controller;
@@ -120,7 +126,10 @@ class EditorProseMirror extends StatefulWidget {
   /// `'template'` (autoria completa) ou `'report'` (só blocos custom_text
   /// editáveis).
   final String modo;
+  final String? temaInicial;
+  final ValueChanged<String>? aoMudarTema;
   final VoidCallback? aoFicarPronto;
+  final ValueChanged<Map<String, dynamic>>? aoAlterarDocumento;
 
   @override
   State<EditorProseMirror> createState() => _EditorProseMirrorState();
@@ -148,7 +157,23 @@ class _EditorProseMirrorState extends State<EditorProseMirror> {
           'doc': widget.documentoInicial ?? _docVazio(),
           'mode': widget.modo,
         });
+        if (widget.temaInicial != null) {
+          _ponte.enviar({
+            'type': 'SET_THEME',
+            'theme': widget.temaInicial,
+          });
+        }
         widget.aoFicarPronto?.call();
+      } else if (msg['type'] == 'THEME_CHANGED') {
+        final tema = msg['theme'] as String?;
+        if (tema != null) {
+          widget.aoMudarTema?.call(tema);
+        }
+      } else if (msg['type'] == 'DOC_CHANGED') {
+        final doc = msg['doc'];
+        if (doc is Map) {
+          widget.aoAlterarDocumento?.call(Map<String, dynamic>.from(doc));
+        }
       }
       widget.controller._aoReceberMensagem(msg);
     });

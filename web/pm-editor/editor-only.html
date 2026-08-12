@@ -10,48 +10,94 @@
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body {
         font-family: 'Inter', sans-serif;
-        background: #070B14;
-        color: #e2e8f0;
         height: 100vh;
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        transition: background-color .2s, color .2s;
       }
 
-      /* ── Toolbar ──────────────────────────────────────────────── */
+      /* ── Base Toolbar & Buttons ───────────────────────────────── */
       .toolbar {
         display: flex;
         align-items: center;
         gap: 4px;
         padding: 6px 12px;
-        background: #10172A;
-        border-bottom: 1px solid #22304D;
         flex-shrink: 0;
         flex-wrap: wrap;
       }
-      .toolbar-sep { width: 1px; height: 20px; background: #22304D; margin: 0 4px; }
+      .toolbar-sep { width: 1px; height: 20px; margin: 0 4px; }
       .btn {
         display: inline-flex; align-items: center; justify-content: center;
         padding: 4px 8px; border-radius: 6px; border: 1px solid transparent;
         font-size: 13px; font-family: inherit; cursor: pointer;
-        background: transparent; color: #94a3b8; transition: background .15s, color .15s;
+        background: transparent; transition: background .15s, color .15s;
         min-width: 28px; height: 28px;
       }
-      .btn:hover { background: #1a2540; color: #e2e8f0; }
-      .btn.active { background: #1e3a5f; color: #6FE7C8; border-color: #2a4a6b; }
+
+      /* ── Light Theme (Default) ────────────────────────────────── */
+      body.light-theme { background: #F1F4FA; color: #191C1E; }
+      body.light-theme .toolbar { background: #FFFFFF; border-bottom: 1px solid #DFE3E8; }
+      body.light-theme .toolbar-sep { background: #DFE3E8; }
+      body.light-theme .btn { color: #424752; }
+      body.light-theme .btn:hover { background: #F1F5F9; color: #191C1E; }
+      body.light-theme .btn.active { background: #E5E8EE; color: #0054D3; border-color: #C2C6D4; }
+      body.light-theme .editor-scroll { background: #F1F4FA; }
+      body.light-theme .editor-paper { background: #FFFFFF; border: 1px solid #DFE3E8; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+      body.light-theme .ProseMirror { color: #191C1E; }
+      body.light-theme .ProseMirror h1,
+      body.light-theme .ProseMirror h2,
+      body.light-theme .ProseMirror h3 { color: #191C1E; }
+      body.light-theme .ProseMirror blockquote { border-left: 3px solid #0054D3; color: #424752; }
+      body.light-theme .ProseMirror code { background: #F1F5F9; color: #00488D; }
+      body.light-theme .node-chip-text { background: #EBF3FF; border-color: #0054D3; color: #00488D; }
+      body.light-theme .node-block-richtext { background: #E6F7F0; border-color: #04815A; color: #025239; }
+      body.light-theme .node-block-image { background: #EBF3FF; border-color: #0054D3; color: #00488D; }
+      body.light-theme .node-block-table { background: #E6F7F0; border-color: #04815A; color: #025239; }
+      body.light-theme .node-custom-text { background: #F8FAFC; border: 1px solid #DFE3E8; border-left: 3px solid #0054D3; color: #191C1E; }
+      body.light-theme .node-custom-text .custom-label { color: #00488D; opacity: 1; }
+      body.light-theme .node-block-resolved { background: #F8FAFC; border: 1px solid #DFE3E8; color: #424752; }
+      body.light-theme .dt-table th,
+      body.light-theme .dt-table td { border: 1px solid #DFE3E8; }
+      body.light-theme .dt-table th { background: #F1F5F9; color: #191C1E; }
+      body.light-theme .dt-caption { color: #6D727E; }
+
+      /* ── Dark Theme ──────────────────────────────────────────── */
+      body.dark-theme { background: #070B14; color: #e2e8f0; }
+      body.dark-theme .toolbar { background: #10172A; border-bottom: 1px solid #22304D; }
+      body.dark-theme .toolbar-sep { background: #22304D; }
+      body.dark-theme .btn { color: #94a3b8; }
+      body.dark-theme .btn:hover { background: #1a2540; color: #e2e8f0; }
+      body.dark-theme .btn.active { background: #1e3a5f; color: #6FE7C8; border-color: #2a4a6b; }
+      body.dark-theme .editor-scroll { background: #070B14; }
+      body.dark-theme .editor-paper { background: #0D1426; border: 1px solid #22304D; box-shadow: none; }
+      body.dark-theme .ProseMirror { color: #e2e8f0; }
+      body.dark-theme .ProseMirror h1,
+      body.dark-theme .ProseMirror h2,
+      body.dark-theme .ProseMirror h3 { color: #f1f5f9; }
+      body.dark-theme .ProseMirror blockquote { border-left: 3px solid #334155; color: #94a3b8; }
+      body.dark-theme .ProseMirror code { background: #1a2540; color: #e2e8f0; }
+      body.dark-theme .node-chip-text { background: #1a2540; border-color: #2563eb; color: #93c5fd; }
+      body.dark-theme .node-block-richtext { background: #0d2a2a; border-color: #14b8a6; color: #5eead4; }
+      body.dark-theme .node-block-image { background: #0d1e2a; border-color: #3b82f6; color: #93c5fd; }
+      body.dark-theme .node-block-table { background: #0d2a14; border-color: #22c55e; color: #86efac; }
+      body.dark-theme .node-custom-text { background: #0d1a30; border: 1px solid #2563eb; border-left: 3px solid #6FE7C8; color: #e2e8f0; }
+      body.dark-theme .node-custom-text .custom-label { color: #6FE7C8; opacity: .7; }
+      body.dark-theme .node-block-resolved { background: #0d1a30; border: 1px solid #22304D; color: #94a3b8; }
+      body.dark-theme .dt-table th,
+      body.dark-theme .dt-table td { border: 1px solid #22304D; }
+      body.dark-theme .dt-table th { background: #1a2540; color: #f1f5f9; }
+      body.dark-theme .dt-caption { color: #64748b; }
 
       /* ── Editor scroll area ───────────────────────────────────── */
       .editor-scroll {
         flex: 1;
         overflow-y: auto;
         padding: 24px 16px;
-        background: #070B14;
       }
       .editor-paper {
         max-width: 760px;
         margin: 0 auto;
-        background: #0D1426;
-        border: 1px solid #22304D;
         border-radius: 12px;
         padding: 40px 48px;
         min-height: 600px;
@@ -62,20 +108,19 @@
         outline: none;
         min-height: 500px;
         line-height: 1.7;
-        color: #e2e8f0;
         font-size: 15px;
       }
       .ProseMirror p { margin: 0 0 10px; }
-      .ProseMirror h1 { font-size: 22px; font-weight: 700; margin: 0 0 14px; color: #f1f5f9; }
-      .ProseMirror h2 { font-size: 17px; font-weight: 700; margin: 14px 0 10px; color: #f1f5f9; }
-      .ProseMirror h3 { font-size: 15px; font-weight: 600; margin: 12px 0 8px; color: #f1f5f9; }
+      .ProseMirror h1 { font-size: 22px; font-weight: 700; margin: 0 0 14px; }
+      .ProseMirror h2 { font-size: 17px; font-weight: 700; margin: 14px 0 10px; }
+      .ProseMirror h3 { font-size: 15px; font-weight: 600; margin: 12px 0 8px; }
       .ProseMirror ul, .ProseMirror ol { padding-left: 24px; margin: 0 0 10px; }
       .ProseMirror li { margin: 4px 0; }
       .ProseMirror blockquote {
-        border-left: 3px solid #334155; padding-left: 14px; color: #94a3b8; margin: 10px 0;
+        padding-left: 14px; margin: 10px 0;
       }
       .ProseMirror code { font-family: 'JetBrains Mono', monospace; font-size: 13px;
-        background: #1a2540; padding: 1px 5px; border-radius: 4px; }
+        padding: 1px 5px; border-radius: 4px; }
 
       /* ── Custom nodes ─────────────────────────────────────────── */
       .node-chip {
@@ -85,41 +130,47 @@
         border: 1px solid; user-select: none; cursor: default;
         vertical-align: middle; margin: 0 2px;
       }
-      .node-chip-text { background: #1a2540; border-color: #2563eb; color: #93c5fd; }
       .node-block {
         display: flex; align-items: center; gap: 8px;
         padding: 6px 12px; border-radius: 8px; border-left: 3px solid;
         margin: 6px 0; font-size: 13px; font-family: 'JetBrains Mono', monospace;
         user-select: none; cursor: default;
       }
-      .node-block-richtext { background: #0d2a2a; border-color: #14b8a6; color: #5eead4; }
-      .node-block-image    { background: #0d1e2a; border-color: #3b82f6; color: #93c5fd; }
-      .node-block-table    { background: #0d2a14; border-color: #22c55e; color: #86efac; }
       .node-custom-text {
-        border: 1px solid #2563eb; border-left: 3px solid #6FE7C8;
         border-radius: 8px; padding: 10px 14px; margin: 8px 0;
-        background: #0d1a30;
       }
       .node-custom-text .custom-label {
-        font-size: 11px; color: #6FE7C8; font-family: 'JetBrains Mono', monospace;
-        margin-bottom: 4px; opacity: .7;
+        font-size: 11px; font-family: 'JetBrains Mono', monospace;
+        margin-bottom: 4px;
       }
       .node-block-resolved {
-        background: #0d1a30; border: 1px solid #22304D; border-radius: 8px;
-        padding: 10px 14px; margin: 8px 0; color: #94a3b8; font-size: 13px;
+        border-radius: 8px;
+        padding: 10px 14px; margin: 8px 0; font-size: 13px;
       }
       .dt-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
       .dt-table th, .dt-table td {
-        padding: 6px 10px; border: 1px solid #22304D; font-size: 12px; text-align: left;
+        padding: 6px 10px; font-size: 12px; text-align: left;
       }
-      .dt-table th { background: #1a2540; font-weight: 600; }
-      .dt-caption { font-size: 11px; color: #64748b; font-style: italic; margin-bottom: 4px; }
+      .dt-table th { font-weight: 600; }
+      .dt-caption { font-size: 11px; font-style: italic; margin-bottom: 4px; }
+      /* ── Report Mode ──────────────────────────────────────────── */
+      body.mode-report .ProseMirror {
+        user-select: none;
+        cursor: default;
+      }
+      body.mode-report .node-custom-text {
+        user-select: text;
+        cursor: text;
+      }
+      body.mode-report .node-custom-text * {
+        user-select: text;
+      }
     </style>
     <script type="module" crossorigin src="./assets/editor-BhrJDVXu.js"></script>
     <link rel="modulepreload" crossorigin href="./assets/commands-DW3W4uyt.js">
     <link rel="stylesheet" crossorigin href="./assets/commands-bbIDDB3r.css">
   </head>
-  <body>
+  <body class="light-theme">
     <div class="toolbar" id="toolbar">
       <button class="btn" id="btn-bold"      title="Negrito (Ctrl+B)"><b>B</b></button>
       <button class="btn" id="btn-italic"    title="Itálico (Ctrl+I)"><i>I</i></button>
@@ -132,6 +183,10 @@
       <div class="toolbar-sep"></div>
       <button class="btn" id="btn-undo" title="Desfazer (Ctrl+Z)">↩︎</button>
       <button class="btn" id="btn-redo" title="Refazer (Ctrl+Y)">↪︎</button>
+      <div style="flex: 1;"></div>
+      <button class="btn" id="btn-theme" title="Alternar tema (Claro / Escuro)" style="gap: 4px; padding: 4px 10px;">
+        <span id="theme-icon">🌙</span> <span id="theme-label" style="font-size: 12px;">Modo escuro</span>
+      </button>
     </div>
     <div class="editor-scroll">
       <div class="editor-paper">
