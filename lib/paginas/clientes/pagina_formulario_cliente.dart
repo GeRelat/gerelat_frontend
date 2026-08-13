@@ -295,19 +295,17 @@ class _PaginaFormularioClienteState extends State<PaginaFormularioCliente> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 18),
-                  SeletorLogomarca(
-                    urlAtual: _logomarca,
-                    aoAlterar: (url) => setState(() => _logomarca = url),
-                    repositorioCatalogo: widget.repositorioCatalogo,
-                    urlBase: widget.urlBase,
-                    escopo: widget.edicao && widget.clienteId != null
-                        ? NivelEscopo.cliente
-                        : null,
-                    escopoId: widget.edicao && widget.clienteId != null
-                        ? widget.clienteId
-                        : null,
-                  ),
+                  if (widget.edicao && widget.clienteId != null) ...[
+                    const SizedBox(height: 18),
+                    SeletorLogomarca(
+                      urlAtual: _logomarca,
+                      aoAlterar: (url) => setState(() => _logomarca = url),
+                      repositorioCatalogo: widget.repositorioCatalogo,
+                      urlBase: widget.urlBase,
+                      escopo: NivelEscopo.cliente,
+                      escopoId: widget.clienteId,
+                    ),
+                  ],
                   const SizedBox(height: 18),
                   CampoFormulario(
                     label: 'Término do Contrato',
