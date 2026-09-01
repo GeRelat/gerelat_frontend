@@ -5,6 +5,7 @@ import 'package:gerelat_frontend/dominio/entidades/campo_tipo.dart';
 import 'package:gerelat_frontend/dominio/entidades/variavel_disponivel.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/editor_prosemirror.dart';
+import 'package:gerelat_frontend/nucleo/componentes/painel_variaveis.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:go_router/go_router.dart';
@@ -240,7 +241,15 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(width: 300, child: _painelLateral()),
+        SizedBox(
+          width: 300,
+          child: PainelVariaveis(
+            variaveis: _viewModel.variaveis,
+            aoInserir: _inserirVariavel,
+            barraFormatacao: _barraFormatacao(),
+            aoInserirBlocoManual: _inserirBlocoManual,
+          ),
+        ),
         const VerticalDivider(width: 1, color: Cores.bordaSutil),
         Expanded(
           child: Container(
@@ -255,72 +264,6 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _painelLateral() {
-    return Container(
-      color: Cores.branco,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _tituloSecao('Formatação'),
-          const SizedBox(height: 8),
-          _barraFormatacao(),
-          const SizedBox(height: 20),
-          _tituloSecao('Variáveis disponíveis'),
-          const SizedBox(height: 4),
-          Text(
-            'Insira uma variável para que ela seja preenchida automaticamente '
-            'com os dados do banco na geração do relatório. A etiqueta indica '
-            'de qual nível vem o valor — usar uma variável de evento, por '
-            'exemplo, obrigará a escolher um evento ao gerar o relatório.',
-            style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
-          ),
-          const SizedBox(height: 12),
-          if (_viewModel.variaveis.isEmpty)
-            Text(
-              'Nenhuma variável disponível para o escopo deste template.',
-              style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
-            )
-          else ...[
-            ..._grupoVariaveis(
-              'Customizadas',
-              _viewModel.variaveisCustomizadas,
-              vazio: 'Nenhuma variável cadastrada para este escopo.',
-            ),
-            ..._grupoVariaveis(
-              'Campos do sistema',
-              _viewModel.variaveisDeSistema,
-              vazio: '',
-            ),
-          ],
-          const SizedBox(height: 20),
-          _tituloSecao('Blocos manuais'),
-          const SizedBox(height: 4),
-          Text(
-            'Um bloco de texto livre, sem variável de banco, para ser '
-            'preenchido/editado manualmente na geração do relatório.',
-            style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            onPressed: _inserirBlocoManual,
-            icon: const Icon(LucideIcons.square_pen, size: 18),
-            label: const Text('Inserir bloco manual'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _tituloSecao(String texto) {
-    return Text(
-      texto.toUpperCase(),
-      style: Tipografia.labelLarge.copyWith(
-        color: Cores.cinzaEscuro,
-        letterSpacing: 0.6,
-      ),
     );
   }
 
@@ -356,85 +299,4 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
     );
   }
 
-  /// Um subtítulo seguido dos itens do grupo. Devolve lista para poder ser
-  /// espalhada no `ListView` do painel, e some quando o grupo está vazio e
-  /// não há mensagem para mostrar.
-  List<Widget> _grupoVariaveis(
-    String titulo,
-    List<VariavelDisponivel> variaveis, {
-    required String vazio,
-  }) {
-    if (variaveis.isEmpty && vazio.isEmpty) return const [];
-    return [
-      Padding(
-        padding: const EdgeInsets.only(top: 6, bottom: 8),
-        child: Text(
-          titulo,
-          style: Tipografia.labelMedium.copyWith(color: Cores.cinzaEscuro),
-        ),
-      ),
-      if (variaveis.isEmpty)
-        Text(vazio, style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio))
-      else
-        ...variaveis.map(_itemVariavel),
-    ];
-  }
-
-  Widget _itemVariavel(VariavelDisponivel variavel) {
-    final (icone, cor) = switch (variavel.tipo) {
-      TipoCampo.texto => (LucideIcons.type, Cores.azulAcao),
-      TipoCampo.textoRico => (LucideIcons.text_quote, Cores.verdeSucesso),
-      TipoCampo.imagem => (LucideIcons.image, Cores.azulAcao),
-      TipoCampo.tabela => (LucideIcons.table, Cores.verdeSucesso),
-    };
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: InkWell(
-        onTap: () => _inserirVariavel(variavel),
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: Cores.fundoSecao,
-            border: Border.all(color: Cores.bordaSutil),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              Icon(icone, size: 18, color: cor),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      variavel.referencia,
-                      style: Tipografia.labelLarge.copyWith(
-                        color: Cores.textoPrincipal,
-                      ),
-                    ),
-                    Text(
-                      '${variavel.tipo.rotulo} · ${variavel.nivelAplicacao.rotulo}${variavel.escopoNome != null && variavel.escopoNome!.isNotEmpty ? ' (${variavel.escopoNome})' : ''}',
-                      style: Tipografia.bodySmall.copyWith(
-                        color: Cores.cinzaMedio,
-                      ),
-                    ),
-                    if (variavel.descricao.isNotEmpty &&
-                        variavel.descricao != variavel.referencia)
-                      Text(
-                        variavel.descricao,
-                        style: Tipografia.bodySmall.copyWith(
-                          color: Cores.cinzaMedio,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const Icon(LucideIcons.plus, size: 16, color: Cores.cinzaMedio),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }

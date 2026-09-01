@@ -30,13 +30,33 @@ const Set<String> _tiposVariavel = {
 /// exigido (`scan_required_nivel` faz `nivel_map.get(ref)` → `None` →
 /// `continue`). Incluí-lo aqui transformaria todo bloco manual num falso
 /// aviso de "variável não contemplada".
-Set<String> extrairRefsDeVariaveis(Map<String, dynamic> documento) {
+///
+/// Quando [docsPorRef] é informado (mapa referência → documento do valor de uma
+/// variável de texto rico), a varredura desce também para dentro desses valores
+/// — espelha o parâmetro `docs_por_ref` de `extract_gap_refs` no backend. O
+/// backend continua sendo a autoridade: sem esse mapa, um `sistema.evento.*`
+/// aninhado só aparece na recusa da geração, não no aviso preventivo.
+Set<String> extrairRefsDeVariaveis(
+  Map<String, dynamic> documento, [
+  Map<String, Map<String, dynamic>>? docsPorRef,
+]) {
   final refs = <String>{};
-  _percorrer(documento['content'], (tipo, attrs) {
-    if (!_tiposVariavel.contains(tipo)) return;
-    final ref = attrs['ref'];
-    if (ref is String && ref.isNotEmpty) refs.add(ref);
-  });
+  final visitados = <String>{};
+
+  void percorrer(Object? conteudo) {
+    _percorrer(conteudo, (tipo, attrs) {
+      if (!_tiposVariavel.contains(tipo)) return;
+      final ref = attrs['ref'];
+      if (ref is! String || ref.isEmpty) return;
+      refs.add(ref);
+      if (docsPorRef != null && visitados.add(ref)) {
+        final doc = docsPorRef[ref];
+        if (doc != null) percorrer(doc['content']);
+      }
+    });
+  }
+
+  percorrer(documento['content']);
   return refs;
 }
 
