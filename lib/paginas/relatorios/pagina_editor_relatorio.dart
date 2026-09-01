@@ -21,6 +21,14 @@ class ArgumentosEditorRelatorio {
   final String? nome;
   final Map<String, dynamic> documento;
 
+  /// Signatários escolhidos na geração — lista de `{equipe_programa: id}` /
+  /// `{equipe_projeto: id}`. Vazio = usa as assinaturas do template.
+  final List<Map<String, int>> assinaturas;
+
+  /// Mesmos signatários resolvidos (`{nome, cargo, nome_equipe}`) só para a
+  /// pré-visualização na tela — o `.docx` é montado no backend.
+  final List<Map<String, String>> assinaturasPreview;
+
   const ArgumentosEditorRelatorio({
     required this.templateId,
     this.clienteId,
@@ -29,6 +37,8 @@ class ArgumentosEditorRelatorio {
     required this.eventoId,
     required this.nome,
     required this.documento,
+    this.assinaturas = const [],
+    this.assinaturasPreview = const [],
   });
 }
 
@@ -102,6 +112,7 @@ class _PaginaEditorRelatorioState extends State<PaginaEditorRelatorio> {
         eventoId: widget.argumentos.eventoId,
         documentoJson: documento,
         nome: widget.argumentos.nome,
+        assinaturas: widget.argumentos.assinaturas,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -154,7 +165,65 @@ class _PaginaEditorRelatorioState extends State<PaginaEditorRelatorio> {
               ),
             ),
           ),
+          if (widget.argumentos.assinaturasPreview.isNotEmpty)
+            _previaAssinaturas(),
         ],
+      ),
+    );
+  }
+
+  /// Bloco de assinaturas mostrado só como prévia — no `.docx` ele é montado
+  /// pelo backend ao final do documento.
+  Widget _previaAssinaturas() {
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(maxHeight: 220),
+      decoration: const BoxDecoration(
+        color: Cores.branco,
+        border: Border(top: BorderSide(color: Cores.bordaSutil)),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'ASSINATURAS (inseridas ao final do documento)',
+              style: Tipografia.labelMedium.copyWith(
+                color: Cores.cinzaMedio,
+                letterSpacing: 0.6,
+              ),
+            ),
+            const SizedBox(height: 12),
+            for (final a in widget.argumentos.assinaturasPreview) ...[
+              const SizedBox(height: 8),
+              Text(
+                '______________________________',
+                textAlign: TextAlign.center,
+                style: Tipografia.bodyMedium.copyWith(
+                  color: Cores.textoPrincipal,
+                ),
+              ),
+              Text(
+                a['nome'] ?? '',
+                textAlign: TextAlign.center,
+                style: Tipografia.bodyMedium.copyWith(
+                  color: Cores.textoPrincipal,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              for (final linha in [a['cargo'], a['nome_equipe']])
+                if (linha != null && linha.isNotEmpty)
+                  Text(
+                    linha,
+                    textAlign: TextAlign.center,
+                    style: Tipografia.bodySmall.copyWith(
+                      color: Cores.cinzaEscuro,
+                    ),
+                  ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -193,8 +262,8 @@ class _PaginaEditorRelatorioState extends State<PaginaEditorRelatorio> {
           Expanded(
             child: Text(
               'Os blocos manuais (destacados) são editáveis. As variáveis do '
-              'banco estão bloqueadas. O cabeçalho com as logomarcas do cliente '
-              'e da parceira é inserido automaticamente no documento final.',
+              'banco estão bloqueadas. O cabeçalho com as logomarcas e as '
+              'assinaturas (prévia abaixo) entram no documento final.',
               style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
             ),
           ),

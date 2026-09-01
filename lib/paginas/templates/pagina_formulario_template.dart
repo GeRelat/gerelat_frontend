@@ -8,6 +8,7 @@ import 'package:gerelat_frontend/dominio/entidades/classe_evento.dart';
 import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
+import 'package:gerelat_frontend/nucleo/componentes/seletor_signatarios.dart';
 import 'package:gerelat_frontend/nucleo/servicos/arquivo_web.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
@@ -354,96 +355,17 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
         const SizedBox(height: 8),
         if (_viewModel.escopoId == null)
           _avisoSemEscopo('os possíveis signatários')
-        else ...[
-          _grupoSignatarios(
-            titulo: 'Equipes fixas de programa',
-            vazio: 'Nenhum membro cadastrado nas equipes fixas deste escopo.',
-            // Em nível cliente há vários programas; o nome do programa/projeto
-            // desambigua homônimos entre equipes diferentes.
-            itens: [
-              for (final membro in _viewModel.membrosPrograma)
-                if (membro.id != null)
-                  (
-                    id: membro.id!,
-                    rotulo: '${membro.nome} (${membro.cargo})',
-                    origem: _viewModel.nomePrograma(membro.programaId),
-                    marcado: _viewModel.equipeProgramaSelecionada.contains(
-                      membro.id,
-                    ),
-                    aoAlternar: () =>
-                        _viewModel.alternarSignatarioPrograma(membro.id!),
-                  ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _grupoSignatarios(
-            titulo: 'Equipes de projeto',
-            vazio: 'Nenhum membro cadastrado nas equipes de projeto deste escopo.',
-            itens: [
-              for (final membro in _viewModel.membrosProjeto)
-                if (membro.id != null)
-                  (
-                    id: membro.id!,
-                    rotulo: '${membro.nome} (${membro.cargo})',
-                    origem: _viewModel.nomeProjeto(membro.projetoId),
-                    marcado: _viewModel.equipeProjetoSelecionada.contains(
-                      membro.id,
-                    ),
-                    aoAlternar: () =>
-                        _viewModel.alternarSignatarioProjeto(membro.id!),
-                  ),
-            ],
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _grupoSignatarios({
-    required String titulo,
-    required String vazio,
-    required List<
-      ({
-        int id,
-        String rotulo,
-        String origem,
-        bool marcado,
-        VoidCallback aoAlternar,
-      })
-    >
-    itens,
-  }) {
-    final mostrarOrigem = _viewModel.nivel != NivelEscopo.projeto;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          titulo,
-          style: Tipografia.labelMedium.copyWith(color: Cores.cinzaEscuro),
-        ),
-        const SizedBox(height: 8),
-        if (itens.isEmpty)
-          Text(
-            vazio,
-            style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
-          )
         else
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: itens.map((item) {
-              return FilterChip(
-                label: Text(
-                  mostrarOrigem
-                      ? '${item.rotulo} — ${item.origem}'
-                      : item.rotulo,
-                ),
-                selected: item.marcado,
-                onSelected: (_) => item.aoAlternar(),
-                selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
-                checkmarkColor: Cores.azulAcao,
-              );
-            }).toList(),
+          SeletorSignatarios(
+            membrosPrograma: _viewModel.membrosPrograma,
+            membrosProjeto: _viewModel.membrosProjeto,
+            programaSelecionada: _viewModel.equipeProgramaSelecionada,
+            projetoSelecionada: _viewModel.equipeProjetoSelecionada,
+            aoAlternarPrograma: _viewModel.alternarSignatarioPrograma,
+            aoAlternarProjeto: _viewModel.alternarSignatarioProjeto,
+            nomePrograma: _viewModel.nomePrograma,
+            nomeProjeto: _viewModel.nomeProjeto,
+            mostrarOrigem: _viewModel.nivel != NivelEscopo.projeto,
           ),
       ],
     );

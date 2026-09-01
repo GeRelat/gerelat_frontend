@@ -2,6 +2,8 @@ import 'package:gerelat_frontend/aplicacao/hierarquia_escopo.dart';
 import 'package:gerelat_frontend/aplicacao/variaveis_do_escopo.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/base_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/evento.dart';
+import 'package:gerelat_frontend/dominio/entidades/membro_equipe_programa.dart';
+import 'package:gerelat_frontend/dominio/entidades/membro_equipe_projeto.dart';
 import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/entidades/opcao_selecao.dart';
 import 'package:gerelat_frontend/dominio/entidades/template_relatorio.dart';
@@ -12,6 +14,8 @@ import 'package:gerelat_frontend/nucleo/utils/gaps_prosemirror.dart';
 
 class GerarRelatorioViewModel extends BaseViewModel {
   final RepositorioTemplates _templatesRepositorio;
+  final RepositorioEquipePrograma _equipeProgramaRepositorio;
+  final RepositorioEquipeProjeto _equipeProjetoRepositorio;
   final RepositorioCatalogo _catalogo;
 
   HierarquiaEscopo _hierarquia = const HierarquiaEscopo();
@@ -25,6 +29,13 @@ class GerarRelatorioViewModel extends BaseViewModel {
   List<String> _blocosManuais = [];
   NivelAplicacao? _nivelExigido;
 
+  // Signatários: pool de candidatos do escopo do template + seleção (começa
+  // marcada com as assinaturas configuradas no template, editável só aqui).
+  List<MembroEquipePrograma> _signatariosPrograma = [];
+  List<MembroEquipeProjeto> _signatariosProjeto = [];
+  Set<int> _equipeProgramaSelecionada = {};
+  Set<int> _equipeProjetoSelecionada = {};
+
   int? _clienteId;
   int? _programaId;
   int? _projetoId;
@@ -37,6 +48,8 @@ class GerarRelatorioViewModel extends BaseViewModel {
 
   GerarRelatorioViewModel(RepositorioCatalogo repositorio)
     : _templatesRepositorio = repositorio,
+      _equipeProgramaRepositorio = repositorio,
+      _equipeProjetoRepositorio = repositorio,
       _catalogo = repositorio;
 
   HierarquiaEscopo get hierarquia => _hierarquia;
@@ -182,6 +195,59 @@ class GerarRelatorioViewModel extends BaseViewModel {
 
   /// Rótulos dos blocos de texto livre que o usuário poderá editar no preview.
   List<String> get blocosManuais => List.unmodifiable(_blocosManuais);
+
+  // ── Signatários ──────────────────────────────────────────────
+  List<MembroEquipePrograma> get signatariosPrograma =>
+      List.unmodifiable(_signatariosPrograma);
+  List<MembroEquipeProjeto> get signatariosProjeto =>
+      List.unmodifiable(_signatariosProjeto);
+  Set<int> get equipeProgramaSelecionada =>
+      Set.unmodifiable(_equipeProgramaSelecionada);
+  Set<int> get equipeProjetoSelecionada =>
+      Set.unmodifiable(_equipeProjetoSelecionada);
+
+  bool get temSignatariosDisponiveis =>
+      _signatariosPrograma.isNotEmpty || _signatariosProjeto.isNotEmpty;
+
+  String nomePrograma(int? id) =>
+      _hierarquia.nomeDe(NivelAplicacao.programa, id);
+  String nomeProjeto(int? id) => _hierarquia.nomeDe(NivelAplicacao.projeto, id);
+
+  void alternarSignatarioPrograma(int membroId) {
+    if (!_equipeProgramaSelecionada.remove(membroId)) {
+      _equipeProgramaSelecionada.add(membroId);
+    }
+    notifyListeners();
+  }
+
+  void alternarSignatarioProjeto(int membroId) {
+    if (!_equipeProjetoSelecionada.remove(membroId)) {
+      _equipeProjetoSelecionada.add(membroId);
+    }
+    notifyListeners();
+  }
+
+  /// Assinaturas escolhidas, na ordem em que aparecem no pool, prontas para o
+  /// payload de `POST /relatorios/`.
+  List<Map<String, int>> get assinaturasEscolhidas => [
+    for (final m in _signatariosPrograma)
+      if (m.id != null && _equipeProgramaSelecionada.contains(m.id))
+        {'equipe_programa': m.id!},
+    for (final m in _signatariosProjeto)
+      if (m.id != null && _equipeProjetoSelecionada.contains(m.id))
+        {'equipe_projeto': m.id!},
+  ];
+
+  /// Mesma lista, resolvida para exibição na pré-visualização (espelha
+  /// `services.assinaturas_relatorio.resolver_assinaturas` no backend).
+  List<Map<String, String>> get assinaturasResolvidas => [
+    for (final m in _signatariosPrograma)
+      if (m.id != null && _equipeProgramaSelecionada.contains(m.id))
+        {'nome': m.nome, 'cargo': m.cargo, 'nome_equipe': ''},
+    for (final m in _signatariosProjeto)
+      if (m.id != null && _equipeProjetoSelecionada.contains(m.id))
+        {'nome': m.nome, 'cargo': m.cargo, 'nome_equipe': m.nomeEquipe},
+  ];
 
   /// Variáveis obrigatórias usadas pelo template — servem de aviso quando o
   /// valor ainda não foi preenchido para a instância escolhida.
@@ -343,6 +409,10 @@ class GerarRelatorioViewModel extends BaseViewModel {
     _refsNaoContempladas = [];
     _blocosManuais = [];
     _nivelExigido = null;
+    _signatariosPrograma = [];
+    _signatariosProjeto = [];
+    _equipeProgramaSelecionada = {};
+    _equipeProjetoSelecionada = {};
     _clienteId = null;
     _programaId = null;
     _projetoId = null;
@@ -388,17 +458,26 @@ class GerarRelatorioViewModel extends BaseViewModel {
         templateId,
       );
 
-      final nivelPorReferencia = {
-        for (final variavel in _variaveisDisponiveis)
-          variavel.referencia: variavel.nivelAplicacao,
-      };
+      await _carregarSignatarios(template, escopoId);
+
+      // Registra cada variável sob a referência que a API devolveu E sob a
+      // forma sem prefixo de escopo — o nó do template pode citar
+      // `texto_padrao` enquanto a API, vista de um projeto, lista
+      // `programa.texto_padrao` (a resolução no backend casa as duas).
+      final nivelPorReferencia = <String, NivelAplicacao>{};
+      for (final variavel in _variaveisDisponiveis) {
+        nivelPorReferencia[variavel.referencia] = variavel.nivelAplicacao;
+        nivelPorReferencia[semPrefixoEscopo(variavel.referencia)] =
+            variavel.nivelAplicacao;
+      }
       _nivelExigido = nivelExigidoPorRefs(_refsUsadas, nivelPorReferencia);
       _refsNaoContempladas =
           _refsUsadas
               .where(
                 (ref) =>
                     !ehReferenciaDeSistema(ref) &&
-                    !nivelPorReferencia.containsKey(ref),
+                    !nivelPorReferencia.containsKey(ref) &&
+                    !nivelPorReferencia.containsKey(semPrefixoEscopo(ref)),
               )
               .toList()
             ..sort();
@@ -407,6 +486,38 @@ class GerarRelatorioViewModel extends BaseViewModel {
     } catch (erro) {
       definirErro(erro);
     }
+  }
+
+  /// Carrega o pool de signatários (equipes do escopo do template) e pré-marca
+  /// as assinaturas já configuradas no template.
+  Future<void> _carregarSignatarios(
+    TemplateRelatorio template,
+    int? escopoId,
+  ) async {
+    if (escopoId == null) return;
+
+    final alcance = _hierarquia.descendentesDe(template.nivel, escopoId);
+    _signatariosPrograma = await _equipeProgramaRepositorio
+        .listarEquipeDeProgramas(alcance.programaIds);
+    _signatariosProjeto = await _equipeProjetoRepositorio.listarEquipeDeProjetos(
+      alcance.projetoIds,
+    );
+
+    final assinaturas = await _templatesRepositorio.listarAssinaturasTemplate(
+      template.id!,
+    );
+    final idsPrograma = _signatariosPrograma.map((m) => m.id).toSet();
+    final idsProjeto = _signatariosProjeto.map((m) => m.id).toSet();
+    _equipeProgramaSelecionada = assinaturas
+        .map((a) => a.equipeProgramaId)
+        .whereType<int>()
+        .where(idsPrograma.contains)
+        .toSet();
+    _equipeProjetoSelecionada = assinaturas
+        .map((a) => a.equipeProjetoId)
+        .whereType<int>()
+        .where(idsProjeto.contains)
+        .toSet();
   }
 
   /// Define um elo da cadeia, resolvendo os ancestrais e limpando os

@@ -89,7 +89,8 @@ NivelAplicacao? nivelExigidoPorRefs(
   for (final ref in refs) {
     final nivel = ehReferenciaDeSistema(ref)
         ? NivelAplicacao.porValorApiOuNulo(nivelDaReferenciaDeSistema(ref))
-        : nivelPorReferencia[ref];
+        : nivelPorReferencia[ref] ??
+              nivelPorReferencia[semPrefixoEscopo(ref)];
     if (nivel == null) continue;
     if (maisProfundo == null || nivel.ordem > maisProfundo.ordem) {
       maisProfundo = nivel;
@@ -100,6 +101,25 @@ NivelAplicacao? nivelExigidoPorRefs(
 
 bool ehReferenciaDeSistema(String referencia) =>
     referencia.startsWith(prefixoSistema);
+
+/// Prefixos de desambiguação de escopo que o backend acrescenta/remove conforme
+/// o nível de onde a variável é vista (`programa.texto_padrao` visto de um
+/// projeto, `texto_padrao` visto do próprio programa). Espelha o que
+/// `build_variables_context` grava no contexto (chave crua + prefixada + sem
+/// prefixo) e o que `GET /templates/variaveis-disponiveis/` devolve.
+const Set<String> _prefixosEscopo = {'cliente.', 'programa.', 'projeto.'};
+
+/// Remove um prefixo de escopo de [referencia], se houver. Não mexe em
+/// `sistema.*`.
+String semPrefixoEscopo(String referencia) {
+  if (ehReferenciaDeSistema(referencia)) return referencia;
+  for (final prefixo in _prefixosEscopo) {
+    if (referencia.startsWith(prefixo)) {
+      return referencia.substring(prefixo.length);
+    }
+  }
+  return referencia;
+}
 
 /// `sistema.projeto.parceira` → `projeto`.
 String nivelDaReferenciaDeSistema(String referencia) {

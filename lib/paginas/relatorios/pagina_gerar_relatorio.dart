@@ -5,6 +5,7 @@ import 'package:gerelat_frontend/aplicacao/view_models/gerar_relatorio_view_mode
 import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
+import 'package:gerelat_frontend/nucleo/componentes/seletor_signatarios.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:gerelat_frontend/paginas/relatorios/pagina_editor_relatorio.dart';
@@ -87,6 +88,8 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
         eventoId: _viewModel.eventoId,
         nome: _nome.text.trim().isEmpty ? null : _nome.text.trim(),
         documento: documento,
+        assinaturas: _viewModel.assinaturasEscolhidas,
+        assinaturasPreview: _viewModel.assinaturasResolvidas,
       ),
     );
     if (!mounted) return;
@@ -156,6 +159,10 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
                         ..._seletoresDeEscopo(),
                         const SizedBox(height: 18),
                         _painelAvisos(),
+                        if (_viewModel.temSignatariosDisponiveis) ...[
+                          const SizedBox(height: 18),
+                          _painelSignatarios(),
+                        ],
                       ],
                       const SizedBox(height: 18),
                       CampoFormulario(
@@ -431,6 +438,35 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
             },
           ),
         ],
+      ],
+    );
+  }
+
+  Widget _painelSignatarios() {
+    return _painelSecao(
+      children: [
+        Text(
+          'Signatários do relatório',
+          style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Começam marcados os signatários configurados no template; ajuste só '
+          'para este relatório. As assinaturas são inseridas no final do documento.',
+          style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
+        ),
+        const SizedBox(height: 12),
+        SeletorSignatarios(
+          membrosPrograma: _viewModel.signatariosPrograma,
+          membrosProjeto: _viewModel.signatariosProjeto,
+          programaSelecionada: _viewModel.equipeProgramaSelecionada,
+          projetoSelecionada: _viewModel.equipeProjetoSelecionada,
+          aoAlternarPrograma: _viewModel.alternarSignatarioPrograma,
+          aoAlternarProjeto: _viewModel.alternarSignatarioProjeto,
+          nomePrograma: _viewModel.nomePrograma,
+          nomeProjeto: _viewModel.nomeProjeto,
+          mostrarOrigem: _viewModel.template?.nivel != NivelEscopo.projeto,
+        ),
       ],
     );
   }

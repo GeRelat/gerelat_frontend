@@ -199,6 +199,55 @@ class HierarquiaEscopo {
   List<OpcaoSelecao> opcoesDeEscopo(NivelEscopo escopo, {int? clienteId}) =>
       opcoesDe(escopo.comoAplicacao, clienteId: clienteId);
 
+  /// Projetos e programas alcançados por um escopo — em nível cliente ou
+  /// programa, um template cobre todos os descendentes, então classes de evento
+  /// e possíveis signatários vêm agregados de todos eles. Usado pelo formulário
+  /// de template e pela tela de gerar relatório.
+  ({int? clienteId, Set<int> programaIds, Set<int> projetoIds}) descendentesDe(
+    NivelEscopo nivel,
+    int escopoId,
+  ) {
+    switch (nivel) {
+      case NivelEscopo.projeto:
+        final projeto = projetoPorId(escopoId);
+        final programa = projeto != null
+            ? programaPorId(projeto.programaId)
+            : null;
+        return (
+          clienteId: programa?.clienteId,
+          programaIds: {
+            if (projeto?.programaId != null) projeto!.programaId!,
+          },
+          projetoIds: {escopoId},
+        );
+      case NivelEscopo.programa:
+        return (
+          clienteId: programaPorId(escopoId)?.clienteId,
+          programaIds: {escopoId},
+          projetoIds: projetos
+              .where((projeto) => projeto.programaId == escopoId)
+              .map((projeto) => projeto.id)
+              .whereType<int>()
+              .toSet(),
+        );
+      case NivelEscopo.cliente:
+        final programaIds = programas
+            .where((programa) => programa.clienteId == escopoId)
+            .map((programa) => programa.id)
+            .whereType<int>()
+            .toSet();
+        return (
+          clienteId: escopoId,
+          programaIds: programaIds,
+          projetoIds: projetos
+              .where((projeto) => programaIds.contains(projeto.programaId))
+              .map((projeto) => projeto.id)
+              .whereType<int>()
+              .toSet(),
+        );
+    }
+  }
+
   String _comSufixo(String nome, String pai) =>
       pai.isEmpty ? nome : '$nome — $pai';
 
