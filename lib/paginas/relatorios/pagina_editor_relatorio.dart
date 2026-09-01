@@ -193,7 +193,8 @@ class _PaginaEditorRelatorioState extends State<PaginaEditorRelatorio> {
           Expanded(
             child: Text(
               'Os blocos manuais (destacados) são editáveis. As variáveis do '
-              'banco estão bloqueadas.',
+              'banco estão bloqueadas. O cabeçalho com as logomarcas do cliente '
+              'e da parceira é inserido automaticamente no documento final.',
               style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
             ),
           ),
