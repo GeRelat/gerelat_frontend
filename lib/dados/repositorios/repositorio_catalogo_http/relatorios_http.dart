@@ -58,6 +58,7 @@ mixin RepositorioRelatoriosHttpMixin implements RepositorioRelatorios {
     int? eventoId,
     Map<String, dynamic>? documentoJson,
     String? nome,
+    List<Map<String, int>> assinaturas = const [],
   }) async {
     final dados = <String, dynamic>{'template': templateId};
     // O backend resolve a cadeia a partir do elo mais profundo informado, mas
@@ -69,6 +70,7 @@ mixin RepositorioRelatoriosHttpMixin implements RepositorioRelatorios {
     if (eventoId case final id?) dados['evento'] = id;
     if (documentoJson != null) dados['documento_json'] = documentoJson;
     if (nome != null && nome.trim().isNotEmpty) dados['nome'] = nome.trim();
+    if (assinaturas.isNotEmpty) dados['assinaturas'] = assinaturas;
 
     final resposta = await api.criar('/relatorios/', dados);
     final taskId = paraTexto(resposta['task_id']);

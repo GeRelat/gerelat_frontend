@@ -10,7 +10,12 @@ class ColunaTabela {
   const ColunaTabela({required this.chave, required this.rotulo});
 }
 
-// ── Conversão texto <-> valor (TEXT e RICHTEXT, tratados como texto simples) ──
+// ── Conversão texto <-> valor (só TEXT) ──
+//
+// RICHTEXT não passa mais por aqui: seu valor é um documento ProseMirror
+// completo (editado no `DialogoEditorTextoRico`, podendo conter nós de
+// variável). `extrairTextoDeValor` descartaria qualquer nó inline que não seja
+// `text` — ver `extrairDocDeValor` / `resumoDeDoc` abaixo.
 
 // Cada linha digitada vira um parágrafo, na ordem — inclusive linhas em
 // branco (parágrafo com `content: []`), para preservar o espaçamento entre
@@ -54,6 +59,53 @@ String extrairTextoDeValor(Map<String, dynamic> valor) {
     linhas.add(buffer.toString());
   }
   return linhas.join('\n');
+}
+
+// ── Documento richtext <-> valor (RICHTEXT) ──
+
+/// Documento ProseMirror vazio, ponto de partida do editor de texto rico.
+Map<String, dynamic> docRichtextVazio() => {
+  'type': 'doc',
+  'content': [
+    {'type': 'paragraph', 'content': <Map<String, dynamic>>[]},
+  ],
+};
+
+/// Devolve o documento richtext gravado como está (é um doc ProseMirror
+/// completo), ou um doc vazio quando ainda não há valor.
+Map<String, dynamic> extrairDocDeValor(Map<String, dynamic> valor) {
+  if (valor['type'] == 'doc' && valor['content'] is List) {
+    return Map<String, dynamic>.from(valor);
+  }
+  return docRichtextVazio();
+}
+
+/// Achata um documento richtext para uma linha de texto legível no cartão da
+/// variável. Nós de variável (`var_text`, `var_richtext`, ...) viram `[ref]`.
+String resumoDeDoc(Map<String, dynamic> doc) {
+  final buffer = StringBuffer();
+
+  void percorrer(Object? nos) {
+    if (nos is! List) return;
+    for (final no in nos) {
+      if (no is! Map) continue;
+      final tipo = no['type'];
+      if (tipo == 'text' && no['text'] is String) {
+        buffer.write(no['text'] as String);
+      } else if (tipo == 'hard_break') {
+        buffer.write(' ');
+      } else {
+        final attrs = no['attrs'];
+        final ref = attrs is Map ? (attrs['ref'] ?? attrs['label']) : null;
+        if (ref is String && ref.isNotEmpty) buffer.write('[$ref]');
+      }
+      percorrer(no['content']);
+      if (tipo == 'paragraph' || tipo == 'heading') buffer.write(' ');
+    }
+  }
+
+  percorrer(doc['content']);
+  return buffer.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
 }
 
 // ── Conversão colunas/linhas <-> valor (TABLE) ──

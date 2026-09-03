@@ -6,10 +6,12 @@ import 'package:gerelat_frontend/aplicacao/view_models/conversores_valor_campo.d
 import 'package:gerelat_frontend/dominio/entidades/asset.dart';
 import 'package:gerelat_frontend/dominio/entidades/campo_tipo.dart';
 import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
+import 'package:gerelat_frontend/dominio/entidades/variavel_disponivel.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
+import 'package:gerelat_frontend/paginas/variaveis/componentes/dialogo_editor_texto_rico.dart';
 
 /// Resultado da edição de um valor: o JSON pronto para `CampoValor.valor`, ou
 /// uma mensagem explicando por que ainda não dá para salvar.
@@ -30,6 +32,15 @@ class EditorValorCampo extends StatefulWidget {
   final NivelEscopo? escopo;
   final int? escopoId;
 
+  /// Variáveis que podem ser inseridas dentro de um valor de texto rico.
+  final List<VariavelDisponivel> variaveisDisponiveis;
+
+  /// Referência da variável, usada só no título do diálogo de texto rico.
+  final String referenciaVariavel;
+
+  /// `'light'` ou `'dark'` — passado ao editor ProseMirror do diálogo.
+  final String temaEditor;
+
   /// Envia a imagem selecionada e devolve o id do `Asset` criado.
   final Future<int?> Function({
     required Uint8List arquivoBytes,
@@ -47,6 +58,9 @@ class EditorValorCampo extends StatefulWidget {
     this.readOnly = false,
     this.escopo,
     this.escopoId,
+    this.variaveisDisponiveis = const [],
+    this.temaEditor = 'light',
+    this.referenciaVariavel = '',
   });
 
   @override
@@ -68,6 +82,8 @@ class EditorValorCampoState extends State<EditorValorCampo> {
   Asset? _assetSelecionado;
   Uint8List? _imagemBytesNova;
   String? _imagemNomeNovo;
+
+  Map<String, dynamic> _docRichtext = docRichtextVazio();
 
   @override
   void initState() {
@@ -106,11 +122,13 @@ class EditorValorCampoState extends State<EditorValorCampo> {
     _assetSelecionado = null;
     _imagemBytesNova = null;
     _imagemNomeNovo = null;
+    _docRichtext = docRichtextVazio();
 
     switch (widget.tipo) {
       case TipoCampo.texto:
-      case TipoCampo.textoRico:
         _textoValor.text = extrairTextoDeValor(valor);
+      case TipoCampo.textoRico:
+        _docRichtext = extrairDocDeValor(valor);
       case TipoCampo.tabela:
         final tabela = extrairTabelaDeValor(valor);
         _colunasTabela = tabela.colunas;
@@ -129,11 +147,19 @@ class EditorValorCampoState extends State<EditorValorCampo> {
   Future<ResultadoValor> montarValor() async {
     switch (widget.tipo) {
       case TipoCampo.texto:
-      case TipoCampo.textoRico:
         if (_textoValor.text.trim().isEmpty) {
           return (valor: null, erro: 'Preencha o texto da variável.');
         }
         return (valor: construirValorTexto(_textoValor.text), erro: null);
+
+      case TipoCampo.textoRico:
+        final content = _docRichtext['content'];
+        if (content is! List ||
+            content.isEmpty ||
+            resumoDeDoc(_docRichtext).isEmpty) {
+          return (valor: null, erro: 'Edite o texto rico da variável.');
+        }
+        return (valor: _docRichtext, erro: null);
 
       case TipoCampo.tabela:
         if (_colunasTabela.isEmpty || _linhasTabela.isEmpty) {
@@ -271,7 +297,6 @@ class EditorValorCampoState extends State<EditorValorCampo> {
   Widget build(BuildContext context) {
     switch (widget.tipo) {
       case TipoCampo.texto:
-      case TipoCampo.textoRico:
         return CampoFormulario(
           label: 'Texto (uma linha = um parágrafo)',
           hint: 'Digite o texto pré-cadastrado...',
@@ -279,11 +304,70 @@ class EditorValorCampoState extends State<EditorValorCampo> {
           maxLines: 5,
           enabled: !widget.readOnly,
         );
+      case TipoCampo.textoRico:
+        return _editorTextoRico();
       case TipoCampo.tabela:
         return _editorTabela();
       case TipoCampo.imagem:
         return _editorImagem();
     }
+  }
+
+  Widget _editorTextoRico() {
+    final resumo = resumoDeDoc(_docRichtext);
+    return _painelEditor(
+      children: [
+        Text(
+          'Texto rico',
+          style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Um mini-template: além de formatação, pode conter outras variáveis '
+          '(texto, imagem, tabela e campos do sistema) que serão preenchidas '
+          'onde este texto for usado.',
+          style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Cores.branco,
+            border: Border.all(color: Cores.bordaSutil),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            resumo.isEmpty ? 'Nenhum texto configurado.' : resumo,
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
+            style: Tipografia.bodyMedium.copyWith(
+              color: resumo.isEmpty ? Cores.cinzaMedio : Cores.textoPrincipal,
+            ),
+          ),
+        ),
+        if (!widget.readOnly) ...[
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _abrirEditorTextoRico,
+            icon: const Icon(LucideIcons.pencil, size: 16),
+            label: Text(resumo.isEmpty ? 'Editar texto rico' : 'Editar'),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _abrirEditorTextoRico() async {
+    final resultado = await mostrarDialogoEditorTextoRico(
+      context,
+      referencia: widget.referenciaVariavel,
+      documentoInicial: _docRichtext,
+      variaveis: widget.variaveisDisponiveis,
+      tema: widget.temaEditor,
+    );
+    if (resultado == null || !mounted) return;
+    setState(() => _docRichtext = resultado);
   }
 
   Widget _editorTabela() {

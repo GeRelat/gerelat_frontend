@@ -940,6 +940,7 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
     int? eventoId,
     Map<String, dynamic>? documentoJson,
     String? nome,
+    List<Map<String, int>> assinaturas = const [],
   }) async {
     relatorioGerado = (template: templateId, evento: eventoId);
     return 1;

@@ -171,52 +171,6 @@ class TemplateFormViewModel extends BaseViewModel {
     }
   }
 
-  /// Projetos e programas alcançados pelo escopo — em nível cliente ou
-  /// programa, um template cobre todos os descendentes, então classes de
-  /// evento e possíveis signatários vêm agregados de todos eles.
-  ({int? clienteId, Set<int> programaIds, Set<int> projetoIds}) _descendentes(
-    NivelEscopo nivel,
-    int escopoId,
-  ) {
-    switch (nivel) {
-      case NivelEscopo.projeto:
-        final projeto = _hierarquia.projetoPorId(escopoId);
-        final programa =
-            projeto != null ? _hierarquia.programaPorId(projeto.programaId) : null;
-        return (
-          clienteId: programa?.clienteId,
-          programaIds: {if (projeto?.programaId != null) projeto!.programaId!},
-          projetoIds: {escopoId},
-        );
-      case NivelEscopo.programa:
-        final programa = _hierarquia.programaPorId(escopoId);
-        return (
-          clienteId: programa?.clienteId,
-          programaIds: {escopoId},
-          projetoIds: _hierarquia.projetos
-              .where((projeto) => projeto.programaId == escopoId)
-              .map((projeto) => projeto.id)
-              .whereType<int>()
-              .toSet(),
-        );
-      case NivelEscopo.cliente:
-        final programaIds = _hierarquia.programas
-            .where((programa) => programa.clienteId == escopoId)
-            .map((programa) => programa.id)
-            .whereType<int>()
-            .toSet();
-        return (
-          clienteId: escopoId,
-          programaIds: programaIds,
-          projetoIds: _hierarquia.projetos
-              .where((projeto) => programaIds.contains(projeto.programaId))
-              .map((projeto) => projeto.id)
-              .whereType<int>()
-              .toSet(),
-        );
-    }
-  }
-
   Future<void> selecionarEscopo(NivelEscopo nivel, int? escopoId) async {
     _nivel = nivel;
     final opcoes = _hierarquia.opcoesDeEscopo(nivel, clienteId: _clienteAtivoId);
@@ -249,7 +203,7 @@ class TemplateFormViewModel extends BaseViewModel {
   }
 
   Future<void> _carregarEscopo(NivelEscopo nivel, int escopoId) async {
-    final alcance = _descendentes(nivel, escopoId);
+    final alcance = _hierarquia.descendentesDe(nivel, escopoId);
 
     _classesDisponiveis = await _eventosRepositorio.listarClassesEventoDetalhadas(
       escopo: nivel,

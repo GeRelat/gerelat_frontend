@@ -302,6 +302,7 @@ abstract interface class RepositorioRelatorios {
     int? eventoId,
     Map<String, dynamic>? documentoJson,
     String? nome,
+    List<Map<String, int>> assinaturas,
   });
 
   Future<Uint8List> baixarRelatorio(int relatorioId);

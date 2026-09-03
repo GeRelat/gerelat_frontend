@@ -30,13 +30,33 @@ const Set<String> _tiposVariavel = {
 /// exigido (`scan_required_nivel` faz `nivel_map.get(ref)` → `None` →
 /// `continue`). Incluí-lo aqui transformaria todo bloco manual num falso
 /// aviso de "variável não contemplada".
-Set<String> extrairRefsDeVariaveis(Map<String, dynamic> documento) {
+///
+/// Quando [docsPorRef] é informado (mapa referência → documento do valor de uma
+/// variável de texto rico), a varredura desce também para dentro desses valores
+/// — espelha o parâmetro `docs_por_ref` de `extract_gap_refs` no backend. O
+/// backend continua sendo a autoridade: sem esse mapa, um `sistema.evento.*`
+/// aninhado só aparece na recusa da geração, não no aviso preventivo.
+Set<String> extrairRefsDeVariaveis(
+  Map<String, dynamic> documento, [
+  Map<String, Map<String, dynamic>>? docsPorRef,
+]) {
   final refs = <String>{};
-  _percorrer(documento['content'], (tipo, attrs) {
-    if (!_tiposVariavel.contains(tipo)) return;
-    final ref = attrs['ref'];
-    if (ref is String && ref.isNotEmpty) refs.add(ref);
-  });
+  final visitados = <String>{};
+
+  void percorrer(Object? conteudo) {
+    _percorrer(conteudo, (tipo, attrs) {
+      if (!_tiposVariavel.contains(tipo)) return;
+      final ref = attrs['ref'];
+      if (ref is! String || ref.isEmpty) return;
+      refs.add(ref);
+      if (docsPorRef != null && visitados.add(ref)) {
+        final doc = docsPorRef[ref];
+        if (doc != null) percorrer(doc['content']);
+      }
+    });
+  }
+
+  percorrer(documento['content']);
   return refs;
 }
 
@@ -69,7 +89,8 @@ NivelAplicacao? nivelExigidoPorRefs(
   for (final ref in refs) {
     final nivel = ehReferenciaDeSistema(ref)
         ? NivelAplicacao.porValorApiOuNulo(nivelDaReferenciaDeSistema(ref))
-        : nivelPorReferencia[ref];
+        : nivelPorReferencia[ref] ??
+              nivelPorReferencia[semPrefixoEscopo(ref)];
     if (nivel == null) continue;
     if (maisProfundo == null || nivel.ordem > maisProfundo.ordem) {
       maisProfundo = nivel;
@@ -80,6 +101,25 @@ NivelAplicacao? nivelExigidoPorRefs(
 
 bool ehReferenciaDeSistema(String referencia) =>
     referencia.startsWith(prefixoSistema);
+
+/// Prefixos de desambiguação de escopo que o backend acrescenta/remove conforme
+/// o nível de onde a variável é vista (`programa.texto_padrao` visto de um
+/// projeto, `texto_padrao` visto do próprio programa). Espelha o que
+/// `build_variables_context` grava no contexto (chave crua + prefixada + sem
+/// prefixo) e o que `GET /templates/variaveis-disponiveis/` devolve.
+const Set<String> _prefixosEscopo = {'cliente.', 'programa.', 'projeto.'};
+
+/// Remove um prefixo de escopo de [referencia], se houver. Não mexe em
+/// `sistema.*`.
+String semPrefixoEscopo(String referencia) {
+  if (ehReferenciaDeSistema(referencia)) return referencia;
+  for (final prefixo in _prefixosEscopo) {
+    if (referencia.startsWith(prefixo)) {
+      return referencia.substring(prefixo.length);
+    }
+  }
+  return referencia;
+}
 
 /// `sistema.projeto.parceira` → `projeto`.
 String nivelDaReferenciaDeSistema(String referencia) {

@@ -1,10 +1,12 @@
 import 'dart:typed_data';
 
 import 'package:gerelat_frontend/aplicacao/hierarquia_escopo.dart';
+import 'package:gerelat_frontend/aplicacao/variaveis_do_escopo.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/base_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/campo_definicao.dart';
 import 'package:gerelat_frontend/dominio/entidades/campo_valor.dart';
 import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
+import 'package:gerelat_frontend/dominio/entidades/variavel_disponivel.dart';
 import 'package:gerelat_frontend/dominio/entidades/opcao_selecao.dart';
 import 'package:gerelat_frontend/dominio/entidades/usuario.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
@@ -46,6 +48,10 @@ class CampoValorViewModel extends BaseViewModel {
   int? _alvoId;
   List<VariavelDoAlvo> _variaveis = [];
 
+  /// Todas as variáveis que podem ser inseridas dentro do valor de uma
+  /// variável de texto rico do alvo atual (`sistema.*` + customizadas visíveis).
+  List<VariavelDisponivel> _variaveisDisponiveis = [];
+
   CampoValorViewModel(this._repositorio);
 
   HierarquiaEscopo get hierarquia => _hierarquia;
@@ -55,6 +61,8 @@ class CampoValorViewModel extends BaseViewModel {
   NivelEscopo? get alvoNivel => NivelEscopo.deAplicacao(_alvo);
   int? get alvoId => _alvoId;
   List<VariavelDoAlvo> get variaveis => List.unmodifiable(_variaveis);
+  List<VariavelDisponivel> get variaveisDisponiveis =>
+      List.unmodifiable(_variaveisDisponiveis);
 
   void definirContexto(int? clienteId, Usuario? usuarioAtual) {
     final mudou = _clienteAtivoId != clienteId || _usuarioAtual != usuarioAtual;
@@ -168,6 +176,16 @@ class CampoValorViewModel extends BaseViewModel {
     final valorPorDefinicao = {
       for (final valor in valores) valor.definicaoId: valor,
     };
+
+    final escopo = NivelEscopo.deAplicacao(alvo);
+    _variaveisDisponiveis = escopo == null
+        ? const []
+        : await carregarVariaveisDoEscopo(
+            _repositorio,
+            _hierarquia,
+            escopo: escopo,
+            escopoId: alvoId,
+          );
 
     return definicoes
         .where((definicao) => definicao.nivelAplicacao == alvo)

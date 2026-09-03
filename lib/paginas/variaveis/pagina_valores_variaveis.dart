@@ -382,6 +382,8 @@ class _CartaoVariavelState extends State<_CartaoVariavel> {
             escopo: widget.viewModel.alvoNivel,
             escopoId: widget.viewModel.alvoId,
             readOnly: !podeEditar,
+            variaveisDisponiveis: widget.viewModel.variaveisDisponiveis,
+            referenciaVariavel: definicao.referencia,
           ),
           if (podeEditar) ...[
             const SizedBox(height: 18),
