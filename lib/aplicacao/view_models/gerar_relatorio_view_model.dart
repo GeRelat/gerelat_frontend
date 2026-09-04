@@ -482,6 +482,25 @@ class GerarRelatorioViewModel extends BaseViewModel {
               .toList()
             ..sort();
 
+      // O cálculo acima só enxerga as refs diretas do template — uma
+      // dependência escondida dentro do valor de uma variável de texto rico
+      // (ex.: um texto de nível Programa que cita uma variável de nível
+      // Projeto) não aparece, porque o cliente não tem o conteúdo da
+      // variável. O backend tem (`scan_required_nivel` desce dentro do
+      // texto rico), então perguntamos a ele e só escalamos o nível exigido
+      // se a resposta for mais profunda do que o que já tínhamos localmente
+      // — nunca o contrário, para não regredir o aviso já calculado.
+      final nivelTransitivo = await _templatesRepositorio.nivelExigidoTemplate(
+        templateId: templateId,
+        clienteId: _clienteId,
+        programaId: _programaId,
+        projetoId: _projetoId,
+      );
+      if (nivelTransitivo != null &&
+          (_nivelExigido == null || nivelTransitivo.ordem > _nivelExigido!.ordem)) {
+        _nivelExigido = nivelTransitivo;
+      }
+
       finalizarCarregamento();
     } catch (erro) {
       definirErro(erro);

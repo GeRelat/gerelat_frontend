@@ -348,6 +348,26 @@ mixin RepositorioTemplatesHttpMixin implements RepositorioTemplates {
   }
 
   @override
+  Future<NivelAplicacao?> nivelExigidoTemplate({
+    required int templateId,
+    int? clienteId,
+    int? programaId,
+    int? projetoId,
+  }) async {
+    final query = _queryEscopo(
+      clienteId: clienteId,
+      programaId: programaId,
+      projetoId: projetoId,
+    );
+    final resposta = await api.obter(
+      '/templates/$templateId/nivel-exigido/$query',
+    );
+    final nivel = resposta['nivel_exigido'];
+    if (nivel is! String) return null;
+    return NivelAplicacao.porValorApiOuNulo(nivel);
+  }
+
+  @override
   Future<List<VariavelDisponivel>> listarVariaveisDisponiveis({
     required NivelEscopo escopo,
     required int escopoId,

@@ -281,6 +281,24 @@ abstract interface class RepositorioTemplates {
     int? projetoId,
     int? eventoId,
   });
+
+  /// Nível mais profundo (cliente/programa/projeto/evento) exigido para
+  /// resolver todos os gaps do `modelo_json` do template dada a cadeia de
+  /// escopo já conhecida — inclusive os usados apenas transitivamente, dentro
+  /// do valor de variáveis de texto rico citadas pelo template (via
+  /// `/templates/<id>/nivel-exigido/`). `null` se nenhum gap depender de uma
+  /// variável ligada a nível.
+  ///
+  /// É o backend rodando `scan_required_nivel` — a mesma varredura que a
+  /// criação do relatório aplica — para que a tela de gerar relatório saiba
+  /// de antemão quais seletores exigir, sem reimplementar a varredura no
+  /// cliente (que não tem acesso ao valor das variáveis de texto rico).
+  Future<NivelAplicacao?> nivelExigidoTemplate({
+    required int templateId,
+    int? clienteId,
+    int? programaId,
+    int? projetoId,
+  });
 }
 
 abstract interface class RepositorioRelatorios {

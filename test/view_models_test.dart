@@ -215,6 +215,36 @@ void main() {
       expect(viewModel.refsNaoContempladas, isEmpty);
     });
 
+    test(
+      'dependência escondida num texto rico escala o nível exigido para o '
+      'que o backend calcular',
+      () async {
+        // O template só cita diretamente "texto_padrao" (nível Programa) —
+        // sem a resposta do backend, o cliente concluiria erroneamente que
+        // nenhum nível abaixo de Programa é exigido.
+        final repositorio = _RepositorioCatalogoFake(
+          modeloTemplate: docComVariavel('var_richtext', 'texto_padrao'),
+          variaveisDisponiveis: const [
+            VariavelDisponivel(
+              referencia: 'texto_padrao',
+              descricao: 'Parágrafo padrão',
+              tipo: TipoCampo.textoRico,
+              nivelAplicacao: NivelAplicacao.programa,
+              origem: OrigemVariavel.customizado,
+            ),
+          ],
+          nivelExigidoBackend: NivelAplicacao.projeto,
+        );
+        final viewModel = GerarRelatorioViewModel(repositorio);
+
+        await viewModel.carregar();
+        await viewModel.selecionarTemplate(4);
+
+        expect(viewModel.nivelExigido, NivelAplicacao.projeto);
+        expect(repositorio.nivelExigidoRecebido?.template, 4);
+      },
+    );
+
     test('bloco manual não conta como variável não contemplada', () async {
       final repositorio = _RepositorioCatalogoFake(
         modeloTemplate: const {
@@ -503,6 +533,13 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   final List<CampoDefinicao> definicoes;
   final List<CampoValor> valores;
 
+  /// Resposta simulada de `GET /templates/<id>/nivel-exigido/` — representa o
+  /// que o backend enxergaria ao descer dentro do valor de variáveis de texto
+  /// rico, que o cliente não tem como calcular sozinho. `null` por padrão
+  /// (sem dependência transitiva), para não afetar os testes que não a
+  /// configuram explicitamente.
+  final NivelAplicacao? nivelExigidoBackend;
+
   _RepositorioCatalogoFake({
     this.modeloTemplate = const {
       'type': 'doc',
@@ -511,6 +548,7 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
     this.variaveisDisponiveis = const [],
     this.definicoes = const [],
     this.valores = const [],
+    this.nivelExigidoBackend,
   });
 
   String? programaCriado;
@@ -522,6 +560,8 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   ({int template, int? evento})? relatorioGerado;
   ({int template, int? cliente, int? programa, int? projeto, int? evento})?
   previsualizacaoRecebida;
+  ({int template, int? cliente, int? programa, int? projeto})?
+  nivelExigidoRecebido;
 
   // Hierarquia mínima e consistente: Cliente 100 > Programa 10 > Projeto 1 >
   // Evento 3. É o que permite aos view models resolverem a cadeia de escopo.
@@ -984,6 +1024,22 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
       evento: eventoId,
     );
     return const {'type': 'doc', 'content': <Map<String, dynamic>>[]};
+  }
+
+  @override
+  Future<NivelAplicacao?> nivelExigidoTemplate({
+    required int templateId,
+    int? clienteId,
+    int? programaId,
+    int? projetoId,
+  }) async {
+    nivelExigidoRecebido = (
+      template: templateId,
+      cliente: clienteId,
+      programa: programaId,
+      projeto: projetoId,
+    );
+    return nivelExigidoBackend;
   }
 
   @override
