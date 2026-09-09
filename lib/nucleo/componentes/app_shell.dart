@@ -16,7 +16,6 @@ enum SecaoApp {
   membros,
   programas,
   variaveis,
-  variaveisValores,
   eventos,
   relatorios,
   templates,
@@ -514,19 +513,11 @@ const _itensMenuPrincipal = <_ItemMenu>[
     secao: SecaoApp.programas,
     rota: '/programas',
   ),
-  // Variáveis têm duas telas por causa da separação entre schema
-  // (`CampoDefinicao`) e valor (`CampoValor`) feita no backend.
   (
     icone: LucideIcons.variable,
     rotulo: 'Variáveis',
     secao: SecaoApp.variaveis,
-    rota: '/variaveis/definicoes',
-  ),
-  (
-    icone: LucideIcons.pencil_ruler,
-    rotulo: 'Valores das variáveis',
-    secao: SecaoApp.variaveisValores,
-    rota: '/variaveis/valores',
+    rota: '/variaveis',
   ),
   (
     icone: LucideIcons.calendar,

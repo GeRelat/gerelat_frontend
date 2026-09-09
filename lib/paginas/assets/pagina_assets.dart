@@ -208,7 +208,7 @@ class _PaginaAssetsState extends State<PaginaAssets> {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: NivelEscopo.values.map((escopo) {
+            children: NivelEscopo.selecionaveis.map((escopo) {
               return ChoiceChip(
                 label: Text(escopo.rotulo),
                 selected: _viewModel.escopo == escopo,

@@ -1421,7 +1421,7 @@ class _ModalAgendamentosState extends State<_ModalAgendamentos> {
                 selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
               ),
               const SizedBox(width: 8),
-              for (final nivel in NivelEscopo.values) ...[
+              for (final nivel in NivelEscopo.selecionaveis) ...[
                 ChoiceChip(
                   label: Text(nivel.rotulo),
                   selected: _filtroNivel == nivel,

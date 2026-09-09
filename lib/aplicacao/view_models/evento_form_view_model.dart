@@ -28,10 +28,10 @@ class EventoFormViewModel extends BaseViewModel {
 
   List<NivelEscopo> get niveisPermitidos {
     final usuario = _usuarioAtual;
-    if (usuario == null) return NivelEscopo.values;
-    if (usuario.isAdminGeRelat) return NivelEscopo.values;
+    if (usuario == null) return NivelEscopo.selecionaveis;
+    if (usuario.isAdminGeRelat) return NivelEscopo.selecionaveis;
     if (_clienteAtivoId != null && usuario.eAdminDoCliente(_clienteAtivoId)) {
-      return NivelEscopo.values;
+      return NivelEscopo.selecionaveis;
     }
 
     final niveis = <NivelEscopo>[];
@@ -55,7 +55,7 @@ class EventoFormViewModel extends BaseViewModel {
       niveis.add(NivelEscopo.projeto);
     }
 
-    return niveis.isEmpty ? NivelEscopo.values : niveis;
+    return niveis.isEmpty ? NivelEscopo.selecionaveis : niveis;
   }
 
   bool temPermissaoNoEscopo(NivelEscopo escopo, int? escopoId) {

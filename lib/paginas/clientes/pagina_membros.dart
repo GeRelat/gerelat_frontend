@@ -89,67 +89,19 @@ class _PaginaMembrosState extends State<PaginaMembros> {
         ),
         if (me?.isAdminGeRelat == true) ...[
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _chipAba(
-                rotulo: 'Membros do Cliente',
-                icone: LucideIcons.users,
-                selecionado: _abaSelecionada == 0,
-                onTap: () => setState(() => _abaSelecionada = 0),
-              ),
-              _chipAba(
+          SeletorAbas(
+            selecionado: _abaSelecionada,
+            aoSelecionar: (i) => setState(() => _abaSelecionada = i),
+            itens: const [
+              (rotulo: 'Membros do Cliente', icone: LucideIcons.users),
+              (
                 rotulo: 'Admins GeRelat (Plataforma)',
                 icone: LucideIcons.shield_check,
-                selecionado: _abaSelecionada == 1,
-                onTap: () => setState(() => _abaSelecionada = 1),
               ),
             ],
           ),
         ],
       ],
-    );
-  }
-
-  Widget _chipAba({
-    required String rotulo,
-    required IconData icone,
-    required bool selecionado,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: selecionado ? Cores.azulAcao : Cores.fundoSecao,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selecionado ? Cores.azulAcao : Cores.bordaSutil,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icone,
-              size: 16,
-              color: selecionado ? Colors.white : Cores.cinzaEscuro,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              rotulo,
-              style: Tipografia.labelMedium.copyWith(
-                color: selecionado ? Colors.white : Cores.cinzaEscuro,
-                fontWeight: selecionado ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

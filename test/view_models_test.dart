@@ -123,6 +123,8 @@ void main() {
       final viewModel = GerarRelatorioViewModel(repositorio);
 
       await viewModel.carregar();
+      viewModel.selecionarPrograma(10);
+      viewModel.selecionarProjeto(1);
       await viewModel.selecionarTemplate(4);
       final documento = await viewModel.obterDocumentoPreview();
 
@@ -172,6 +174,8 @@ void main() {
       final viewModel = GerarRelatorioViewModel(repositorio);
 
       await viewModel.carregar();
+      viewModel.selecionarPrograma(10);
+      viewModel.selecionarProjeto(1);
       await viewModel.selecionarTemplate(4);
 
       expect(viewModel.nivelExigido, NivelAplicacao.evento);
@@ -193,6 +197,8 @@ void main() {
       final viewModel = GerarRelatorioViewModel(repositorio);
 
       await viewModel.carregar();
+      viewModel.selecionarPrograma(10);
+      viewModel.selecionarProjeto(1);
       await viewModel.selecionarTemplate(4);
 
       expect(viewModel.refsNaoContempladas, ['nao_existe']);
@@ -209,6 +215,8 @@ void main() {
       final viewModel = GerarRelatorioViewModel(repositorio);
 
       await viewModel.carregar();
+      viewModel.selecionarPrograma(10);
+      viewModel.selecionarProjeto(1);
       await viewModel.selecionarTemplate(4);
 
       expect(viewModel.nivelExigido, NivelAplicacao.evento);
@@ -238,6 +246,8 @@ void main() {
         final viewModel = GerarRelatorioViewModel(repositorio);
 
         await viewModel.carregar();
+        viewModel.selecionarPrograma(10);
+        viewModel.selecionarProjeto(1);
         await viewModel.selecionarTemplate(4);
 
         expect(viewModel.nivelExigido, NivelAplicacao.projeto);
@@ -261,6 +271,8 @@ void main() {
       final viewModel = GerarRelatorioViewModel(repositorio);
 
       await viewModel.carregar();
+      viewModel.selecionarPrograma(10);
+      viewModel.selecionarProjeto(1);
       await viewModel.selecionarTemplate(4);
 
       expect(viewModel.refsNaoContempladas, isEmpty);
@@ -370,6 +382,7 @@ void main() {
       expect(viewModel.niveisAplicacaoPermitidos, [
         NivelAplicacao.programa,
         NivelAplicacao.projeto,
+        NivelAplicacao.evento,
       ]);
 
       await viewModel.salvar(

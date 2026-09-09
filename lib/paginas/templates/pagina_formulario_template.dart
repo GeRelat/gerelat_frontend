@@ -238,49 +238,69 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
     );
   }
 
-  /// Nível do template + a instância dona. Em nível cliente ou programa, o
-  /// template vale para todos os projetos descendentes — é o que as seções de
-  /// classes e assinaturas abaixo refletem.
+  /// Abrangência do template: um programa inteiro (vale para todos os projetos
+  /// dele) ou um projeto específico. É o que as seções de classes e assinaturas
+  /// abaixo refletem.
   Widget _campoEscopo() {
+    final vm = _viewModel;
     return _painelSecao(
       children: [
         Text(
-          'Nível do template',
+          'Abrangência do template',
           style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
         ),
         const SizedBox(height: 4),
         Text(
-          'Define a quem o template pertence e quais variáveis ele enxerga: um '
-          'template de cliente pode usar variáveis do cliente e de tudo abaixo '
-          'dele; um de projeto, só as do próprio projeto e seus eventos.',
+          'Escolha se este modelo serve para qualquer projeto de um programa '
+          'ou se é feito para um projeto específico.',
           style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
         ),
         const SizedBox(height: 10),
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: _viewModel.niveisPermitidos.map((nivel) {
-            return ChoiceChip(
-              label: Text(nivel.rotulo),
-              selected: _viewModel.nivel == nivel,
-              onSelected: (_) => _viewModel.selecionarEscopo(nivel, null),
+          children: [
+            if (vm.podeEscolherPrograma)
+              ChoiceChip(
+                label: const Text('Todos os projetos de um programa'),
+                selected: !vm.projetoEspecifico,
+                onSelected: (_) => vm.selecionarAbrangencia(false),
+                selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
+              ),
+            ChoiceChip(
+              label: const Text('Um projeto específico'),
+              selected: vm.projetoEspecifico,
+              onSelected: (_) => vm.selecionarAbrangencia(true),
               selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
-            );
-          }).toList(),
+            ),
+          ],
         ),
         const SizedBox(height: 18),
         CampoSelecao(
-          label: _viewModel.nivel.rotulo,
-          valor: _viewModel.escopoId,
-          itens: _viewModel.opcoesEscopo
+          label: 'Programa',
+          valor: vm.programaSelecionadoId,
+          itens: vm.opcoesPrograma
               .map(
                 (item) =>
                     DropdownMenuItem(value: item.id, child: Text(item.nome)),
               )
               .toList(),
-          onChanged: (value) =>
-              _viewModel.selecionarEscopo(_viewModel.nivel, value),
+          onChanged: (value) => vm.selecionarPrograma(value),
         ),
+        if (vm.projetoEspecifico) ...[
+          const SizedBox(height: 18),
+          CampoSelecao(
+            label: 'Projeto',
+            valor: vm.escopoId,
+            itens: vm.opcoesProjeto
+                .map(
+                  (item) =>
+                      DropdownMenuItem(value: item.id, child: Text(item.nome)),
+                )
+                .toList(),
+            onChanged: (value) => vm.selecionarProjeto(value),
+          ),
+        ],
       ],
     );
   }

@@ -59,10 +59,10 @@ class EventosViewModel extends BaseViewModel {
 
   List<NivelEscopo> get niveisPermitidos {
     final usuario = _usuarioAtual;
-    if (usuario == null) return NivelEscopo.values;
-    if (usuario.isAdminGeRelat) return NivelEscopo.values;
+    if (usuario == null) return NivelEscopo.selecionaveis;
+    if (usuario.isAdminGeRelat) return NivelEscopo.selecionaveis;
     if (_clienteAtivoId != null && usuario.eAdminDoCliente(_clienteAtivoId)) {
-      return NivelEscopo.values;
+      return NivelEscopo.selecionaveis;
     }
     final result = <NivelEscopo>[];
     final temPrograma = usuario.contextosAcesso.programas.any((p) {
@@ -165,7 +165,15 @@ class EventosViewModel extends BaseViewModel {
   }
 
   List<Evento> get eventos {
-    Iterable<Evento> resultado = _eventos;
+    // Eventos de nível cliente (legados) não são mais expostos na interface.
+    Iterable<Evento> resultado = _eventos.where((e) {
+      if (e.escopo == NivelEscopo.cliente) return false;
+      if (e.escopo == null) {
+        final cadeia = _hierarquia.cadeiaDe(NivelAplicacao.evento, e.id);
+        if (cadeia.programaId == null && cadeia.projetoId == null) return false;
+      }
+      return true;
+    });
     final termo = _termoBusca.trim().toLowerCase();
 
     if (_filtroNivel != null) {

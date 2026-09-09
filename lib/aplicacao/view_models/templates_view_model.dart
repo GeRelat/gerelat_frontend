@@ -31,9 +31,9 @@ class TemplatesViewModel extends BaseViewModel {
 
   List<NivelEscopo> get niveisPermitidos {
     final usuario = _usuarioAtual;
-    if (usuario == null) return NivelEscopo.values;
+    if (usuario == null) return NivelEscopo.selecionaveis;
     if (usuario.isAdminGeRelat || usuario.eAdminDoCliente(_clienteAtivoId)) {
-      return const [NivelEscopo.cliente, NivelEscopo.programa, NivelEscopo.projeto];
+      return NivelEscopo.selecionaveis;
     }
 
     final eMembroPrograma = usuario.contextosAcesso.programas.any((p) {
@@ -111,7 +111,10 @@ class TemplatesViewModel extends BaseViewModel {
   String? get mensagemErroAcao => _mensagemErroAcao;
 
   List<TemplateRelatorio> get templates {
-    var lista = _templates;
+    // Templates de nível cliente (legados) não são mais expostos na interface.
+    var lista = _templates
+        .where((t) => t.nivel != NivelEscopo.cliente)
+        .toList();
 
     if (_filtroNivel != null) {
       lista = lista.where((t) => t.nivel == _filtroNivel).toList();

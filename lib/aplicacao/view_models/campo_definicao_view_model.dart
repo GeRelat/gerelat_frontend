@@ -100,9 +100,11 @@ class CampoDefinicaoViewModel extends BaseViewModel {
   Future<void> carregarHierarquia() async {
     iniciarCarregamento();
     try {
+      // Com eventos: a tela unificada de variáveis oferece "um valor por
+      // evento" e precisa listar os eventos do programa.
       _hierarquia = await HierarquiaEscopo.carregar(
         _repositorio,
-        comEventos: false,
+        comEventos: true,
       );
       final opcoes = opcoesEscopo;
       if (opcoes.isNotEmpty &&

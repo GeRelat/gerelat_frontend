@@ -17,6 +17,7 @@ import 'package:gerelat_frontend/paginas/login/pagina_login.dart';
 import 'package:gerelat_frontend/paginas/programas/pagina_equipe_programa.dart';
 import 'package:gerelat_frontend/paginas/programas/pagina_equipe_projeto.dart';
 import 'package:gerelat_frontend/paginas/programas/pagina_formulario_programa.dart';
+import 'package:gerelat_frontend/paginas/programas/pagina_detalhe_programa.dart';
 import 'package:gerelat_frontend/paginas/programas/pagina_formulario_projeto.dart';
 import 'package:gerelat_frontend/paginas/programas/pagina_programas.dart';
 import 'package:gerelat_frontend/paginas/programas/pagina_projetos_programa.dart';
@@ -32,8 +33,7 @@ import 'package:gerelat_frontend/paginas/sucesso_cadastro/pagina_sucesso_cadastr
 import 'package:gerelat_frontend/paginas/templates/pagina_editor_template.dart';
 import 'package:gerelat_frontend/paginas/templates/pagina_formulario_template.dart';
 import 'package:gerelat_frontend/paginas/templates/pagina_templates.dart';
-import 'package:gerelat_frontend/paginas/variaveis/pagina_definicoes_variaveis.dart';
-import 'package:gerelat_frontend/paginas/variaveis/pagina_valores_variaveis.dart';
+import 'package:gerelat_frontend/paginas/variaveis/pagina_variaveis.dart';
 import 'package:go_router/go_router.dart';
 
 /// Faz o parse seguro de um parâmetro numérico de rota (`:id` etc.).
@@ -84,13 +84,13 @@ const _rotasPublicas = <String>[
         ? 'Equipe do Programa'
         : caminho.endsWith('/novo')
         ? 'Novo Programa'
+        : RegExp(r'^/programas/\d+$').hasMatch(caminho)
+        ? 'Programa'
         : 'Gestão de Programas';
     return (secao: SecaoApp.programas, titulo: titulo);
   }
   if (caminho.startsWith('/variaveis')) {
-    return caminho.endsWith('/valores')
-        ? (secao: SecaoApp.variaveisValores, titulo: 'Valores de Variáveis')
-        : (secao: SecaoApp.variaveis, titulo: 'Definições de Variáveis');
+    return (secao: SecaoApp.variaveis, titulo: 'Variáveis');
   }
   if (caminho.startsWith('/projetos')) {
     return (secao: SecaoApp.programas, titulo: 'Equipe da Parceira');
@@ -384,6 +384,22 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
             },
           ),
           GoRoute(
+            path: '/programas/:id',
+            builder: (context, state) {
+              final programaId = _idDaRota(state);
+              if (programaId == null) {
+                return const PaginaNaoEncontrada(rotaDestino: '/programas');
+              }
+              final aba = int.tryParse(state.uri.queryParameters['aba'] ?? '');
+              return PaginaDetalhePrograma(
+                programaId: programaId,
+                repositorioCatalogo: repositorioCatalogo,
+                sessaoViewModel: sessao,
+                abaInicial: aba ?? 0,
+              );
+            },
+          ),
+          GoRoute(
             path: '/programas/:id/projetos',
             builder: (context, state) {
               final programaId = _idDaRota(state);
@@ -417,19 +433,21 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
                 PaginaEquipeProjeto(repositorioCatalogo: repositorioCatalogo),
           ),
           GoRoute(
-            path: '/variaveis/definicoes',
-            builder: (context, state) => PaginaDefinicoesVariaveis(
-              repositorioCatalogo: repositorioCatalogo,
-              sessaoViewModel: sessao,
-            ),
-          ),
-          GoRoute(
-            path: '/variaveis/valores',
-            builder: (context, state) => PaginaValoresVariaveis(
+            path: '/variaveis',
+            builder: (context, state) => PaginaVariaveis(
               repositorioCatalogo: repositorioCatalogo,
               urlBase: urlBase,
               sessaoViewModel: sessao,
             ),
+          ),
+          // Rotas antigas — redirecionam para a tela unificada.
+          GoRoute(
+            path: '/variaveis/definicoes',
+            redirect: (context, state) => '/variaveis',
+          ),
+          GoRoute(
+            path: '/variaveis/valores',
+            redirect: (context, state) => '/variaveis',
           ),
           GoRoute(
             path: '/eventos',

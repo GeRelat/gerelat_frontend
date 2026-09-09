@@ -33,9 +33,9 @@ class RelatoriosViewModel extends BaseViewModel {
 
   List<NivelEscopo> get niveisPermitidos {
     final usuario = _usuarioAtual;
-    if (usuario == null) return NivelEscopo.values;
+    if (usuario == null) return NivelEscopo.selecionaveis;
     if (usuario.isAdminGeRelat || usuario.eAdminDoCliente(_clienteAtivoId)) {
-      return const [NivelEscopo.cliente, NivelEscopo.programa, NivelEscopo.projeto];
+      return NivelEscopo.selecionaveis;
     }
 
     final eMembroPrograma = usuario.contextosAcesso.programas.any((p) {
