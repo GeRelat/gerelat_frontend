@@ -47,7 +47,7 @@ class _DialogoSelecaoAssetState extends State<DialogoSelecaoAsset> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _erro = 'Erro ao carregar imagens da galeria.';
+        _erro = 'Erro ao carregar imagens.';
         _carregando = false;
       });
     }
@@ -95,7 +95,7 @@ class _DialogoSelecaoAssetState extends State<DialogoSelecaoAsset> {
                 const Icon(LucideIcons.image, color: Cores.azulAcao, size: 22),
                 const SizedBox(width: 10),
                 Text(
-                  'Escolher imagem da galeria',
+                  'Escolher imagem',
                   style: Tipografia.titleLarge.copyWith(
                     color: Cores.textoPrincipal,
                   ),

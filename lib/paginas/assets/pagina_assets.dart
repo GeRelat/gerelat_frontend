@@ -201,7 +201,7 @@ class _PaginaAssetsState extends State<PaginaAssets> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Escopo da galeria',
+            'Escopo das imagens',
             style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
           ),
           const SizedBox(height: 10),
@@ -241,7 +241,7 @@ class _PaginaAssetsState extends State<PaginaAssets> {
         _viewModel.podeEditarEscopo(_viewModel.escopo, _viewModel.escopoId);
 
     return CabecalhoPagina(
-      titulo: 'Galeria de imagens',
+      titulo: 'Imagens',
       subtitulo: 'Imagens enviadas para uso em textos de projeto e relatórios.',
       acao: BotaoPrimario(
         texto: 'Enviar Imagem',

@@ -120,7 +120,7 @@ const _rotasPublicas = <String>[
     return (secao: SecaoApp.relatorios, titulo: titulo);
   }
   if (caminho.startsWith('/assets')) {
-    return (secao: SecaoApp.assets, titulo: 'Galeria de Imagens');
+    return (secao: SecaoApp.assets, titulo: 'Imagens');
   }
   if (caminho.startsWith('/configuracoes')) {
     return (secao: SecaoApp.configuracoes, titulo: 'Configurações');
