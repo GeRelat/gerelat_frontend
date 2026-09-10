@@ -645,7 +645,13 @@ class _SideNav extends StatelessWidget {
     return ListenableBuilder(
       listenable: sessao,
       builder: (context, _) {
-        final itensFiltrados = _itensMenuPrincipal;
+        final usuario = sessao.usuarioAtual;
+        final itensFiltrados = _itensMenuPrincipal.where((item) {
+          if (item.secao == SecaoApp.clientes && usuario?.isAdminGeRelat != true) {
+            return false;
+          }
+          return true;
+        }).toList();
 
         return Container(
           width: 256,

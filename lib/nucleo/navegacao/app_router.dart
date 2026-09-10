@@ -281,6 +281,8 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
           ),
           GoRoute(
             path: '/clientes',
+            redirect: (context, state) =>
+                sessao.usuarioAtual?.isAdminGeRelat == true ? null : '/dashboard',
             builder: (context, state) => PaginaClientes(
               repositorioCatalogo: repositorioCatalogo,
               urlBase: urlBase,
@@ -300,6 +302,8 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
           ),
           GoRoute(
             path: '/clientes/novo',
+            redirect: (context, state) =>
+                sessao.usuarioAtual?.isAdminGeRelat == true ? null : '/dashboard',
             builder: (context, state) => PaginaFormularioCliente(
               repositorioCatalogo: repositorioCatalogo,
               urlBase: urlBase,
@@ -308,10 +312,12 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
           ),
           GoRoute(
             path: '/clientes/:id/editar',
+            redirect: (context, state) =>
+                sessao.usuarioAtual?.isAdminGeRelat == true ? null : '/dashboard',
             builder: (context, state) {
               final clienteId = _idDaRota(state);
               if (clienteId == null) {
-                return const PaginaNaoEncontrada(rotaDestino: '/clientes');
+                return const PaginaNaoEncontrada(rotaDestino: '/dashboard');
               }
               return PaginaFormularioCliente(
                 edicao: true,
@@ -556,7 +562,9 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
             path: '/configuracoes',
             builder: (context, state) => PaginaConfiguracoes(
               repositorioAutenticacao: repositorioAutenticacao,
+              repositorioCatalogo: repositorioCatalogo,
               sessaoViewModel: sessao,
+              urlBase: urlBase,
             ),
           ),
         ],
