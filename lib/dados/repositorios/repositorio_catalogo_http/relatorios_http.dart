@@ -15,14 +15,21 @@ mixin RepositorioRelatoriosHttpMixin implements RepositorioRelatorios {
     final relatorios = await api.listar('/relatorios/');
     final eventos = await api.listar('/eventos/');
     final templates = await api.listar('/templates/');
+    final projetos = await api.listar('/projetos/');
 
     final eventoPorId = mapaIdNome(eventos);
     final templatePorId = mapaIdNome(templates);
+    final projetoPorId = mapaIdNome(projetos);
 
     return relatorios.map((relatorio) {
       final idRelatorio = paraInteiro(relatorio['id']) ?? 0;
       final idEvento = paraInteiro(relatorio['evento']);
       final idTemplate = paraInteiro(relatorio['template']);
+      final idProjeto = paraInteiro(relatorio['projeto']);
+      final rawProjetoNome = paraTexto(relatorio['projeto_nome']);
+      final nomeProjeto = rawProjetoNome.isNotEmpty
+          ? rawProjetoNome
+          : (idProjeto != null ? projetoPorId[idProjeto] : null);
       final nome = paraTexto(relatorio['nome']);
       final docJson = relatorio['documento_json'] is Map
           ? Map<String, dynamic>.from(relatorio['documento_json'] as Map)
@@ -31,12 +38,18 @@ mixin RepositorioRelatoriosHttpMixin implements RepositorioRelatorios {
       final dataCriacao = paraTexto(relatorio['data_criacao']);
       final ultimaAtualizacao = paraTexto(relatorio['ultima_atualizacao']);
 
+      final textoEvento = idEvento != null
+          ? (eventoPorId[idEvento] ?? 'Evento #$idEvento')
+          : (nomeProjeto != null ? 'Projeto: $nomeProjeto' : 'Sem evento');
+
       return Relatorio(
         id: idRelatorio,
         eventoId: idEvento,
         templateId: idTemplate,
+        projetoId: idProjeto,
+        projetoNome: nomeProjeto,
         titulo: nome.isEmpty ? 'Relatorio $idRelatorio' : nome,
-        evento: eventoPorId[idEvento] ?? 'Evento nao informado',
+        evento: textoEvento,
         template: templatePorId[idTemplate] ?? 'Template nao informado',
         dataGeracao: _formatarDataTexto(dataCriacao),
         status: paraTexto(relatorio['status'], fallback: 'Pendente'),

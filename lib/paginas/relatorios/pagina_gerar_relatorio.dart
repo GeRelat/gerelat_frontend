@@ -14,11 +14,17 @@ import 'package:go_router/go_router.dart';
 class PaginaGerarRelatorio extends StatefulWidget {
   final RepositorioCatalogo repositorioCatalogo;
   final SessaoViewModel sessaoViewModel;
+  final int? templateIdInicial;
+  final int? programaIdInicial;
+  final int? projetoIdInicial;
 
   const PaginaGerarRelatorio({
     super.key,
     required this.repositorioCatalogo,
     required this.sessaoViewModel,
+    this.templateIdInicial,
+    this.programaIdInicial,
+    this.projetoIdInicial,
   });
 
   @override
@@ -40,7 +46,48 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
       widget.sessaoViewModel.usuarioAtual,
     );
     widget.sessaoViewModel.addListener(_aoMudarSessao);
-    _viewModel.carregar();
+    _inicializar();
+  }
+
+  Future<void> _inicializar() async {
+    await _viewModel.carregar();
+    if (!mounted) return;
+
+    if (widget.programaIdInicial != null) {
+      _viewModel.selecionarPrograma(widget.programaIdInicial);
+    }
+    if (widget.projetoIdInicial != null) {
+      _viewModel.selecionarProjeto(widget.projetoIdInicial);
+    }
+    if (widget.templateIdInicial != null) {
+      final t = _viewModel.templates
+          .where((item) => item.id == widget.templateIdInicial)
+          .firstOrNull;
+      if (t != null) {
+        if (_viewModel.programaSelecionadoId == null) {
+          if (t.nivel == NivelEscopo.programa) {
+            _viewModel.selecionarPrograma(t.programaId);
+          } else if (t.nivel == NivelEscopo.projeto && t.projetoId != null) {
+            final progId = _viewModel.hierarquia
+                .cadeiaDe(NivelAplicacao.projeto, t.projetoId)
+                .programaId;
+            if (progId != null) {
+              _viewModel.selecionarPrograma(progId);
+            }
+            _viewModel.selecionarProjeto(t.projetoId);
+          }
+        } else if (_viewModel.projetoSelecionadoId == null &&
+            t.nivel == NivelEscopo.projeto &&
+            t.projetoId != null) {
+          _viewModel.selecionarProjeto(t.projetoId);
+        }
+      }
+
+      if (_viewModel.projetoSelecionadoId != null) {
+        setState(() => _templateId = widget.templateIdInicial);
+        await _viewModel.selecionarTemplate(widget.templateIdInicial);
+      }
+    }
   }
 
   void _aoMudarSessao() {

@@ -92,3 +92,24 @@ Future<Map<String, dynamic>> aguardarTaskConcluir(
 
   throw Exception('Tempo limite excedido aguardando a criação do template.');
 }
+
+String formatarDataTexto(String valor) {
+  if (valor.isEmpty) return 'Data não informada';
+  final data = DateTime.tryParse(valor);
+  if (data == null) return valor;
+  final dia = data.day.toString().padLeft(2, '0');
+  final mes = data.month.toString().padLeft(2, '0');
+  return '$dia/$mes/${data.year}';
+}
+
+String formatarDataHoraTexto(String valor) {
+  if (valor.isEmpty) return 'Data não informada';
+  final data = DateTime.tryParse(valor)?.toLocal();
+  if (data == null) return valor;
+  final dia = data.day.toString().padLeft(2, '0');
+  final mes = data.month.toString().padLeft(2, '0');
+  final ano = data.year;
+  final hora = data.hour.toString().padLeft(2, '0');
+  final minuto = data.minute.toString().padLeft(2, '0');
+  return '$dia/$mes/$ano às $hora:$minuto';
+}

@@ -42,21 +42,17 @@ class TemplatesViewModel extends BaseViewModel {
       return cId == _clienteAtivoId;
     });
 
-    if (eMembroPrograma) {
-      return const [NivelEscopo.programa, NivelEscopo.projeto];
-    }
-
     final eMembroProjeto = usuario.contextosAcesso.projetos.any((p) {
       if (_clienteAtivoId == null) return true;
       final cId = int.tryParse('${p['cliente_id']}');
       return cId == _clienteAtivoId;
     });
 
-    if (eMembroProjeto) {
-      return const [NivelEscopo.projeto];
+    if (eMembroPrograma || eMembroProjeto) {
+      return const [NivelEscopo.programa, NivelEscopo.projeto];
     }
 
-    return const [NivelEscopo.projeto];
+    return NivelEscopo.selecionaveis;
   }
 
   List<OpcaoSelecao> get opcoesFiltroEscopo {
@@ -102,6 +98,43 @@ class TemplatesViewModel extends BaseViewModel {
   String donoDoTemplate(TemplateRelatorio template) =>
       _hierarquia.nomeDeEscopo(template.nivel, template.escopoId);
 
+  /// Verifica se o usuário autenticado tem permissão para editar metadados ou
+  /// conteúdo ProseMirror do template. Membros de projetos podem visualizar e
+  /// gerar relatórios a partir de templates de programa, mas não podem editá-los.
+  bool podeEditarTemplate(TemplateRelatorio template) {
+    final usuario = _usuarioAtual;
+    if (usuario == null) return false;
+    if (usuario.isAdminGeRelat) return true;
+    if (usuario.eAdminDoCliente(_clienteAtivoId)) return true;
+
+    if (template.nivel == NivelEscopo.programa) {
+      return usuario.contextosAcesso.programas.any((p) {
+        final progId = int.tryParse('${p['id']}');
+        return progId == template.programaId;
+      });
+    }
+
+    if (template.nivel == NivelEscopo.projeto) {
+      final eMembroDoProgramaPai = usuario.contextosAcesso.programas.any((p) {
+        final progId = int.tryParse('${p['id']}');
+        final c = _hierarquia.cadeiaDe(NivelAplicacao.projeto, template.projetoId);
+        return progId == c.programaId;
+      });
+      if (eMembroDoProgramaPai) return true;
+
+      return usuario.contextosAcesso.projetos.any((p) {
+        final projId = int.tryParse('${p['id']}');
+        return projId == template.projetoId;
+      });
+    }
+
+    return false;
+  }
+
+  /// Exclusão segue as mesmas permissões de edição.
+  bool podeExcluirTemplate(TemplateRelatorio template) =>
+      podeEditarTemplate(template);
+
   // Erro de uma ação pontual (excluir/baixar um item), separado de
   // `mensagemErro` — que é reservado para falha da carga da lista. Antes,
   // excluir/baixar reaproveitava `iniciarCarregamento`/`definirErro`, o que
@@ -136,11 +169,10 @@ class TemplatesViewModel extends BaseViewModel {
   }
 
   /// Verifica se o termo buscado aparece em algum dos campos identificáveis
-  /// do template (nome, descrição, arquivo base).
+  /// do template (nome ou descrição).
   bool _correspondeABusca(TemplateRelatorio template, String termo) {
     return template.nome.toLowerCase().contains(termo) ||
-        template.descricao.toLowerCase().contains(termo) ||
-        template.arquivoBase.toLowerCase().contains(termo);
+        template.descricao.toLowerCase().contains(termo);
   }
 
   Future<void> carregar() async {

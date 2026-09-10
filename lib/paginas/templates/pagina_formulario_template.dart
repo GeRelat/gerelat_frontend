@@ -55,9 +55,6 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
         final template = _viewModel.template;
         if (!mounted || template == null) return;
         _nome.text = template.nome;
-        _nomeArquivo = template.arquivoBase.isEmpty
-            ? null
-            : template.arquivoBase;
         setState(() {});
       });
     } else {

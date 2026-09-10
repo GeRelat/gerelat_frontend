@@ -13,7 +13,9 @@ class TemplateRelatorio {
   final String descricao;
   final String tipo;
   final String status;
-  final String arquivoBase;
+  final String dataCriacao;
+  final String ultimaAtualizacao;
+  final Map<String, dynamic>? modeloJson;
 
   const TemplateRelatorio({
     this.id,
@@ -25,7 +27,9 @@ class TemplateRelatorio {
     required this.descricao,
     required this.tipo,
     required this.status,
-    this.arquivoBase = '',
+    this.dataCriacao = '',
+    this.ultimaAtualizacao = '',
+    this.modeloJson,
   });
 
   /// Id da entidade dona do template, coerente com [nivel].

@@ -26,7 +26,13 @@ mixin RepositorioTemplatesHttpMixin implements RepositorioTemplates {
   }
 
   TemplateRelatorio _templateDeMapa(Map<String, dynamic> template) {
-    final arquivo = paraTexto(template['modelo_arquivo_base']);
+    final dataCriacao = paraTexto(template['data_criacao']);
+    final ultimaAtualizacao = paraTexto(template['ultima_atualizacao']);
+    final modelo = template['modelo_json'];
+    final modeloJson = modelo is Map && modelo.isNotEmpty
+        ? Map<String, dynamic>.from(modelo)
+        : null;
+
     return TemplateRelatorio(
       id: paraInteiro(template['id']),
       nivel: NivelEscopo.porValorApi(paraTexto(template['nivel'])),
@@ -34,12 +40,14 @@ mixin RepositorioTemplatesHttpMixin implements RepositorioTemplates {
       programaId: paraInteiro(template['programa']),
       projetoId: paraInteiro(template['projeto']),
       nome: paraTexto(template['nome'], fallback: 'Template sem nome'),
-      descricao: arquivo.isEmpty
-          ? 'Template disponível para geração de relatórios.'
-          : 'Arquivo base: $arquivo',
+      descricao: 'Template disponível para geração de relatórios.',
       tipo: 'DOCX',
       status: 'Ativo',
-      arquivoBase: arquivo,
+      dataCriacao: formatarDataHoraTexto(dataCriacao),
+      ultimaAtualizacao: formatarDataHoraTexto(
+        ultimaAtualizacao.isEmpty ? dataCriacao : ultimaAtualizacao,
+      ),
+      modeloJson: modeloJson,
     );
   }
 

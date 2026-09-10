@@ -518,10 +518,24 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
           ),
           GoRoute(
             path: '/relatorios/gerar',
-            builder: (context, state) => PaginaGerarRelatorio(
-              repositorioCatalogo: repositorioCatalogo,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) {
+              final extra = state.extra;
+              int? templateId;
+              int? programaId;
+              int? projetoId;
+              if (extra is Map<String, dynamic>) {
+                templateId = extra['templateId'] as int?;
+                programaId = extra['programaId'] as int?;
+                projetoId = extra['projetoId'] as int?;
+              }
+              return PaginaGerarRelatorio(
+                repositorioCatalogo: repositorioCatalogo,
+                sessaoViewModel: sessao,
+                templateIdInicial: templateId,
+                programaIdInicial: programaId,
+                projetoIdInicial: projetoId,
+              );
+            },
           ),
           GoRoute(
             path: '/relatorios/agendar',

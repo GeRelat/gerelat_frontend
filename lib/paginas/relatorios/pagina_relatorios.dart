@@ -718,8 +718,12 @@ class __ModalDetalhesRelatorioState extends State<_ModalDetalhesRelatorio> {
                                   ? (constraints.maxWidth - 16) / 2
                                   : constraints.maxWidth,
                               child: _blocoInfo(
-                                icone: LucideIcons.calendar,
-                                rotulo: 'Evento',
+                                icone: relatorio.eventoId != null
+                                    ? LucideIcons.calendar
+                                    : LucideIcons.briefcase,
+                                rotulo: relatorio.eventoId != null
+                                    ? 'Evento'
+                                    : 'Projeto',
                                 valor: relatorio.evento,
                               ),
                             ),

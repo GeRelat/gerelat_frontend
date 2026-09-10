@@ -8,6 +8,7 @@ import 'package:gerelat_frontend/aplicacao/view_models/evento_form_view_model.da
 import 'package:gerelat_frontend/aplicacao/view_models/gerar_relatorio_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/login_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/programa_form_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/templates_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/agendamento_relatorio.dart';
 import 'package:gerelat_frontend/dominio/entidades/asset.dart';
 import 'package:gerelat_frontend/dominio/entidades/assinatura_template.dart';
@@ -464,6 +465,68 @@ void main() {
 
     test('sem refs conhecidas, nenhum nível é exigido', () {
       expect(nivelExigidoPorRefs(const ['desconhecida'], const {}), isNull);
+    });
+  });
+
+  group('TemplatesViewModel - permissões e escopo', () {
+    test('membro de projeto pode ver templates de programa e projeto em niveisPermitidos', () {
+      final catalogo = _RepositorioCatalogoFake();
+      final viewModel = TemplatesViewModel(catalogo);
+      final usuario = Usuario(
+        id: 10,
+        nomeCompleto: 'Membro Projeto',
+        email: 'membro@proj.com',
+        contextosAcesso: const ContextosAcesso(
+          projetos: [
+            {'id': 1, 'nome': 'Projeto 1', 'cliente_id': 1}
+          ],
+        ),
+      );
+
+      viewModel.definirContexto(1, usuario);
+      expect(viewModel.niveisPermitidos, [NivelEscopo.programa, NivelEscopo.projeto]);
+    });
+
+    test('membro de projeto pode editar templates de seu projeto mas não de programa', () {
+      final catalogo = _RepositorioCatalogoFake();
+      final viewModel = TemplatesViewModel(catalogo);
+      final usuario = Usuario(
+        id: 10,
+        nomeCompleto: 'Membro Projeto',
+        email: 'membro@proj.com',
+        contextosAcesso: const ContextosAcesso(
+          projetos: [
+            {'id': 1, 'nome': 'Projeto 1', 'cliente_id': 1}
+          ],
+        ),
+      );
+
+      viewModel.definirContexto(1, usuario);
+
+      const templatePrograma = TemplateRelatorio(
+        id: 1,
+        nivel: NivelEscopo.programa,
+        programaId: 1,
+        nome: 'Template Programa',
+        descricao: '',
+        tipo: 'DOCX',
+        status: 'Ativo',
+      );
+
+      const templateProjeto = TemplateRelatorio(
+        id: 2,
+        nivel: NivelEscopo.projeto,
+        projetoId: 1,
+        nome: 'Template Projeto',
+        descricao: '',
+        tipo: 'DOCX',
+        status: 'Ativo',
+      );
+
+      expect(viewModel.podeEditarTemplate(templatePrograma), isFalse);
+      expect(viewModel.podeExcluirTemplate(templatePrograma), isFalse);
+      expect(viewModel.podeEditarTemplate(templateProjeto), isTrue);
+      expect(viewModel.podeExcluirTemplate(templateProjeto), isTrue);
     });
   });
 }
