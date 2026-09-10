@@ -8,6 +8,7 @@ import 'package:gerelat_frontend/aplicacao/view_models/evento_form_view_model.da
 import 'package:gerelat_frontend/aplicacao/view_models/gerar_relatorio_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/login_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/programa_form_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/relatorios_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/templates_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/agendamento_relatorio.dart';
 import 'package:gerelat_frontend/dominio/entidades/asset.dart';
@@ -529,6 +530,73 @@ void main() {
       expect(viewModel.podeExcluirTemplate(templateProjeto), isTrue);
     });
   });
+
+  group('relatórios', () {
+    test('RelatoriosViewModel filtra por todos, programa e projeto', () async {
+      final rel1 = Relatorio(
+        id: 1,
+        projetoId: 1, // Projeto 1 pertence ao Programa 10, Cliente 100
+        projetoNome: 'Projeto Alfa',
+        titulo: 'Relatório Alfa',
+        evento: 'Sem evento',
+        template: 'Template 1',
+        dataGeracao: '10/09/2026',
+        status: 'Concluído',
+      );
+      final rel2 = Relatorio(
+        id: 2,
+        projetoId: 2, // Projeto 2 pertence ao Programa 20 (outro programa), Cliente 100
+        projetoNome: 'Projeto Beta',
+        titulo: 'Relatório Beta',
+        evento: 'Sem evento',
+        template: 'Template 2',
+        dataGeracao: '10/09/2026',
+        status: 'Concluído',
+      );
+
+      final catalogo = _RepositorioCatalogoFake(
+        relatorios: [rel1, rel2],
+        projetosDetalhados: const [
+          Projeto(id: 1, nome: 'Projeto Alfa', programaId: 10),
+          Projeto(id: 2, nome: 'Projeto Beta', programaId: 20),
+        ],
+        programas: const [
+          Programa(id: 10, nome: 'Programa 10', clienteId: 100, descricao: '', status: 'Ativo', projetos: 1, eventos: 0),
+          Programa(id: 20, nome: 'Programa 20', clienteId: 100, descricao: '', status: 'Ativo', projetos: 1, eventos: 0),
+        ],
+      );
+
+      final viewModel = RelatoriosViewModel(catalogo);
+      viewModel.definirContexto(100, null);
+      await viewModel.carregar();
+
+      // "Todos": traz rel1 e rel2
+      expect(viewModel.relatorios.length, 2);
+
+      // Filtro por Programa 10: traz apenas rel1 (projeto alfa)
+      viewModel.definirFiltroNivel(NivelEscopo.programa);
+      viewModel.definirFiltroEscopoId(10);
+      expect(viewModel.relatorios.length, 1);
+      expect(viewModel.relatorios.first.id, 1);
+
+      // Filtro por Programa 20: traz apenas rel2 (projeto beta)
+      viewModel.definirFiltroEscopoId(20);
+      expect(viewModel.relatorios.length, 1);
+      expect(viewModel.relatorios.first.id, 2);
+
+      // Filtro por Projeto 1: traz rel1
+      viewModel.definirFiltroNivel(NivelEscopo.projeto);
+      viewModel.definirFiltroEscopoId(1);
+      expect(viewModel.relatorios.length, 1);
+      expect(viewModel.relatorios.first.id, 1);
+
+      // Busca por nome do projeto
+      viewModel.definirFiltroNivel(null);
+      viewModel.definirBusca('Beta');
+      expect(viewModel.relatorios.length, 1);
+      expect(viewModel.relatorios.first.id, 2);
+    });
+  });
 }
 
 class _RepositorioAutenticacaoFake implements RepositorioAutenticacao {
@@ -608,6 +676,9 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   final List<VariavelDisponivel> variaveisDisponiveis;
   final List<CampoDefinicao> definicoes;
   final List<CampoValor> valores;
+  final List<Relatorio> relatorios;
+  final List<Projeto>? projetosDetalhados;
+  final List<Programa>? programas;
 
   /// Resposta simulada de `GET /templates/<id>/nivel-exigido/` — representa o
   /// que o backend enxergaria ao descer dentro do valor de variáveis de texto
@@ -624,6 +695,9 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
     this.variaveisDisponiveis = const [],
     this.definicoes = const [],
     this.valores = const [],
+    this.relatorios = const [],
+    this.projetosDetalhados,
+    this.programas,
     this.nivelExigidoBackend,
   });
 
@@ -876,6 +950,7 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
 
   @override
   Future<List<Projeto>> listarProjetosDetalhados({int? programaId}) async =>
+      projetosDetalhados ??
       const [Projeto(id: 1, programaId: 10, nome: 'Projeto')];
 
   @override
@@ -1241,17 +1316,19 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   ];
 
   @override
-  Future<List<Programa>> listarProgramas() async => const [
-    Programa(
-      id: 10,
-      clienteId: 100,
-      nome: 'Programa',
-      descricao: 'Descrição',
-      projetos: 1,
-      eventos: 1,
-      status: 'Ativo',
-    ),
-  ];
+  Future<List<Programa>> listarProgramas() async =>
+      programas ??
+      const [
+        Programa(
+          id: 10,
+          clienteId: 100,
+          nome: 'Programa',
+          descricao: 'Descrição',
+          projetos: 1,
+          eventos: 1,
+          status: 'Ativo',
+        ),
+      ];
 
   @override
   Future<void> atualizarEvento({
@@ -1273,7 +1350,7 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   Future<void> excluirEvento(int eventoId) async {}
 
   @override
-  Future<List<Relatorio>> listarRelatorios() async => const [];
+  Future<List<Relatorio>> listarRelatorios() async => relatorios;
 
   @override
   Future<ResumoDashboard> obterResumoDashboard({int? clienteId}) async =>

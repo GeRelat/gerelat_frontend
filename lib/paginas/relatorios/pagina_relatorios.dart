@@ -109,7 +109,7 @@ class _PaginaRelatoriosState extends State<PaginaRelatorios> {
         Row(
           children: [
             Text(
-              'Nível:',
+              'Filtrar por:',
               style: Tipografia.bodyMedium.copyWith(
                 color: Cores.cinzaEscuro,
                 fontWeight: FontWeight.w600,
