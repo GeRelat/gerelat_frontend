@@ -138,6 +138,22 @@ class _PaginaDetalheProgramaState extends State<PaginaDetalhePrograma> {
 
   Widget _visaoGeral() {
     final p = _programa;
+    final usuario = widget.sessaoViewModel.usuarioAtual;
+    final clienteAtivoId = widget.sessaoViewModel.clienteAtivoId;
+    final clienteId = (p?.clienteId != null && p!.clienteId! > 0)
+        ? p.clienteId
+        : clienteAtivoId;
+    final eAdminCliente = usuario?.eAdminDoCliente(clienteId) ?? false;
+    final eMembroDoPrograma =
+        usuario?.contextosAcesso.programas.any(
+          (item) =>
+              int.tryParse('${item['id']}') == widget.programaId ||
+              int.tryParse('${item['programa_id']}') == widget.programaId,
+        ) ??
+        false;
+
+    final podeEditar = eAdminCliente || eMembroDoPrograma;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(32),
       child: Column(
@@ -171,17 +187,19 @@ class _PaginaDetalheProgramaState extends State<PaginaDetalhePrograma> {
                     _metrica('${p?.eventos ?? 0}', 'Eventos'),
                   ],
                 ),
-                const SizedBox(height: 20),
-                BotaoPrimario(
-                  texto: 'Editar programa',
-                  icone: LucideIcons.pencil,
-                  onPressed: () async {
-                    final alterado = await context.push<bool>(
-                      '/programas/${widget.programaId}/editar',
-                    );
-                    if (alterado == true) _carregar();
-                  },
-                ),
+                if (podeEditar) ...[
+                  const SizedBox(height: 20),
+                  BotaoPrimario(
+                    texto: 'Editar programa',
+                    icone: LucideIcons.pencil,
+                    onPressed: () async {
+                      final alterado = await context.push<bool>(
+                        '/programas/${widget.programaId}/editar',
+                      );
+                      if (alterado == true) _carregar();
+                    },
+                  ),
+                ],
               ],
             ),
           ),

@@ -154,18 +154,31 @@ class _TopAppBar extends StatelessWidget {
           // Material — igual aos demais IconButton do app (ex.: editar/
           // excluir nos cartões de lista), sem o `style` "quadrado" usado
           // pelo botão de menu acima.
-          if (context.canPop())
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: IconButton(
-                tooltip: 'Voltar',
-                onPressed: () {
-                  context.pop();
-                },
-                icon: const Icon(LucideIcons.arrow_left, size: 20),
-                color: Cores.textoPrincipal,
-              ),
-            ),
+          Builder(
+            builder: (context) {
+              bool podeVoltar = false;
+              try {
+                podeVoltar = context.canPop();
+              } catch (_) {
+                podeVoltar = false;
+              }
+              if (!podeVoltar) return const SizedBox.shrink();
+
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: IconButton(
+                  tooltip: 'Voltar',
+                  onPressed: () {
+                    try {
+                      context.pop();
+                    } catch (_) {}
+                  },
+                  icon: const Icon(LucideIcons.arrow_left, size: 20),
+                  color: Cores.textoPrincipal,
+                ),
+              );
+            },
+          ),
 
           Expanded(
             child: Text(

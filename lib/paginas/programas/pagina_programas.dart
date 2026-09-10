@@ -303,10 +303,15 @@ class _CartaoProgramaState extends State<_CartaoPrograma> {
   Widget build(BuildContext context) {
     final usuario = widget.sessaoViewModel.usuarioAtual;
     final clienteAtivoId = widget.sessaoViewModel.clienteAtivoId;
-    final eAdminCliente = usuario?.eAdminDoCliente(clienteAtivoId) ?? false;
+    final clienteId = (widget.programa.clienteId != null && widget.programa.clienteId! > 0)
+        ? widget.programa.clienteId
+        : clienteAtivoId;
+    final eAdminCliente = usuario?.eAdminDoCliente(clienteId) ?? false;
     final eMembroDoPrograma =
         usuario?.contextosAcesso.programas.any(
-          (p) => int.tryParse('${p['id']}') == widget.programa.id,
+          (p) =>
+              int.tryParse('${p['id']}') == widget.programa.id ||
+              int.tryParse('${p['programa_id']}') == widget.programa.id,
         ) ??
         false;
 

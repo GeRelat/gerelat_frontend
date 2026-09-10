@@ -337,6 +337,13 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
           ),
           GoRoute(
             path: '/programas/novo',
+            redirect: (context, state) {
+              final usuario = sessao.usuarioAtual;
+              final clienteAtivoId = sessao.clienteAtivoId;
+              final podeCriar =
+                  usuario?.eAdminDoCliente(clienteAtivoId) ?? false;
+              return podeCriar ? null : '/programas';
+            },
             builder: (context, state) => PaginaFormularioPrograma(
               repositorioCatalogo: repositorioCatalogo,
               urlBase: urlBase,
@@ -345,6 +352,22 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
           ),
           GoRoute(
             path: '/programas/:id/editar',
+            redirect: (context, state) {
+              final programaId = _idDaRota(state);
+              if (programaId == null) return '/programas';
+              final usuario = sessao.usuarioAtual;
+              final clienteAtivoId = sessao.clienteAtivoId;
+              final eAdminCliente =
+                  usuario?.eAdminDoCliente(clienteAtivoId) ?? false;
+              final eMembroDoPrograma = usuario?.contextosAcesso.programas.any(
+                    (p) =>
+                        int.tryParse('${p['id']}') == programaId ||
+                        int.tryParse('${p['programa_id']}') == programaId,
+                  ) ??
+                  false;
+              final podeEditar = eAdminCliente || eMembroDoPrograma;
+              return podeEditar ? null : '/programas/$programaId';
+            },
             builder: (context, state) {
               final programaId = _idDaRota(state);
               if (programaId == null) {

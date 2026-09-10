@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/cliente.dart';
 import 'package:gerelat_frontend/dominio/entidades/opcao_selecao.dart';
+import 'package:gerelat_frontend/dominio/entidades/programa.dart';
 import 'package:gerelat_frontend/dominio/entidades/usuario.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_autenticacao.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/main.dart';
 import 'package:gerelat_frontend/nucleo/componentes/app_shell.dart';
 import 'package:gerelat_frontend/paginas/configuracoes/pagina_configuracoes.dart';
+import 'package:gerelat_frontend/paginas/programas/pagina_detalhe_programa.dart';
 
 class _FakeAuthRepo implements RepositorioAutenticacao {
   Usuario? usuario;
@@ -72,6 +75,7 @@ class _FakeAuthRepo implements RepositorioAutenticacao {
 
 class _FakeCatalogoRepo extends Fake implements RepositorioCatalogo {
   Cliente? clienteRetorno;
+  Programa? programaRetorno;
 
   @override
   Future<Cliente> obterCliente(int clienteId) async {
@@ -87,9 +91,28 @@ class _FakeCatalogoRepo extends Fake implements RepositorioCatalogo {
           dataTerminoContrato: DateTime(2027, 12, 31),
         );
   }
+
+  @override
+  Future<Programa> obterPrograma(int programaId) async {
+    return programaRetorno ??
+        Programa(
+          id: programaId,
+          nome: 'Programa de Teste',
+          descricao: 'Descrição de teste do programa',
+          clienteId: 10,
+          clienteNome: 'Cliente de Teste',
+          projetos: 3,
+          eventos: 5,
+          status: 'ativo',
+        );
+  }
 }
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   testWidgets('exibe tela de login quando nao ha sessao', (tester) async {
     await tester.pumpWidget(const AplicativoGeRelat());
     await tester.pumpAndSettle();
@@ -98,6 +121,11 @@ void main() {
   });
 
   testWidgets('AppShell oculta Clientes para usuario comum e exibe para admin GeRelat', (tester) async {
+    tester.view.physicalSize = const Size(1280, 1024);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     final authRepo = _FakeAuthRepo();
     final sessao = SessaoViewModel(authRepo);
 
@@ -131,7 +159,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(find.text('Clientes'), findsNothing);
     expect(find.text('Programas'), findsOneWidget);
@@ -159,7 +187,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(find.text('Clientes'), findsOneWidget);
   });
@@ -252,5 +280,84 @@ void main() {
     expect(find.text('CT-2026/001'), findsOneWidget);
     expect(find.text('Vigência do Contrato'), findsOneWidget);
     expect(find.text('31/12/2027'), findsOneWidget);
+  });
+
+  testWidgets('PaginaDetalhePrograma oculta botao Editar programa para membro exclusivo de projeto e exibe para membro do programa/admin', (tester) async {
+    final authRepo = _FakeAuthRepo();
+    final catalogoRepo = _FakeCatalogoRepo();
+    final sessao = SessaoViewModel(authRepo);
+
+    // 1. Membro exclusivo de projeto (não é membro do programa nem admin)
+    authRepo.usuario = const Usuario(
+      id: 1,
+      email: 'membro.projeto@teste.com',
+      nomeCompleto: 'Membro Projeto',
+      possuiContextoAcesso: true,
+      contextosAcesso: ContextosAcesso(
+        programas: [],
+        projetos: [
+          {
+            'id': 101,
+            'projeto_id': 101,
+            'projeto_nome': 'Projeto A',
+            'programa_id': 1,
+            'cliente_id': 10,
+          }
+        ],
+      ),
+    );
+    await sessao.inicializar();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PaginaDetalhePrograma(
+            programaId: 1,
+            repositorioCatalogo: catalogoRepo,
+            sessaoViewModel: sessao,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Programa de Teste'), findsOneWidget);
+    expect(find.text('Descrição de teste do programa'), findsOneWidget);
+    // "Editar programa" deve estar oculto
+    expect(find.text('Editar programa'), findsNothing);
+
+    // 2. Membro do programa
+    authRepo.usuario = const Usuario(
+      id: 2,
+      email: 'membro.programa@teste.com',
+      nomeCompleto: 'Membro Programa',
+      possuiContextoAcesso: true,
+      contextosAcesso: ContextosAcesso(
+        programas: [
+          {
+            'id': 1,
+            'programa_id': 1,
+            'programa_nome': 'Programa de Teste',
+            'cliente_id': 10,
+          }
+        ],
+      ),
+    );
+    await sessao.inicializar();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PaginaDetalhePrograma(
+            programaId: 1,
+            repositorioCatalogo: catalogoRepo,
+            sessaoViewModel: sessao,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Editar programa'), findsOneWidget);
   });
 }
