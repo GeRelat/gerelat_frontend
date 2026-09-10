@@ -49,6 +49,8 @@ class _PaginaVariaveisState extends State<PaginaVariaveis> {
   bool _mostrandoForm = false;
   int? _editandoId;
   int? _expandidaId;
+  NivelEscopo _escopoCriacao = NivelEscopo.programa;
+  int? _projetoCriacaoId;
   TipoCampo _tipo = TipoCampo.texto;
   NivelAplicacao _aplicacao = NivelAplicacao.programa;
   bool _obrigatorio = false;
@@ -123,8 +125,16 @@ class _PaginaVariaveisState extends State<PaginaVariaveis> {
     await _carregarVariaveisDisponiveis();
   }
 
+  String _nomeDoProjeto(int? projetoId) {
+    if (projetoId == null) return '';
+    final projeto = _viewModel.hierarquia.projetoPorId(projetoId);
+    return projeto?.nome ?? 'Projeto #$projetoId';
+  }
+
   void _limparForm() {
     _editandoId = null;
+    _escopoCriacao = NivelEscopo.programa;
+    _projetoCriacaoId = null;
     _tipo = TipoCampo.texto;
     _aplicacao = NivelAplicacao.programa;
     _obrigatorio = false;
@@ -133,8 +143,22 @@ class _PaginaVariaveisState extends State<PaginaVariaveis> {
   }
 
   void _iniciarNova() {
+    final programaId = _viewModel.escopoId;
+    final podeNoPrograma = _viewModel.podeCriarNoPrograma(programaId);
+    final projetosPermitidos = _viewModel.projetosPermitidosParaCriar(programaId);
+
     setState(() {
       _limparForm();
+      if (podeNoPrograma) {
+        _escopoCriacao = NivelEscopo.programa;
+        _aplicacao = NivelAplicacao.programa;
+        _projetoCriacaoId =
+            projetosPermitidos.isNotEmpty ? projetosPermitidos.first.id : null;
+      } else if (projetosPermitidos.isNotEmpty) {
+        _escopoCriacao = NivelEscopo.projeto;
+        _aplicacao = NivelAplicacao.projeto;
+        _projetoCriacaoId = projetosPermitidos.first.id;
+      }
       _mostrandoForm = true;
     });
   }
@@ -142,6 +166,8 @@ class _PaginaVariaveisState extends State<PaginaVariaveis> {
   void _iniciarEdicao(CampoDefinicao definicao) {
     setState(() {
       _editandoId = definicao.id;
+      _escopoCriacao = definicao.nivelEscopo;
+      _projetoCriacaoId = definicao.projetoId;
       _tipo = definicao.tipo;
       _aplicacao = definicao.nivelAplicacao;
       _obrigatorio = definicao.obrigatorio;
@@ -153,8 +179,24 @@ class _PaginaVariaveisState extends State<PaginaVariaveis> {
 
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
+    final programaId = _viewModel.escopoId;
+    final escopoId = _escopoCriacao == NivelEscopo.programa
+        ? programaId
+        : _projetoCriacaoId;
+
+    if (escopoId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecione o projeto para criar a variável.'),
+        ),
+      );
+      return;
+    }
+
     final sucesso = await _viewModel.salvar(
       definicaoId: _editandoId,
+      escopo: _escopoCriacao,
+      escopoId: escopoId,
       nivelAplicacao: _aplicacao,
       referencia: _referencia.text.trim(),
       descricao: _descricao.text.trim(),
@@ -216,7 +258,8 @@ class _PaginaVariaveisState extends State<PaginaVariaveis> {
               if (_viewModel.escopoId == null)
                 _avisoSemPrograma()
               else ...[
-                if (_viewModel.podeEditar && !_mostrandoForm) ...[
+                if (_viewModel.podeCriarVariavel(_viewModel.escopoId) &&
+                    !_mostrandoForm) ...[
                   Align(
                     alignment: Alignment.centerLeft,
                     child: BotaoPrimario(
@@ -248,10 +291,10 @@ class _PaginaVariaveisState extends State<PaginaVariaveis> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Cada variável tem uma referência (ex: objetivo_evento) usada nos '
+            'Cada variável tem uma referência (ex: objetivo_projeto) usada nos '
             'templates. Escolha o programa, crie a variável e defina o valor '
-            'dela aqui mesmo — um valor fixo para o programa inteiro, um por '
-            'projeto ou um por evento.',
+            'dela aqui mesmo — um valor fixo para o programa inteiro ou um por '
+            'projeto.',
             style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
           ),
         ],
@@ -293,6 +336,14 @@ class _PaginaVariaveisState extends State<PaginaVariaveis> {
   }
 
   Widget _formulario() {
+    final programaId = _viewModel.escopoId;
+    final podeNoPrograma = _viewModel.podeCriarNoPrograma(programaId);
+    final projetosPermitidos =
+        _viewModel.projetosPermitidosParaCriar(programaId);
+    final todosProjetos = _viewModel.projetosDoPrograma(programaId);
+    final projetosDropdown =
+        _editandoId != null ? todosProjetos : projetosPermitidos;
+
     return CartaoConteudo(
       child: Form(
         key: _formKey,
@@ -310,11 +361,15 @@ class _PaginaVariaveisState extends State<PaginaVariaveis> {
                 Expanded(
                   child: CampoFormulario(
                     label: 'Referência',
-                    hint: 'Ex: objetivo_evento',
+                    hint: 'Ex: objetivo_projeto',
                     icone: LucideIcons.tags,
                     controller: _referencia,
                     validator: (valor) => _viewModel.validarReferencia(
                       valor ?? '',
+                      escopo: _escopoCriacao,
+                      escopoId: _escopoCriacao == NivelEscopo.programa
+                          ? _viewModel.escopoId
+                          : _projetoCriacaoId,
                       ignorandoDefinicaoId: _editandoId,
                     ),
                   ),
@@ -323,7 +378,7 @@ class _PaginaVariaveisState extends State<PaginaVariaveis> {
                 Expanded(
                   child: CampoFormulario(
                     label: 'Descrição',
-                    hint: 'Ex: Objetivo do evento',
+                    hint: 'Ex: Objetivo do projeto',
                     icone: LucideIcons.file_text,
                     controller: _descricao,
                     validator: (valor) =>
@@ -359,21 +414,94 @@ class _PaginaVariaveisState extends State<PaginaVariaveis> {
             const SizedBox(height: 18),
             Text(
               'Esta variável tem:',
-              style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
+              style: Tipografia.labelLarge.copyWith(
+                color: Cores.textoPrincipal,
+              ),
             ),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                _chipAplicacao(NivelAplicacao.programa,
-                    'Um valor fixo para todo o programa'),
-                _chipAplicacao(
-                    NivelAplicacao.projeto, 'Um valor para cada projeto'),
-                _chipAplicacao(
-                    NivelAplicacao.evento, 'Um valor para cada evento'),
+                if (podeNoPrograma ||
+                    (_editandoId != null &&
+                        _escopoCriacao == NivelEscopo.programa &&
+                        _aplicacao == NivelAplicacao.programa))
+                  ChoiceChip(
+                    label: const Text('Um valor fixo para todo o programa'),
+                    selected: _escopoCriacao == NivelEscopo.programa &&
+                        _aplicacao == NivelAplicacao.programa,
+                    onSelected: _editandoId != null
+                        ? null
+                        : (_) {
+                            setState(() {
+                              _escopoCriacao = NivelEscopo.programa;
+                              _aplicacao = NivelAplicacao.programa;
+                            });
+                          },
+                    selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
+                  ),
+                if (podeNoPrograma ||
+                    (_editandoId != null &&
+                        _escopoCriacao == NivelEscopo.programa &&
+                        _aplicacao == NivelAplicacao.projeto))
+                  ChoiceChip(
+                    label: const Text('Um valor para cada projeto'),
+                    selected: _escopoCriacao == NivelEscopo.programa &&
+                        _aplicacao == NivelAplicacao.projeto,
+                    onSelected: _editandoId != null
+                        ? null
+                        : (_) {
+                            setState(() {
+                              _escopoCriacao = NivelEscopo.programa;
+                              _aplicacao = NivelAplicacao.projeto;
+                            });
+                          },
+                    selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
+                  ),
+                if (projetosPermitidos.isNotEmpty ||
+                    (_editandoId != null &&
+                        _escopoCriacao == NivelEscopo.projeto))
+                  ChoiceChip(
+                    label: const Text('Um valor para um projeto específico'),
+                    selected: _escopoCriacao == NivelEscopo.projeto,
+                    onSelected: _editandoId != null
+                        ? null
+                        : (_) {
+                            setState(() {
+                              _escopoCriacao = NivelEscopo.projeto;
+                              _aplicacao = NivelAplicacao.projeto;
+                              if (_projetoCriacaoId == null &&
+                                  projetosDropdown.isNotEmpty) {
+                                _projetoCriacaoId = projetosDropdown.first.id;
+                              }
+                            });
+                          },
+                    selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
+                  ),
               ],
             ),
+            if (_escopoCriacao == NivelEscopo.projeto) ...[
+              const SizedBox(height: 14),
+              SizedBox(
+                width: 320,
+                child: CampoSelecao(
+                  label: 'Projeto',
+                  valor: _projetoCriacaoId,
+                  itens: projetosDropdown
+                      .map(
+                        (p) => DropdownMenuItem(
+                          value: p.id,
+                          child: Text(p.nome),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: _editandoId != null
+                      ? null
+                      : (id) => setState(() => _projetoCriacaoId = id),
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             Text(
               _explicacaoAplicacao(),
@@ -428,25 +556,19 @@ class _PaginaVariaveisState extends State<PaginaVariaveis> {
     );
   }
 
-  Widget _chipAplicacao(NivelAplicacao nivel, String rotulo) {
-    return ChoiceChip(
-      label: Text(rotulo),
-      selected: _aplicacao == nivel,
-      onSelected: (_) => setState(() => _aplicacao = nivel),
-      selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
-    );
-  }
 
   String _explicacaoAplicacao() {
+    if (_escopoCriacao == NivelEscopo.projeto) {
+      final nomeProj = _nomeDoProjeto(_projetoCriacaoId);
+      return 'Esta variável existirá e terá valor exclusivo no projeto "$nomeProj".';
+    }
     final programa = _viewModel.nomeEscopoSelecionado;
     return switch (_aplicacao) {
       NivelAplicacao.programa =>
-        'Um único valor, usado em qualquer projeto ou evento de "$programa".',
+        'Um único valor, usado em qualquer projeto de "$programa".',
       NivelAplicacao.projeto =>
         'Cada projeto de "$programa" terá seu próprio valor.',
-      NivelAplicacao.evento =>
-        'Cada evento de "$programa" terá seu próprio valor.',
-      NivelAplicacao.cliente => '',
+      _ => '',
     };
   }
 
@@ -461,7 +583,9 @@ class _PaginaVariaveisState extends State<PaginaVariaveis> {
         descricao:
             'Crie a primeira variável de "${_viewModel.nomeEscopoSelecionado}".',
         acao: 'Nova variável',
-        onAcao: _viewModel.podeEditar ? _iniciarNova : null,
+        onAcao: _viewModel.podeCriarVariavel(_viewModel.escopoId)
+            ? _iniciarNova
+            : null,
       );
     }
     return Column(
@@ -477,7 +601,7 @@ class _PaginaVariaveisState extends State<PaginaVariaveis> {
 
   Widget _linhaVariavel(CampoDefinicao definicao) {
     final expandida = _expandidaId == definicao.id;
-    final podeEditar = _viewModel.podeEditar;
+    final podeEditar = _viewModel.podeEditarDefinicao(definicao);
     return CartaoConteudo(
       padding: EdgeInsets.zero,
       child: Column(
@@ -521,7 +645,10 @@ class _PaginaVariaveisState extends State<PaginaVariaveis> {
                   ),
                   _etiqueta(definicao.tipo.rotulo),
                   const SizedBox(width: 8),
-                  _etiqueta(_rotuloAplicacao(definicao.nivelAplicacao)),
+                  if (definicao.nivelEscopo == NivelEscopo.projeto)
+                    _etiqueta('Projeto: ${_nomeDoProjeto(definicao.projetoId)}')
+                  else
+                    _etiqueta(_rotuloAplicacao(definicao.nivelAplicacao)),
                   if (definicao.obrigatorio) ...[
                     const SizedBox(width: 8),
                     const Icon(
@@ -561,7 +688,7 @@ class _PaginaVariaveisState extends State<PaginaVariaveis> {
                 programaId: _viewModel.escopoId!,
                 hierarquia: _viewModel.hierarquia,
                 variaveisDisponiveis: _variaveisDisponiveis,
-                podeEditar: podeEditar,
+                podeEditarEscopo: _viewModel.podeEditarEscopo,
               ),
             ),
         ],
@@ -592,8 +719,7 @@ class _PaginaVariaveisState extends State<PaginaVariaveis> {
 }
 
 /// Editor do valor de uma variável dentro da própria linha. Resolve o alvo
-/// (o programa, um projeto ou um evento) e chama `CampoValor` direto no
-/// repositório.
+/// (o programa ou um projeto) e chama `CampoValor` direto no repositório.
 class _ValorVariavelInline extends StatefulWidget {
   final RepositorioCatalogo repositorioCatalogo;
   final String urlBase;
@@ -601,7 +727,7 @@ class _ValorVariavelInline extends StatefulWidget {
   final int programaId;
   final HierarquiaEscopo hierarquia;
   final List<VariavelDisponivel> variaveisDisponiveis;
-  final bool podeEditar;
+  final bool Function(NivelEscopo escopo, int? escopoId) podeEditarEscopo;
 
   const _ValorVariavelInline({
     super.key,
@@ -611,7 +737,7 @@ class _ValorVariavelInline extends StatefulWidget {
     required this.programaId,
     required this.hierarquia,
     required this.variaveisDisponiveis,
-    required this.podeEditar,
+    required this.podeEditarEscopo,
   });
 
   @override
@@ -627,10 +753,33 @@ class _ValorVariavelInlineState extends State<_ValorVariavelInline> {
 
   NivelAplicacao get _nivel => widget.definicao.nivelAplicacao;
 
+  bool get _podeEditarValor {
+    if (widget.definicao.projetoId != null) {
+      return widget.podeEditarEscopo(
+        NivelEscopo.projeto,
+        widget.definicao.projetoId,
+      );
+    }
+    if (_nivel == NivelAplicacao.programa) {
+      return widget.podeEditarEscopo(
+        NivelEscopo.programa,
+        widget.programaId,
+      );
+    }
+    if (_nivel == NivelAplicacao.projeto) {
+      return _alvoId != null &&
+          widget.podeEditarEscopo(NivelEscopo.projeto, _alvoId);
+    }
+    return false;
+  }
+
   @override
   void initState() {
     super.initState();
-    if (_nivel == NivelAplicacao.programa) {
+    if (widget.definicao.projetoId != null) {
+      _alvoId = widget.definicao.projetoId;
+      _carregarValor();
+    } else if (_nivel == NivelAplicacao.programa) {
       _alvoId = widget.programaId;
       _carregarValor();
     }
@@ -680,17 +829,18 @@ class _ValorVariavelInlineState extends State<_ValorVariavelInline> {
   }
 
   ({NivelEscopo escopo, int? escopoId}) get _escopoAsset {
+    if (widget.definicao.projetoId != null) {
+      return (
+        escopo: NivelEscopo.projeto,
+        escopoId: widget.definicao.projetoId,
+      );
+    }
     switch (_nivel) {
       case NivelAplicacao.programa:
         return (escopo: NivelEscopo.programa, escopoId: widget.programaId);
       case NivelAplicacao.projeto:
         return (escopo: NivelEscopo.projeto, escopoId: _alvoId);
-      case NivelAplicacao.evento:
-        final projetoId = widget.hierarquia
-            .cadeiaDe(NivelAplicacao.evento, _alvoId)
-            .projetoId;
-        return (escopo: NivelEscopo.projeto, escopoId: projetoId);
-      case NivelAplicacao.cliente:
+      default:
         return (escopo: NivelEscopo.programa, escopoId: widget.programaId);
     }
   }
@@ -778,7 +928,10 @@ class _ValorVariavelInlineState extends State<_ValorVariavelInline> {
 
   @override
   Widget build(BuildContext context) {
-    final precisaAlvo = _nivel != NivelAplicacao.programa;
+    final precisaAlvo =
+        widget.definicao.projetoId == null &&
+        _nivel != NivelAplicacao.programa;
+    final podeEditar = _podeEditarValor;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -792,7 +945,7 @@ class _ValorVariavelInlineState extends State<_ValorVariavelInline> {
         children: [
           if (precisaAlvo) ...[
             CampoSelecao(
-              label: _nivel == NivelAplicacao.projeto ? 'Projeto' : 'Evento',
+              label: 'Projeto',
               valor: _alvoId,
               itens: _opcoesAlvo
                   .map(
@@ -808,16 +961,14 @@ class _ValorVariavelInlineState extends State<_ValorVariavelInline> {
           ],
           if (_alvoId == null)
             Text(
-              _nivel == NivelAplicacao.projeto
-                  ? 'Escolha um projeto para ver e editar o valor.'
-                  : 'Escolha um evento para ver e editar o valor.',
+              'Escolha um projeto para ver e editar o valor.',
               style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
             )
           else if (_carregando)
             const Center(child: CircularProgressIndicator())
           else ...[
             EditorValorCampo(
-              key: ValueKey('editor-${widget.definicao.id}-$_alvoId'),
+              key: _editorKey,
               tipo: widget.definicao.tipo,
               valorInicial: _valorAtual?.valor ?? const {},
               aoEnviarImagem: _enviarImagem,
@@ -825,11 +976,11 @@ class _ValorVariavelInlineState extends State<_ValorVariavelInline> {
               urlBase: widget.urlBase,
               escopo: _escopoAsset.escopo,
               escopoId: _escopoAsset.escopoId,
-              readOnly: !widget.podeEditar,
+              readOnly: !podeEditar,
               variaveisDisponiveis: widget.variaveisDisponiveis,
               referenciaVariavel: widget.definicao.referencia,
             ),
-            if (widget.podeEditar) ...[
+            if (podeEditar) ...[
               const SizedBox(height: 14),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,

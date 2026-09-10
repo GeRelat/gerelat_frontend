@@ -4,6 +4,7 @@ import 'package:gerelat_frontend/dominio/entidades/campo_definicao.dart';
 import 'package:gerelat_frontend/dominio/entidades/campo_tipo.dart';
 import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/entidades/opcao_selecao.dart';
+import 'package:gerelat_frontend/dominio/entidades/projeto.dart';
 import 'package:gerelat_frontend/dominio/entidades/usuario.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/utils/gaps_prosemirror.dart';
@@ -19,7 +20,7 @@ class CampoDefinicaoViewModel extends BaseViewModel {
   HierarquiaEscopo _hierarquia = const HierarquiaEscopo();
   int? _clienteAtivoId;
   Usuario? _usuarioAtual;
-  NivelEscopo _escopo = NivelEscopo.projeto;
+  NivelEscopo _escopo = NivelEscopo.programa;
   int? _escopoId;
   List<CampoDefinicao> _definicoes = [];
 
@@ -83,6 +84,31 @@ class CampoDefinicaoViewModel extends BaseViewModel {
     }
   }
 
+  bool podeEditarDefinicao(CampoDefinicao definicao) {
+    return podeEditarEscopo(definicao.nivelEscopo, definicao.escopoId);
+  }
+
+  bool podeCriarNoPrograma(int? programaId) =>
+      podeEditarEscopo(NivelEscopo.programa, programaId);
+
+  List<Projeto> projetosDoPrograma(int? programaId) {
+    if (programaId == null) return const [];
+    return _hierarquia.projetos
+        .where((p) => p.programaId == programaId)
+        .toList();
+  }
+
+  List<Projeto> projetosPermitidosParaCriar(int? programaId) {
+    return projetosDoPrograma(programaId)
+        .where((p) => podeEditarEscopo(NivelEscopo.projeto, p.id))
+        .toList();
+  }
+
+  bool podeCriarVariavel(int? programaId) {
+    return podeCriarNoPrograma(programaId) ||
+        projetosPermitidosParaCriar(programaId).isNotEmpty;
+  }
+
   bool get podeEditar => podeEditarEscopo(_escopo, _escopoId);
 
   List<OpcaoSelecao> get opcoesEscopo =>
@@ -100,11 +126,9 @@ class CampoDefinicaoViewModel extends BaseViewModel {
   Future<void> carregarHierarquia() async {
     iniciarCarregamento();
     try {
-      // Com eventos: a tela unificada de variáveis oferece "um valor por
-      // evento" e precisa listar os eventos do programa.
       _hierarquia = await HierarquiaEscopo.carregar(
         _repositorio,
-        comEventos: true,
+        comEventos: false,
       );
       final opcoes = opcoesEscopo;
       if (opcoes.isNotEmpty &&
@@ -127,10 +151,29 @@ class CampoDefinicaoViewModel extends BaseViewModel {
 
     iniciarCarregamento();
     try {
-      _definicoes = await _repositorio.listarDefinicoes(
-        escopo: escopo,
-        escopoId: escopoId,
-      );
+      final todas = await _repositorio.listarDefinicoes();
+      if (escopo == NivelEscopo.programa) {
+        final projetoIds = _hierarquia.projetos
+            .where((p) => p.programaId == escopoId)
+            .map((p) => p.id)
+            .whereType<int>()
+            .toSet();
+        _definicoes = todas.where((d) {
+          if (d.nivelEscopo == NivelEscopo.programa && d.escopoId == escopoId) {
+            return true;
+          }
+          if (d.nivelEscopo == NivelEscopo.projeto &&
+              d.escopoId != null &&
+              projetoIds.contains(d.escopoId)) {
+            return true;
+          }
+          return false;
+        }).toList();
+      } else {
+        _definicoes = todas
+            .where((d) => d.nivelEscopo == escopo && d.escopoId == escopoId)
+            .toList();
+      }
       finalizarCarregamento();
     } catch (erro) {
       definirErro(erro);
@@ -141,15 +184,25 @@ class CampoDefinicaoViewModel extends BaseViewModel {
   /// genérico: prefixo reservado (`CampoDefinicao.clean`) e unicidade de
   /// `(escopo, referencia)` (constraint `campodef_unique_referencia_per_escopo`).
   /// Retorna a mensagem de erro, ou `null` se a referência é aceitável.
-  String? validarReferencia(String referencia, {int? ignorandoDefinicaoId}) {
+  String? validarReferencia(
+    String referencia, {
+    NivelEscopo? escopo,
+    int? escopoId,
+    int? ignorandoDefinicaoId,
+  }) {
     final texto = referencia.trim();
     if (texto.isEmpty) return 'Campo obrigatório';
     if (ehReferenciaDeSistema(texto)) {
       return 'O prefixo "$prefixoSistema" é reservado aos campos nativos.';
     }
+    final escopoAlvo = escopo ?? _escopo;
+    final escopoIdAlvo = escopoId ?? _escopoId;
     final duplicada = _definicoes.any(
       (definicao) =>
-          definicao.referencia == texto && definicao.id != ignorandoDefinicaoId,
+          definicao.id != ignorandoDefinicaoId &&
+          definicao.nivelEscopo == escopoAlvo &&
+          definicao.escopoId == escopoIdAlvo &&
+          definicao.referencia.toLowerCase() == texto.toLowerCase(),
     );
     if (duplicada) {
       return 'Já existe uma variável com esta referência neste escopo.';
@@ -159,17 +212,23 @@ class CampoDefinicaoViewModel extends BaseViewModel {
 
   Future<bool> salvar({
     int? definicaoId,
+    NivelEscopo? escopo,
+    int? escopoId,
     required NivelAplicacao nivelAplicacao,
     required String referencia,
     required String descricao,
     required TipoCampo tipo,
     required bool obrigatorio,
   }) {
-    return _executarAcao((escopo, escopoId) async {
+    final escopoFinal = escopo ?? _escopo;
+    final escopoIdFinal = escopoId ?? _escopoId;
+    if (escopoIdFinal == null) return Future.value(false);
+
+    return _executarAcao(() async {
       if (definicaoId == null) {
         await _repositorio.criarDefinicao(
-          escopo: escopo,
-          escopoId: escopoId,
+          escopo: escopoFinal,
+          escopoId: escopoIdFinal,
           nivelAplicacao: nivelAplicacao,
           referencia: referencia,
           descricao: descricao,
@@ -190,25 +249,18 @@ class CampoDefinicaoViewModel extends BaseViewModel {
   }
 
   Future<bool> excluir(int definicaoId) {
-    return _executarAcao((_, _) => _repositorio.excluirDefinicao(definicaoId));
+    return _executarAcao(() => _repositorio.excluirDefinicao(definicaoId));
   }
 
-  /// Executa uma escrita sobre o escopo selecionado e recarrega a lista —
-  /// mesmo tratamento para [salvar] e [excluir].
-  Future<bool> _executarAcao(
-    Future<void> Function(NivelEscopo escopo, int escopoId) acao,
-  ) async {
+  /// Executa uma escrita e recarrega a lista do escopo selecionado.
+  Future<bool> _executarAcao(Future<void> Function() acao) async {
     final escopoId = _escopoId;
     if (escopoId == null) return false;
 
     iniciarCarregamento();
     try {
-      await acao(_escopo, escopoId);
-      _definicoes = await _repositorio.listarDefinicoes(
-        escopo: _escopo,
-        escopoId: escopoId,
-      );
-      finalizarCarregamento();
+      await acao();
+      await selecionarEscopo(_escopo, _escopoId);
       return true;
     } catch (erro) {
       definirErro(erro);

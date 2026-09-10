@@ -384,7 +384,6 @@ void main() {
       expect(viewModel.niveisAplicacaoPermitidos, [
         NivelAplicacao.programa,
         NivelAplicacao.projeto,
-        NivelAplicacao.evento,
       ]);
 
       await viewModel.salvar(
@@ -399,6 +398,88 @@ void main() {
         escopo: NivelEscopo.programa,
         escopoId: 10,
         ref: 'local_evento',
+      ));
+    });
+
+    test('membro de projeto pode criar variáveis no seu projeto e gerenciar definições de projeto', () async {
+      const definicaoPrograma = CampoDefinicao(
+        id: 1,
+        programaId: 10,
+        nivelAplicacao: NivelAplicacao.programa,
+        referencia: 'var_programa',
+        descricao: 'Var Programa',
+        tipo: TipoCampo.texto,
+      );
+      const definicaoProjeto = CampoDefinicao(
+        id: 2,
+        projetoId: 1,
+        nivelAplicacao: NivelAplicacao.projeto,
+        referencia: 'var_projeto',
+        descricao: 'Var Projeto',
+        tipo: TipoCampo.texto,
+      );
+
+      final repositorio = _RepositorioCatalogoFake(
+        definicoes: const [definicaoPrograma, definicaoProjeto],
+        projetosDetalhados: const [
+          Projeto(id: 1, nome: 'Projeto 1', programaId: 10),
+          Projeto(id: 2, nome: 'Projeto 2', programaId: 10),
+        ],
+        programas: const [
+          Programa(
+            id: 10,
+            nome: 'Programa 10',
+            clienteId: 100,
+            descricao: '',
+            status: 'Ativo',
+            projetos: 2,
+            eventos: 0,
+          ),
+        ],
+      );
+
+      final viewModel = CampoDefinicaoViewModel(repositorio);
+      final usuario = Usuario(
+        id: 10,
+        nomeCompleto: 'Membro Projeto',
+        email: 'membro@proj.com',
+        contextosAcesso: const ContextosAcesso(
+          projetos: [
+            {'id': 1, 'nome': 'Projeto 1', 'cliente_id': 100}
+          ],
+        ),
+      );
+
+      viewModel.definirContexto(100, usuario);
+      await viewModel.carregarHierarquia();
+      await viewModel.selecionarEscopo(NivelEscopo.programa, 10);
+
+      // Definições visíveis: tanto a do programa quanto a do projeto 1
+      expect(viewModel.definicoes, hasLength(2));
+
+      // Permissões
+      expect(viewModel.podeCriarNoPrograma(10), isFalse);
+      expect(viewModel.projetosPermitidosParaCriar(10).map((p) => p.id), [1]);
+      expect(viewModel.podeCriarVariavel(10), isTrue);
+
+      expect(viewModel.podeEditarDefinicao(definicaoPrograma), isFalse);
+      expect(viewModel.podeEditarDefinicao(definicaoProjeto), isTrue);
+
+      // Salvar variável no escopo do projeto
+      await viewModel.salvar(
+        escopo: NivelEscopo.projeto,
+        escopoId: 1,
+        nivelAplicacao: NivelAplicacao.projeto,
+        referencia: 'nova_var_proj',
+        descricao: 'Nova Var Projeto',
+        tipo: TipoCampo.texto,
+        obrigatorio: false,
+      );
+
+      expect(repositorio.definicaoCriada, (
+        escopo: NivelEscopo.projeto,
+        escopoId: 1,
+        ref: 'nova_var_proj',
       ));
     });
   });
