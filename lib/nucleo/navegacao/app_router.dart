@@ -4,7 +4,7 @@ import 'package:gerelat_frontend/nucleo/componentes/app_shell.dart';
 import 'package:gerelat_frontend/nucleo/navegacao/pagina_nao_encontrada.dart';
 import 'package:gerelat_frontend/paginas/assets/pagina_assets.dart';
 import 'package:gerelat_frontend/paginas/cadastro/pagina_cadastro.dart';
-import 'package:gerelat_frontend/paginas/clientes/pagina_aprovacoes.dart';
+
 import 'package:gerelat_frontend/paginas/clientes/pagina_clientes.dart';
 import 'package:gerelat_frontend/paginas/clientes/pagina_formulario_cliente.dart';
 import 'package:gerelat_frontend/paginas/clientes/pagina_membros.dart';
@@ -58,10 +58,8 @@ const _rotasPublicas = <String>[
 /// a partir do caminho da rota, evitando repetir essa informação em cada página.
 ({SecaoApp secao, String titulo}) _chromeParaRota(String caminho) {
   if (caminho.startsWith('/clientes')) {
-    if (caminho == '/clientes/aprovacoes') {
-      return (secao: SecaoApp.aprovacoes, titulo: 'Aprovações de Acesso');
-    }
-    if (caminho == '/clientes/membros') {
+    if (caminho == '/clientes/membros' ||
+        caminho == '/clientes/aprovacoes') {
       return (secao: SecaoApp.membros, titulo: 'Membros do Cliente');
     }
     final titulo = caminho.endsWith('/editar')
@@ -291,10 +289,7 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
           ),
           GoRoute(
             path: '/clientes/aprovacoes',
-            builder: (context, state) => PaginaAprovacoes(
-              repositorioCatalogo: repositorioCatalogo,
-              sessaoViewModel: sessao,
-            ),
+            redirect: (context, state) => '/clientes/membros',
           ),
           GoRoute(
             path: '/clientes/membros',

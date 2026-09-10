@@ -12,7 +12,6 @@ import 'package:go_router/go_router.dart';
 enum SecaoApp {
   dashboard,
   clientes,
-  aprovacoes,
   membros,
   programas,
   variaveis,
@@ -496,12 +495,6 @@ const _itensMenuPrincipal = <_ItemMenu>[
     rota: '/clientes',
   ),
   (
-    icone: LucideIcons.user_check,
-    rotulo: 'Aprovações',
-    secao: SecaoApp.aprovacoes,
-    rota: '/clientes/aprovacoes',
-  ),
-  (
     icone: LucideIcons.users,
     rotulo: 'Membros',
     secao: SecaoApp.membros,
@@ -652,23 +645,7 @@ class _SideNav extends StatelessWidget {
     return ListenableBuilder(
       listenable: sessao,
       builder: (context, _) {
-        final usuario = sessao.usuarioAtual;
-        final clienteAtivoId = sessao.clienteAtivoId;
-        final eAdminDoClienteAtivo =
-            usuario?.eAdminDoCliente(clienteAtivoId) ?? false;
-
-        // Regra de permissão para menu:
-        // - Aprovações: visível apenas se for Admin GeRelat ou Admin do Cliente Ativo
-        // - Membros: visível para qualquer usuário autenticado com acesso
-        final itensFiltrados = _itensMenuPrincipal.where((item) {
-          if (item.secao == SecaoApp.aprovacoes) {
-            return eAdminDoClienteAtivo;
-          }
-          if (item.secao == SecaoApp.membros) {
-            return true;
-          }
-          return true;
-        }).toList();
+        final itensFiltrados = _itensMenuPrincipal;
 
         return Container(
           width: 256,
