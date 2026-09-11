@@ -7,6 +7,7 @@ import 'package:gerelat_frontend/aplicacao/view_models/template_form_view_model.
 import 'package:gerelat_frontend/dominio/entidades/classe_evento.dart';
 import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
+import 'package:gerelat_frontend/nucleo/componentes/dialogo_criar_classe_evento.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/componentes/seletor_signatarios.dart';
 import 'package:gerelat_frontend/nucleo/servicos/arquivo_web.dart';
@@ -313,12 +314,58 @@ class _PaginaFormularioTemplateState extends State<PaginaFormularioTemplate> {
     );
   }
 
+  Future<void> _abrirDialogoNovaClasse() async {
+    final nomeProg = _viewModel.nomeProgramaAtual ?? 'Programa';
+    ClasseEvento? novaClasse;
+    final criou = await DialogoCriarClasseEvento.mostrar(
+      context,
+      nomePrograma: nomeProg,
+      onSalvar: (nomeClasse) async {
+        novaClasse = await _viewModel.criarClasseParaProgramaAtual(nomeClasse);
+        return novaClasse != null;
+      },
+    );
+
+    if (criou && mounted && novaClasse != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Classe "${novaClasse!.nomeClasse}" criada e vinculada ao template!',
+          ),
+        ),
+      );
+    }
+  }
+
   Widget _campoClassesEvento() {
+    final podeCriar = _viewModel.podeCriarClasse &&
+        _viewModel.programaAtualId != null &&
+        _viewModel.escopoId != null;
+
     return _painelSecao(
       children: [
-        Text(
-          'Classes de Evento',
-          style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Classes de Evento',
+              style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
+            ),
+            if (podeCriar)
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                icon: const Icon(LucideIcons.plus, size: 14, color: Cores.azulAcao),
+                label: Text(
+                  'Nova classe',
+                  style: Tipografia.labelMedium.copyWith(color: Cores.azulAcao),
+                ),
+                onPressed: _abrirDialogoNovaClasse,
+              ),
+          ],
         ),
         const SizedBox(height: 4),
         Text(

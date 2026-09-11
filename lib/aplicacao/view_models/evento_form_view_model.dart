@@ -63,6 +63,58 @@ class EventoFormViewModel extends BaseViewModel {
   List<OpcaoSelecao> get classes => List.unmodifiable(_classes);
   Evento? get evento => _evento;
 
+  int? get programaDoProjetoSelecionadoId {
+    final projId = _escopoId;
+    if (projId == null) return null;
+    return _hierarquia.projetoPorId(projId)?.programaId;
+  }
+
+  String? get nomeProgramaDoProjetoSelecionado {
+    final progId = programaDoProjetoSelecionadoId;
+    if (progId == null) return null;
+    return _hierarquia.nomeDe(NivelAplicacao.programa, progId);
+  }
+
+  bool get podeCriarClasse {
+    final progId = programaDoProjetoSelecionadoId;
+    if (progId == null) return false;
+    final usuario = _usuarioAtual;
+    if (usuario == null) return true;
+    if (usuario.isAdminGeRelat) return true;
+    if (_clienteAtivoId != null && usuario.eAdminDoCliente(_clienteAtivoId)) {
+      return true;
+    }
+    return usuario.contextosAcesso.programas
+        .any((p) => int.tryParse('${p['id']}') == progId);
+  }
+
+  Future<int?> criarClasseParaProgramaSelecionado(String nomeClasse) async {
+    final progId = programaDoProjetoSelecionadoId;
+    if (progId == null) {
+      throw Exception('Selecione um projeto antes de criar uma classe.');
+    }
+    try {
+      final novaClasseId = await _repositorio.criarClasseEvento(
+        programaId: progId,
+        nomeClasse: nomeClasse,
+      );
+      final projId = _escopoId;
+      if (projId != null) {
+        final classes = await _repositorio.listarClassesEvento(
+          programaId: progId,
+          escopo: NivelEscopo.programa,
+          escopoId: progId,
+        );
+        _classes = classes;
+        notifyListeners();
+      }
+      return novaClasseId;
+    } catch (erro) {
+      definirErro(erro);
+      rethrow;
+    }
+  }
+
   void definirContexto(int? clienteAtivoId, Usuario? usuarioAtual) {
     final mudou = _clienteAtivoId != clienteAtivoId || _usuarioAtual != usuarioAtual;
     _clienteAtivoId = clienteAtivoId;

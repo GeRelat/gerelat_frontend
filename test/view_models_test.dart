@@ -11,6 +11,7 @@ import 'package:gerelat_frontend/aplicacao/view_models/gerar_relatorio_view_mode
 import 'package:gerelat_frontend/aplicacao/view_models/login_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/programa_form_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/relatorios_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/template_form_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/templates_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/agendamento_relatorio.dart';
 import 'package:gerelat_frontend/dominio/entidades/asset.dart';
@@ -709,6 +710,96 @@ void main() {
       expect(viewModel.relatorios.first.id, 2);
     });
   });
+
+  group('criação inline de classe de evento', () {
+    test('EventoFormViewModel permite criar classe apenas para quem tem permissão no programa pai', () async {
+      final repositorio = _RepositorioCatalogoFake(
+        projetosDetalhados: const [
+          Projeto(id: 1, nome: 'Projeto 1', programaId: 10),
+        ],
+        programas: const [
+          Programa(id: 10, nome: 'Programa 10', clienteId: 100, descricao: '', status: 'Ativo', projetos: 1, eventos: 0),
+        ],
+      );
+      final viewModel = EventoFormViewModel(repositorio);
+
+      final usuarioComAcessoPrograma = Usuario(
+        id: 1,
+        nomeCompleto: 'Membro Programa',
+        email: 'programa@teste.com',
+        contextosAcesso: const ContextosAcesso(
+          programas: [
+            {'id': 10, 'nome': 'Programa 10', 'cliente_id': 100},
+          ],
+          projetos: [
+            {'id': 1, 'nome': 'Projeto 1', 'cliente_id': 100},
+          ],
+        ),
+      );
+
+      viewModel.definirContexto(100, usuarioComAcessoPrograma);
+      await viewModel.carregarOpcoes();
+
+      expect(viewModel.podeCriarClasse, isTrue);
+      expect(viewModel.nomeProgramaDoProjetoSelecionado, 'Programa 10');
+
+      final novaClasseId = await viewModel.criarClasseParaProgramaSelecionado('Oficina Nova');
+      expect(novaClasseId, 99);
+      expect(repositorio.classeEventoCriadaProgramaId, 10);
+      expect(repositorio.classeEventoCriadaNome, 'Oficina Nova');
+
+      // Usuário somente membro do projeto (sem acesso de programa)
+      final usuarioSoProjeto = Usuario(
+        id: 2,
+        nomeCompleto: 'Membro Apenas Projeto',
+        email: 'projeto@teste.com',
+        contextosAcesso: const ContextosAcesso(
+          projetos: [
+            {'id': 1, 'nome': 'Projeto 1', 'cliente_id': 100},
+          ],
+        ),
+      );
+
+      viewModel.definirContexto(100, usuarioSoProjeto);
+      expect(viewModel.podeCriarClasse, isFalse);
+    });
+
+    test('TemplateFormViewModel permite criar classe no programa e a vincula automaticamente', () async {
+      final repositorio = _RepositorioCatalogoFake(
+        projetosDetalhados: const [
+          Projeto(id: 1, nome: 'Projeto 1', programaId: 10),
+        ],
+        programas: const [
+          Programa(id: 10, nome: 'Programa 10', clienteId: 100, descricao: '', status: 'Ativo', projetos: 1, eventos: 0),
+        ],
+      );
+      final viewModel = TemplateFormViewModel(repositorio);
+
+      final usuarioComAcesso = Usuario(
+        id: 1,
+        nomeCompleto: 'Membro Programa',
+        email: 'programa@teste.com',
+        contextosAcesso: const ContextosAcesso(
+          programas: [
+            {'id': 10, 'nome': 'Programa 10', 'cliente_id': 100},
+          ],
+        ),
+      );
+
+      viewModel.definirContexto(100, usuarioComAcesso);
+      await viewModel.carregarOpcoes();
+
+      expect(viewModel.podeCriarClasse, isTrue);
+      expect(viewModel.nomeProgramaAtual, 'Programa 10');
+
+      final classeCriada = await viewModel.criarClasseParaProgramaAtual('Palestra');
+      expect(classeCriada?.id, 99);
+      expect(classeCriada?.nomeClasse, 'Palestra');
+      expect(viewModel.classesSelecionadas.contains(99), isTrue);
+      expect(repositorio.classeEventoCriadaProgramaId, 10);
+      expect(repositorio.classeEventoCriadaNome, 'Palestra');
+    });
+  });
 }
 
 class _RepositorioAutenticacaoFake implements RepositorioAutenticacao {
@@ -817,6 +908,9 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   String? projetoCriado;
   String? eventoCriado;
   String? templateCriado;
+  int? classeEventoCriadaProgramaId;
+  String? classeEventoCriadaNome;
+  List<ClasseEvento> classesDetalhadas = [];
   ({NivelEscopo escopo, int escopoId, String ref})? definicaoCriada;
   ({int definicao, NivelAplicacao alvo, int alvoId})? valorSalvo;
   ({int template, int? evento})? relatorioGerado;
@@ -1116,7 +1210,15 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
     NivelEscopo? escopo,
     int? escopoId,
     required String nomeClasse,
-  }) async => 2;
+  }) async {
+    classeEventoCriadaProgramaId = programaId;
+    classeEventoCriadaNome = nomeClasse;
+    classesDetalhadas = [
+      ...classesDetalhadas,
+      ClasseEvento(id: 99, nomeClasse: nomeClasse, programaId: programaId),
+    ];
+    return 99;
+  }
 
   @override
   Future<List<ClasseEvento>> listarClassesEventoDetalhadas({
@@ -1124,7 +1226,8 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
     int? projetoId,
     NivelEscopo? escopo,
     int? escopoId,
-  }) async => const [];
+  }) async =>
+      classesDetalhadas;
 
   @override
   Future<List<ClasseEvento>> listarClassesEventoDeProjetos(

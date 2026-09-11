@@ -3,6 +3,7 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/evento_form_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
+import 'package:gerelat_frontend/nucleo/componentes/dialogo_criar_classe_evento.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
@@ -266,10 +267,53 @@ class _PaginaFormularioEventoState extends State<PaginaFormularioEvento> {
     );
   }
 
+  Future<void> _abrirDialogoNovaClasse() async {
+    final nomeProg = _viewModel.nomeProgramaDoProjetoSelecionado ?? 'Programa';
+    int? novaClasseId;
+    final criou = await DialogoCriarClasseEvento.mostrar(
+      context,
+      nomePrograma: nomeProg,
+      onSalvar: (nomeClasse) async {
+        final id = await _viewModel.criarClasseParaProgramaSelecionado(nomeClasse);
+        novaClasseId = id;
+        return id != null;
+      },
+    );
+
+    if (criou && mounted && novaClasseId != null) {
+      setState(() {
+        _classeId = novaClasseId;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Classe de evento criada e selecionada com sucesso!'),
+        ),
+      );
+    }
+  }
+
   Widget _campoClasse() {
+    final podeCriar = _viewModel.podeCriarClasse &&
+        (_viewModel.projetoSelecionadoId ?? _projetoId) != null;
+
     return CampoSelecao(
       label: 'Classe do Evento',
       valor: _classeId,
+      acaoRotulo: podeCriar
+          ? TextButton.icon(
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              icon: const Icon(LucideIcons.plus, size: 14, color: Cores.azulAcao),
+              label: Text(
+                'Nova classe',
+                style: Tipografia.labelMedium.copyWith(color: Cores.azulAcao),
+              ),
+              onPressed: _abrirDialogoNovaClasse,
+            )
+          : null,
       itens: _viewModel.classes
           .map(
             (item) => DropdownMenuItem<int>(

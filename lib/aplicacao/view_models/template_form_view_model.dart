@@ -114,6 +114,68 @@ class TemplateFormViewModel extends BaseViewModel {
   Set<int> get classesSelecionadas => Set.unmodifiable(_classesSelecionadas);
   TemplateRelatorio? get template => _template;
 
+  int? get programaAtualId {
+    if (_nivel == NivelEscopo.programa) {
+      return _programaSelecionadoId ?? _escopoId;
+    }
+    if (_escopoId != null) {
+      return _hierarquia.projetoPorId(_escopoId!)?.programaId ??
+          _programaSelecionadoId;
+    }
+    return _programaSelecionadoId;
+  }
+
+  String? get nomeProgramaAtual {
+    final progId = programaAtualId;
+    if (progId == null) return null;
+    return _hierarquia.nomeDe(NivelAplicacao.programa, progId);
+  }
+
+  bool get podeCriarClasse {
+    final progId = programaAtualId;
+    if (progId == null) return false;
+    final usuario = _usuarioAtual;
+    if (usuario == null) return true;
+    if (usuario.isAdminGeRelat) return true;
+    if (_clienteAtivoId != null && usuario.eAdminDoCliente(_clienteAtivoId)) {
+      return true;
+    }
+    return usuario.contextosAcesso.programas
+        .any((p) => int.tryParse('${p['id']}') == progId);
+  }
+
+  Future<ClasseEvento?> criarClasseParaProgramaAtual(String nomeClasse) async {
+    final progId = programaAtualId;
+    if (progId == null) {
+      throw Exception('Selecione um programa ou projeto antes de criar uma classe.');
+    }
+    try {
+      final novaClasseId = await _catalogo.criarClasseEvento(
+        programaId: progId,
+        nomeClasse: nomeClasse,
+      );
+      final classes = await _eventosRepositorio.listarClassesEventoDetalhadas(
+        programaId: progId,
+        escopo: NivelEscopo.programa,
+        escopoId: progId,
+      );
+      _classesDisponiveis = classes;
+      _classesSelecionadas.add(novaClasseId);
+      notifyListeners();
+      return classes.firstWhere(
+        (c) => c.id == novaClasseId,
+        orElse: () => ClasseEvento(
+          id: novaClasseId,
+          nomeClasse: nomeClasse,
+          programaId: progId,
+        ),
+      );
+    } catch (erro) {
+      definirErro(erro);
+      rethrow;
+    }
+  }
+
   List<MembroEquipePrograma> get membrosPrograma =>
       List.unmodifiable(_membrosPrograma);
   List<MembroEquipeProjeto> get membrosProjeto =>
