@@ -590,7 +590,7 @@ var Slice = class Slice {
 	appropriate side of the fragment—i.e. if the fragment is an
 	empty paragraph node, `openStart` and `openEnd` can't be greater
 	than 1.
-	
+
 	It is not necessary for the content of open nodes to conform to
 	the schema's content constraints, though it should be a valid
 	start/end/middle for such a node, depending on which sides are
@@ -4753,7 +4753,7 @@ var Transform = class {
 	context](https://prosemirror.net/docs/ref/#model.NodeSpec.definingAsContext), or including an
 	open parent node from the slice that _is_ marked as [defining
 	its content](https://prosemirror.net/docs/ref/#model.NodeSpec.definingForContent).
-	
+
 	This is the method, for example, to handle paste. The similar
 	[`replace`](https://prosemirror.net/docs/ref/#transform.Transform.replace) method is a more
 	primitive tool which will _not_ move the start and end of its given
@@ -10260,7 +10260,7 @@ var EditorView = class {
 	possible to the content before the position. When positive,
 	prefer positions close to the content after the position. When
 	zero, prefer as shallow a position as possible.
-	
+
 	Note that you should **not** mutate the editor's internal DOM,
 	only inspect it (and even that is usually not necessary).
 	*/
@@ -10271,7 +10271,7 @@ var EditorView = class {
 	Find the DOM node that represents the document node after the
 	given position. May return `null` when the position doesn't point
 	in front of a node or if the node is inside an opaque node view.
-	
+
 	This is intended to be able to call things like
 	`getBoundingClientRect` on that DOM node. Do **not** mutate the
 	editor DOM directly, or add styling this way, since that will be
@@ -10287,7 +10287,7 @@ var EditorView = class {
 	document structure directly, rather than poking around in the
 	DOM, but sometimes—for example when interpreting an event
 	target—you don't have a choice.)
-	
+
 	The `bias` parameter can be used to influence which side of a DOM
 	node to use when the position is inside a leaf node.
 	*/
@@ -11985,6 +11985,25 @@ var schema = new Schema({
 				0
 			]
 		},
+		custom_inline: {
+			group: "inline",
+			inline: true,
+			content: "text*",
+			attrs: { label: { default: "campo livre" } },
+			parseDOM: [{
+				tag: "span[data-type=\"custom_inline\"]",
+				getAttrs: (dom) => ({ label: dom.getAttribute("data-label") || "campo livre" })
+			}],
+			toDOM: (node) => [
+				"span",
+				{
+					"class": "node-custom-inline",
+					"data-type": "custom_inline",
+					"data-label": node.attrs.label
+				},
+				0
+			]
+		},
 		image_block: {
 			group: "block",
 			atom: true,
@@ -12136,11 +12155,11 @@ var InputRule = class {
 	Create an input rule. The rule applies when the user typed
 	something and the text directly in front of the cursor matches
 	`match`, which should end with `$`.
-	
+
 	The `handler` can be a string, in which case the matched text, or
 	the first matched group in the regexp, is replaced by that
 	string.
-	
+
 	Or a it can be a function, which will be called with the match
 	array produced by
 	[`RegExp.exec`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp/exec),
@@ -12534,6 +12553,14 @@ function insertCustomText(label = "bloco") {
 		return insertBlockAndContinue(block)(state, dispatch);
 	};
 }
+/** Insere custom_inline (texto livre editável em linha). */
+function insertCustomInline(label = "campo livre") {
+	return (state, dispatch) => {
+		const node = schema.nodes.custom_inline.create({ label });
+		if (dispatch) dispatch(state.tr.replaceSelectionWith(node).scrollIntoView());
+		return true;
+	};
+}
 var toggleBold = (state, dispatch) => toggleMark(schema.marks.strong)(state, dispatch);
 var toggleItalic = (state, dispatch) => toggleMark(schema.marks.em)(state, dispatch);
 var toggleUnderline = (state, dispatch) => toggleMark(schema.marks.underline)(state, dispatch);
@@ -12544,4 +12571,4 @@ function setHeading(level) {
 var setParagraph = (state, dispatch) => setBlockType(schema.nodes.paragraph)(state, dispatch);
 var wrapBlockquote = (state, dispatch) => wrapIn(schema.nodes.blockquote)(state, dispatch);
 //#endregion
-export { EditorState as C, EditorView as S, baseKeymap as _, insertVarText as a, redo as b, toggleBold as c, toggleUnderline as d, wrapBlockquote as f, gapCursor as g, schema as h, insertVarTable as i, toggleCode as l, buildInputRules as m, insertVarImage as n, setHeading as o, nodeViews as p, insertVarRichtext as r, setParagraph as s, insertCustomText as t, toggleItalic as u, keymap as v, Plugin as w, undo as x, history as y };
+export { EditorState as C, EditorView as S, baseKeymap as _, insertVarText as a, redo as b, toggleBold as c, toggleUnderline as d, wrapBlockquote as f, gapCursor as g, schema as h, insertVarTable as i, toggleCode as l, buildInputRules as m, insertVarImage as n, setHeading as o, nodeViews as p, insertVarRichtext as r, setParagraph as s, insertCustomText as t, toggleItalic as u, keymap as v, Plugin as w, undo as x, history as y, insertCustomInline };

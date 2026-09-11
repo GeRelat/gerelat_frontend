@@ -19,6 +19,10 @@ class PainelVariaveis extends StatelessWidget {
     this.tiposPermitidos,
     this.barraFormatacao,
     this.aoInserirBlocoManual,
+    this.aoInserirBlocoInline,
+    this.modoPrevisualizacao = false,
+    this.carregandoPrevisualizacao = false,
+    this.aoAlternarPrevisualizacao,
     this.textoIntroducao,
   });
 
@@ -33,9 +37,20 @@ class PainelVariaveis extends StatelessWidget {
   /// `EditorProseMirrorController`.
   final Widget? barraFormatacao;
 
-  /// `null` esconde a seção "Blocos manuais" (não faz sentido no valor de uma
-  /// variável).
+  /// `null` esconde a ação de bloco manual de parágrafo.
   final VoidCallback? aoInserirBlocoManual;
+
+  /// `null` esconde a ação de bloco manual em linha.
+  final VoidCallback? aoInserirBlocoInline;
+
+  /// Indica se a visualização com variáveis resolvidas está ativa.
+  final bool modoPrevisualizacao;
+
+  /// Indica se a resolução de pré-visualização está em andamento.
+  final bool carregandoPrevisualizacao;
+
+  /// Callback para alternar entre modo de autoria (chips) e pré-visualização resolvida.
+  final VoidCallback? aoAlternarPrevisualizacao;
 
   final String? textoIntroducao;
 
@@ -64,7 +79,74 @@ class PainelVariaveis extends StatelessWidget {
             barraFormatacao!,
             const SizedBox(height: 20),
           ],
-          _tituloSecao('Variáveis disponíveis'),
+          Row(
+            children: [
+              Expanded(child: _tituloSecao('Variáveis disponíveis')),
+              if (aoAlternarPrevisualizacao != null)
+                Tooltip(
+                  message: modoPrevisualizacao
+                      ? 'Voltar para o modo de edição'
+                      : 'Pré-visualizar variáveis resolvidas no texto',
+                  child: InkWell(
+                    onTap: carregandoPrevisualizacao
+                        ? null
+                        : aoAlternarPrevisualizacao,
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: modoPrevisualizacao
+                            ? Cores.azulAcao.withValues(alpha: 0.12)
+                            : Cores.fundoSecao,
+                        border: Border.all(
+                          color: modoPrevisualizacao
+                              ? Cores.azulAcao
+                              : Cores.bordaSutil,
+                        ),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (carregandoPrevisualizacao)
+                            const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Cores.azulAcao,
+                              ),
+                            )
+                          else
+                            Icon(
+                              modoPrevisualizacao
+                                  ? LucideIcons.eye_off
+                                  : LucideIcons.eye,
+                              size: 15,
+                              color: modoPrevisualizacao
+                                  ? Cores.azulAcao
+                                  : Cores.cinzaEscuro,
+                            ),
+                          const SizedBox(width: 5),
+                          Text(
+                            modoPrevisualizacao ? 'Editar' : 'Pré-visualizar',
+                            style: Tipografia.labelSmall.copyWith(
+                              color: modoPrevisualizacao
+                                  ? Cores.azulAcao
+                                  : Cores.cinzaEscuro,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(height: 4),
           Text(
             textoIntroducao ??
@@ -88,21 +170,30 @@ class PainelVariaveis extends StatelessWidget {
             ),
             ..._grupo('Campos do sistema', _sistema, vazio: ''),
           ],
-          if (aoInserirBlocoManual != null) ...[
+          if (aoInserirBlocoManual != null || aoInserirBlocoInline != null) ...[
             const SizedBox(height: 20),
             _tituloSecao('Blocos manuais'),
             const SizedBox(height: 4),
             Text(
-              'Um bloco de texto livre, sem variável de banco, para ser '
-              'preenchido/editado manualmente na geração do relatório.',
+              'Trechos de texto livre, sem variável de banco, para serem '
+              'preenchidos/editados manualmente na geração do relatório.',
               style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
             ),
             const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: aoInserirBlocoManual,
-              icon: const Icon(LucideIcons.square_pen, size: 18),
-              label: const Text('Inserir bloco manual'),
-            ),
+            if (aoInserirBlocoInline != null) ...[
+              OutlinedButton.icon(
+                onPressed: aoInserirBlocoInline,
+                icon: const Icon(LucideIcons.text_cursor_input, size: 18),
+                label: const Text('Inserir bloco em linha'),
+              ),
+              const SizedBox(height: 8),
+            ],
+            if (aoInserirBlocoManual != null)
+              OutlinedButton.icon(
+                onPressed: aoInserirBlocoManual,
+                icon: const Icon(LucideIcons.square_pen, size: 18),
+                label: const Text('Inserir bloco (parágrafo)'),
+              ),
           ],
         ],
       ),

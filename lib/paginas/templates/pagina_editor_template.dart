@@ -32,6 +32,7 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
   final EditorProseMirrorController _controller = EditorProseMirrorController();
   bool _salvouAlgumaVez = false;
   String _temaEditor = 'light';
+  Map<String, dynamic>? _documentoAutoria;
 
   // O editor roda num `<iframe>` (ver `EditorProseMirror`). Se navegarmos pra
   // fora enquanto ele ainda está montado, o Flutter tenta compor a transição
@@ -93,11 +94,62 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
 
   Future<void> _inserirBlocoManual() async {
     final label = await _pedirTexto(
-      titulo: 'Novo bloco manual',
+      titulo: 'Novo bloco manual (parágrafo)',
       hint: 'Ex: Observações da equipe',
     );
     if (label == null) return;
     _controller.inserirBloco(label.trim().isEmpty ? 'bloco' : label.trim());
+  }
+
+  Future<void> _inserirBlocoManualEmLinha() async {
+    final label = await _pedirTexto(
+      titulo: 'Novo bloco manual em linha',
+      hint: 'Ex: Fiscal responsável',
+    );
+    if (label == null) return;
+    _controller.inserirBlocoInline(
+      label.trim().isEmpty ? 'campo livre' : label.trim(),
+    );
+  }
+
+  Future<void> _alternarPrevisualizacao() async {
+    if (_viewModel.modoPrevisualizacao) {
+      _viewModel.definirModoPrevisualizacao(false);
+      if (_documentoAutoria != null) {
+        _controller.definirDocumento(_documentoAutoria!, modo: 'template');
+      }
+      return;
+    }
+
+    final docAtual = await _controller.obterDocumento();
+    if (!mounted) return;
+    if (docAtual.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('O editor ainda está carregando.')),
+      );
+      return;
+    }
+
+    _documentoAutoria = docAtual;
+    final docResolvido = await _viewModel.resolverPrevisualizacao(
+      widget.templateId,
+      docAtual,
+    );
+    if (!mounted) return;
+
+    if (docResolvido != null) {
+      _viewModel.definirModoPrevisualizacao(true);
+      _controller.definirDocumento(docResolvido, modo: 'report');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _viewModel.mensagemErro ??
+                'Não foi possível pré-visualizar as variáveis deste template.',
+          ),
+        ),
+      );
+    }
   }
 
   Future<String?> _pedirTexto({
@@ -146,7 +198,12 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
   }
 
   Future<void> _salvar() async {
-    final documento = await _controller.obterDocumento();
+    final Map<String, dynamic> documento;
+    if (_viewModel.modoPrevisualizacao && _documentoAutoria != null) {
+      documento = _documentoAutoria!;
+    } else {
+      documento = await _controller.obterDocumento();
+    }
     if (!mounted) return;
     if (documento.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -154,6 +211,7 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
       );
       return;
     }
+    _documentoAutoria = documento;
     final ok = await _viewModel.salvar(widget.templateId, documento);
     if (!mounted) return;
     if (ok) {
@@ -205,8 +263,27 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
                   : 'Editor — ${template.nome}',
             ),
             actions: [
+              Tooltip(
+                message: _viewModel.modoPrevisualizacao
+                    ? 'Voltar para o modo de edição'
+                    : 'Pré-visualizar variáveis resolvidas no texto',
+                child: IconButton(
+                  icon: Icon(
+                    _viewModel.modoPrevisualizacao
+                        ? LucideIcons.eye_off
+                        : LucideIcons.eye,
+                    color: _viewModel.modoPrevisualizacao
+                        ? Cores.azulAcao
+                        : null,
+                  ),
+                  onPressed: _viewModel.carregandoPrevisualizacao ||
+                          _viewModel.salvando
+                      ? null
+                      : _alternarPrevisualizacao,
+                ),
+              ),
               Padding(
-                padding: const EdgeInsets.only(right: 12),
+                padding: const EdgeInsets.only(right: 12, left: 4),
                 child: FilledButton.icon(
                   onPressed: _viewModel.salvando ? null : _salvar,
                   icon: const Icon(LucideIcons.save, size: 18),
@@ -248,18 +325,64 @@ class _PaginaEditorTemplateState extends State<PaginaEditorTemplate> {
             aoInserir: _inserirVariavel,
             barraFormatacao: _barraFormatacao(),
             aoInserirBlocoManual: _inserirBlocoManual,
+            aoInserirBlocoInline: _inserirBlocoManualEmLinha,
+            modoPrevisualizacao: _viewModel.modoPrevisualizacao,
+            carregandoPrevisualizacao: _viewModel.carregandoPrevisualizacao,
+            aoAlternarPrevisualizacao: _alternarPrevisualizacao,
           ),
         ),
         const VerticalDivider(width: 1, color: Cores.bordaSutil),
         Expanded(
           child: Container(
             color: Cores.branco,
-            child: EditorProseMirror(
-              controller: _controller,
-              documentoInicial: _viewModel.documentoInicial,
-              modo: 'template',
-              temaInicial: _temaEditor,
-              aoMudarTema: _salvarTemaEditor,
+            child: Column(
+              children: [
+                if (_viewModel.modoPrevisualizacao)
+                  Container(
+                    color: Cores.azulAcao.withValues(alpha: 0.08),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          LucideIcons.eye,
+                          size: 16,
+                          color: Cores.azulAcao,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Modo de pré-visualização ativo: exibindo variáveis resolvidas com dados reais deste escopo.',
+                            style: Tipografia.bodySmall.copyWith(
+                              color: Cores.azulAcao,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: _alternarPrevisualizacao,
+                          icon: const Icon(LucideIcons.pencil, size: 14),
+                          label: const Text('Voltar a editar'),
+                          style: TextButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            foregroundColor: Cores.azulAcao,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Expanded(
+                  child: EditorProseMirror(
+                    controller: _controller,
+                    documentoInicial: _viewModel.documentoInicial,
+                    modo: 'template',
+                    temaInicial: _temaEditor,
+                    aoMudarTema: _salvarTemaEditor,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
