@@ -152,11 +152,21 @@ class ClienteHttp {
           )
           .timeout(_timeoutPadrao);
 
-      if (resposta.statusCode != 200) return false;
+      if (resposta.statusCode != 200) {
+        if (resposta.statusCode == 401 || resposta.statusCode == 400) {
+          await _servicoToken.limpar();
+          await onSessaoExpirada?.call();
+        }
+        return false;
+      }
 
       final corpo = jsonDecode(resposta.body) as Map<String, dynamic>;
       final novoAccessToken = corpo['access']?.toString();
-      if (novoAccessToken == null) return false;
+      if (novoAccessToken == null) {
+        await _servicoToken.limpar();
+        await onSessaoExpirada?.call();
+        return false;
+      }
 
       await _servicoToken.salvar(
         accessToken: novoAccessToken,
