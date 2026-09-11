@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gerelat_frontend/aplicacao/dependencias.dart';
 import 'package:gerelat_frontend/nucleo/componentes/app_shell.dart';
 import 'package:gerelat_frontend/nucleo/navegacao/pagina_nao_encontrada.dart';
+import 'package:gerelat_frontend/paginas/ajuda/pagina_ajuda.dart';
 import 'package:gerelat_frontend/paginas/assets/pagina_assets.dart';
 import 'package:gerelat_frontend/paginas/cadastro/pagina_cadastro.dart';
 import 'package:gerelat_frontend/paginas/clientes/pagina_aprovacoes.dart';
@@ -45,14 +46,7 @@ int? _idDaRota(GoRouterState state, [String parametro = 'id']) {
   return int.tryParse(state.pathParameters[parametro] ?? '');
 }
 
-const _rotasPublicas = <String>[
-  '/login',
-  '/cadastro',
-  '/cadastro/sucesso',
-  '/recuperar-senha',
-  '/recuperar-senha/enviado',
-  '/redefinir-senha',
-];
+const _rotasPublicas = <String>['/login', '/cadastro', '/cadastro/sucesso', '/recuperar-senha', '/recuperar-senha/enviado', '/redefinir-senha'];
 
 /// Deriva o que o [AppShell] precisa mostrar (seção ativa do menu + título)
 /// a partir do caminho da rota, evitando repetir essa informação em cada página.
@@ -88,9 +82,7 @@ const _rotasPublicas = <String>[
     return (secao: SecaoApp.programas, titulo: titulo);
   }
   if (caminho.startsWith('/variaveis')) {
-    return caminho.endsWith('/valores')
-        ? (secao: SecaoApp.variaveisValores, titulo: 'Valores de Variáveis')
-        : (secao: SecaoApp.variaveis, titulo: 'Definições de Variáveis');
+    return caminho.endsWith('/valores') ? (secao: SecaoApp.variaveisValores, titulo: 'Valores de Variáveis') : (secao: SecaoApp.variaveis, titulo: 'Definições de Variáveis');
   }
   if (caminho.startsWith('/projetos')) {
     return (secao: SecaoApp.programas, titulo: 'Equipe da Parceira');
@@ -117,8 +109,8 @@ const _rotasPublicas = <String>[
     final titulo = caminho.endsWith('/agendar')
         ? 'Geração Autônoma'
         : caminho.endsWith('/gerar')
-            ? 'Gerar Relatório'
-            : 'Relatórios';
+        ? 'Gerar Relatório'
+        : 'Relatórios';
     return (secao: SecaoApp.relatorios, titulo: titulo);
   }
   if (caminho.startsWith('/assets')) {
@@ -126,6 +118,9 @@ const _rotasPublicas = <String>[
   }
   if (caminho.startsWith('/configuracoes')) {
     return (secao: SecaoApp.configuracoes, titulo: 'Configurações');
+  }
+  if (caminho.startsWith('/ajuda')) {
+    return (secao: SecaoApp.dashboard, titulo: 'Central de Ajuda');
   }
   return (secao: SecaoApp.dashboard, titulo: 'Dashboard');
 }
@@ -144,9 +139,7 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
     refreshListenable: sessao,
     redirect: (context, state) {
       final autenticado = sessao.estaAutenticado;
-      final indoParaRotaPublica = _rotasPublicas.any(
-        (rota) => state.matchedLocation == rota,
-      );
+      final indoParaRotaPublica = _rotasPublicas.any((rota) => state.matchedLocation == rota);
 
       if (!autenticado && !indoParaRotaPublica) return '/login';
 
@@ -156,17 +149,18 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
       // autenticado (ex.: sessão antiga ainda válida em outra aba). Sem essa
       // exceção, o redirect abaixo descartava `uid`/`token` da URL e mandava
       // direto para `/dashboard`, quebrando o link do e-mail em silêncio.
-      final indoParaRedefinirSenha =
-          state.matchedLocation == '/redefinir-senha';
+      final indoParaRedefinirSenha = state.matchedLocation == '/redefinir-senha';
       if (autenticado && indoParaRotaPublica && !indoParaRedefinirSenha) {
         return '/dashboard';
       }
 
       // Usuário autenticado mas sem nenhum vínculo de acesso: redireciona para
-      // a tela de solicitação de acesso, exceto se já estiver lá.
-      final indoParaSolicitarAcesso =
-          state.matchedLocation == '/solicitar-acesso';
-      if (autenticado && !indoParaRotaPublica && !indoParaSolicitarAcesso) {
+      // a tela de solicitação de acesso. A Central de Ajuda continua acessível
+      // mesmo antes de o usuário estar vinculado a um cliente.
+      final indoParaSolicitarAcesso = state.matchedLocation == '/solicitar-acesso';
+      final indoParaAjuda = state.matchedLocation == '/ajuda';
+
+      if (autenticado && !indoParaRotaPublica && !indoParaSolicitarAcesso && !indoParaAjuda) {
         final usuario = sessao.usuarioAtual;
         if (usuario != null && !usuario.possuiContextoAcesso) {
           return '/solicitar-acesso';
@@ -177,46 +171,29 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
     },
     errorBuilder: (context, state) {
       final autenticado = sessao.estaAutenticado;
-      return PaginaNaoEncontrada(
-        rotaDestino: autenticado ? '/dashboard' : '/login',
-      );
+      return PaginaNaoEncontrada(rotaDestino: autenticado ? '/dashboard' : '/login');
     },
     routes: [
       GoRoute(
         path: '/login',
-        builder: (context, state) => PaginaLogin(
-          repositorioAutenticacao: repositorioAutenticacao,
-          sessao: sessao,
-        ),
+        builder: (context, state) => PaginaLogin(repositorioAutenticacao: repositorioAutenticacao, sessao: sessao),
       ),
       GoRoute(
         path: '/cadastro',
-        builder: (context, state) =>
-            PaginaCadastro(repositorioAutenticacao: repositorioAutenticacao),
+        builder: (context, state) => PaginaCadastro(repositorioAutenticacao: repositorioAutenticacao),
       ),
-      GoRoute(
-        path: '/cadastro/sucesso',
-        builder: (context, state) => const PaginaSucessoCadastro(),
-      ),
+      GoRoute(path: '/cadastro/sucesso', builder: (context, state) => const PaginaSucessoCadastro()),
       GoRoute(
         path: '/recuperar-senha',
-        builder: (context, state) => PaginaRecuperarSenha(
-          repositorioAutenticacao: repositorioAutenticacao,
-        ),
+        builder: (context, state) => PaginaRecuperarSenha(repositorioAutenticacao: repositorioAutenticacao),
       ),
       GoRoute(
         path: '/solicitar-acesso',
-        builder: (context, state) => PaginaSolicitarAcesso(
-          repositorioAutenticacao: repositorioAutenticacao,
-          sessao: sessao,
-        ),
+        builder: (context, state) => PaginaSolicitarAcesso(repositorioAutenticacao: repositorioAutenticacao, sessao: sessao),
       ),
       GoRoute(
         path: '/recuperar-senha/enviado',
-        builder: (context, state) => PaginaEmailEnviado(
-          email: state.extra as String?,
-          repositorioAutenticacao: repositorioAutenticacao,
-        ),
+        builder: (context, state) => PaginaEmailEnviado(email: state.extra as String?, repositorioAutenticacao: repositorioAutenticacao),
       ),
       GoRoute(
         path: '/redefinir-senha',
@@ -224,15 +201,9 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
           final uid = state.uri.queryParameters['uid'];
           final token = state.uri.queryParameters['token'];
           if (uid == null || token == null) {
-            return PaginaRecuperarSenha(
-              repositorioAutenticacao: repositorioAutenticacao,
-            );
+            return PaginaRecuperarSenha(repositorioAutenticacao: repositorioAutenticacao);
           }
-          return PaginaNovaSenha(
-            uid: uid,
-            token: token,
-            repositorioAutenticacao: repositorioAutenticacao,
-          );
+          return PaginaNovaSenha(uid: uid, token: token, repositorioAutenticacao: repositorioAutenticacao);
         },
       ),
       // Editores em tela cheia (fora do AppShell): a superfície de edição
@@ -244,10 +215,7 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
           if (templateId == null) {
             return const PaginaNaoEncontrada(rotaDestino: '/templates');
           }
-          return PaginaEditorTemplate(
-            templateId: templateId,
-            repositorioCatalogo: repositorioCatalogo,
-          );
+          return PaginaEditorTemplate(templateId: templateId, repositorioCatalogo: repositorioCatalogo);
         },
       ),
       GoRoute(
@@ -257,59 +225,34 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
           if (args is! ArgumentosEditorRelatorio) {
             return const PaginaNaoEncontrada(rotaDestino: '/relatorios/gerar');
           }
-          return PaginaEditorRelatorio(
-            argumentos: args,
-            repositorioCatalogo: repositorioCatalogo,
-          );
+          return PaginaEditorRelatorio(argumentos: args, repositorioCatalogo: repositorioCatalogo);
         },
       ),
       ShellRoute(
         builder: (context, state, child) {
           final chrome = _chromeParaRota(state.matchedLocation);
-          return AppShell(
-            secaoAtual: chrome.secao,
-            titulo: chrome.titulo,
-            sessao: sessao,
-            child: child,
-          );
+          return AppShell(secaoAtual: chrome.secao, titulo: chrome.titulo, sessao: sessao, child: child);
         },
         routes: [
           GoRoute(
             path: '/dashboard',
-            builder: (context, state) => DashboardPage(
-              repositorioCatalogo: repositorioCatalogo,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) => DashboardPage(repositorioCatalogo: repositorioCatalogo, sessaoViewModel: sessao),
           ),
           GoRoute(
             path: '/clientes',
-            builder: (context, state) => PaginaClientes(
-              repositorioCatalogo: repositorioCatalogo,
-              urlBase: urlBase,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) => PaginaClientes(repositorioCatalogo: repositorioCatalogo, urlBase: urlBase, sessaoViewModel: sessao),
           ),
           GoRoute(
             path: '/clientes/aprovacoes',
-            builder: (context, state) => PaginaAprovacoes(
-              repositorioCatalogo: repositorioCatalogo,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) => PaginaAprovacoes(repositorioCatalogo: repositorioCatalogo, sessaoViewModel: sessao),
           ),
           GoRoute(
             path: '/clientes/membros',
-            builder: (context, state) => PaginaMembros(
-              repositorioCatalogo: repositorioCatalogo,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) => PaginaMembros(repositorioCatalogo: repositorioCatalogo, sessaoViewModel: sessao),
           ),
           GoRoute(
             path: '/clientes/novo',
-            builder: (context, state) => PaginaFormularioCliente(
-              repositorioCatalogo: repositorioCatalogo,
-              urlBase: urlBase,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) => PaginaFormularioCliente(repositorioCatalogo: repositorioCatalogo, urlBase: urlBase, sessaoViewModel: sessao),
           ),
           GoRoute(
             path: '/clientes/:id/editar',
@@ -318,29 +261,16 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
               if (clienteId == null) {
                 return const PaginaNaoEncontrada(rotaDestino: '/clientes');
               }
-              return PaginaFormularioCliente(
-                edicao: true,
-                clienteId: clienteId,
-                repositorioCatalogo: repositorioCatalogo,
-                urlBase: urlBase,
-                sessaoViewModel: sessao,
-              );
+              return PaginaFormularioCliente(edicao: true, clienteId: clienteId, repositorioCatalogo: repositorioCatalogo, urlBase: urlBase, sessaoViewModel: sessao);
             },
           ),
           GoRoute(
             path: '/programas',
-            builder: (context, state) => PaginaProgramas(
-              repositorioCatalogo: repositorioCatalogo,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) => PaginaProgramas(repositorioCatalogo: repositorioCatalogo, sessaoViewModel: sessao),
           ),
           GoRoute(
             path: '/programas/novo',
-            builder: (context, state) => PaginaFormularioPrograma(
-              repositorioCatalogo: repositorioCatalogo,
-              urlBase: urlBase,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) => PaginaFormularioPrograma(repositorioCatalogo: repositorioCatalogo, urlBase: urlBase, sessaoViewModel: sessao),
           ),
           GoRoute(
             path: '/programas/:id/editar',
@@ -349,23 +279,12 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
               if (programaId == null) {
                 return const PaginaNaoEncontrada(rotaDestino: '/programas');
               }
-              return PaginaFormularioPrograma(
-                edicao: true,
-                programaId: programaId,
-                repositorioCatalogo: repositorioCatalogo,
-                urlBase: urlBase,
-                sessaoViewModel: sessao,
-              );
+              return PaginaFormularioPrograma(edicao: true, programaId: programaId, repositorioCatalogo: repositorioCatalogo, urlBase: urlBase, sessaoViewModel: sessao);
             },
           ),
           GoRoute(
             path: '/programas/projetos/novo',
-            builder: (context, state) => PaginaFormularioProjeto(
-              programaIdInicial: state.extra as int?,
-              repositorioCatalogo: repositorioCatalogo,
-              urlBase: urlBase,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) => PaginaFormularioProjeto(programaIdInicial: state.extra as int?, repositorioCatalogo: repositorioCatalogo, urlBase: urlBase, sessaoViewModel: sessao),
           ),
           GoRoute(
             path: '/programas/projetos/:id/editar',
@@ -374,13 +293,7 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
               if (projetoId == null) {
                 return const PaginaNaoEncontrada(rotaDestino: '/programas');
               }
-              return PaginaFormularioProjeto(
-                edicao: true,
-                projetoId: projetoId,
-                repositorioCatalogo: repositorioCatalogo,
-                urlBase: urlBase,
-                sessaoViewModel: sessao,
-              );
+              return PaginaFormularioProjeto(edicao: true, projetoId: projetoId, repositorioCatalogo: repositorioCatalogo, urlBase: urlBase, sessaoViewModel: sessao);
             },
           ),
           GoRoute(
@@ -390,11 +303,7 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
               if (programaId == null) {
                 return const PaginaNaoEncontrada(rotaDestino: '/programas');
               }
-              return PaginaProjetosPrograma(
-                programaId: programaId,
-                repositorioCatalogo: repositorioCatalogo,
-                sessaoViewModel: sessao,
-              );
+              return PaginaProjetosPrograma(programaId: programaId, repositorioCatalogo: repositorioCatalogo, sessaoViewModel: sessao);
             },
           ),
           GoRoute(
@@ -404,53 +313,32 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
               if (programaId == null) {
                 return const PaginaNaoEncontrada(rotaDestino: '/programas');
               }
-              return PaginaEquipePrograma(
-                programaId: programaId,
-                repositorioCatalogo: repositorioCatalogo,
-                sessaoViewModel: sessao,
-              );
+              return PaginaEquipePrograma(programaId: programaId, repositorioCatalogo: repositorioCatalogo, sessaoViewModel: sessao);
             },
           ),
           GoRoute(
             path: '/projetos/equipe',
-            builder: (context, state) =>
-                PaginaEquipeProjeto(repositorioCatalogo: repositorioCatalogo),
+            builder: (context, state) => PaginaEquipeProjeto(repositorioCatalogo: repositorioCatalogo),
           ),
           GoRoute(
             path: '/variaveis/definicoes',
-            builder: (context, state) => PaginaDefinicoesVariaveis(
-              repositorioCatalogo: repositorioCatalogo,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) => PaginaDefinicoesVariaveis(repositorioCatalogo: repositorioCatalogo, sessaoViewModel: sessao),
           ),
           GoRoute(
             path: '/variaveis/valores',
-            builder: (context, state) => PaginaValoresVariaveis(
-              repositorioCatalogo: repositorioCatalogo,
-              urlBase: urlBase,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) => PaginaValoresVariaveis(repositorioCatalogo: repositorioCatalogo, urlBase: urlBase, sessaoViewModel: sessao),
           ),
           GoRoute(
             path: '/eventos',
-            builder: (context, state) => PaginaEventos(
-              repositorioCatalogo: repositorioCatalogo,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) => PaginaEventos(repositorioCatalogo: repositorioCatalogo, sessaoViewModel: sessao),
           ),
           GoRoute(
             path: '/eventos/classes-evento',
-            builder: (context, state) => PaginaClassesEvento(
-              repositorioCatalogo: repositorioCatalogo,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) => PaginaClassesEvento(repositorioCatalogo: repositorioCatalogo, sessaoViewModel: sessao),
           ),
           GoRoute(
             path: '/eventos/novo',
-            builder: (context, state) => PaginaFormularioEvento(
-              repositorioCatalogo: repositorioCatalogo,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) => PaginaFormularioEvento(repositorioCatalogo: repositorioCatalogo, sessaoViewModel: sessao),
           ),
           GoRoute(
             path: '/eventos/:id/editar',
@@ -459,27 +347,16 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
               if (eventoId == null) {
                 return const PaginaNaoEncontrada(rotaDestino: '/eventos');
               }
-              return PaginaFormularioEvento(
-                edicao: true,
-                eventoId: eventoId,
-                repositorioCatalogo: repositorioCatalogo,
-                sessaoViewModel: sessao,
-              );
+              return PaginaFormularioEvento(edicao: true, eventoId: eventoId, repositorioCatalogo: repositorioCatalogo, sessaoViewModel: sessao);
             },
           ),
           GoRoute(
             path: '/templates',
-            builder: (context, state) => PaginaTemplates(
-              repositorioCatalogo: repositorioCatalogo,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) => PaginaTemplates(repositorioCatalogo: repositorioCatalogo, sessaoViewModel: sessao),
           ),
           GoRoute(
             path: '/templates/novo',
-            builder: (context, state) => PaginaFormularioTemplate(
-              repositorioCatalogo: repositorioCatalogo,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) => PaginaFormularioTemplate(repositorioCatalogo: repositorioCatalogo, sessaoViewModel: sessao),
           ),
           GoRoute(
             path: '/templates/:id/editar',
@@ -488,50 +365,30 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
               if (templateId == null) {
                 return const PaginaNaoEncontrada(rotaDestino: '/templates');
               }
-              return PaginaFormularioTemplate(
-                edicao: true,
-                templateId: templateId,
-                repositorioCatalogo: repositorioCatalogo,
-                sessaoViewModel: sessao,
-              );
+              return PaginaFormularioTemplate(edicao: true, templateId: templateId, repositorioCatalogo: repositorioCatalogo, sessaoViewModel: sessao);
             },
           ),
           GoRoute(
             path: '/relatorios',
-            builder: (context, state) => PaginaRelatorios(
-              repositorioCatalogo: repositorioCatalogo,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) => PaginaRelatorios(repositorioCatalogo: repositorioCatalogo, sessaoViewModel: sessao),
           ),
           GoRoute(
             path: '/relatorios/gerar',
-            builder: (context, state) => PaginaGerarRelatorio(
-              repositorioCatalogo: repositorioCatalogo,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) => PaginaGerarRelatorio(repositorioCatalogo: repositorioCatalogo, sessaoViewModel: sessao),
           ),
           GoRoute(
             path: '/relatorios/agendar',
-            builder: (context, state) => PaginaAgendarRelatorio(
-              repositorioCatalogo: repositorioCatalogo,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) => PaginaAgendarRelatorio(repositorioCatalogo: repositorioCatalogo, sessaoViewModel: sessao),
           ),
           GoRoute(
             path: '/assets',
-            builder: (context, state) => PaginaAssets(
-              repositorioCatalogo: repositorioCatalogo,
-              urlBase: urlBase,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) => PaginaAssets(repositorioCatalogo: repositorioCatalogo, urlBase: urlBase, sessaoViewModel: sessao),
           ),
           GoRoute(
             path: '/configuracoes',
-            builder: (context, state) => PaginaConfiguracoes(
-              repositorioAutenticacao: repositorioAutenticacao,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) => PaginaConfiguracoes(repositorioAutenticacao: repositorioAutenticacao, sessaoViewModel: sessao),
           ),
+          GoRoute(path: '/ajuda', builder: (context, state) => const PaginaAjuda()),
         ],
       ),
     ],
