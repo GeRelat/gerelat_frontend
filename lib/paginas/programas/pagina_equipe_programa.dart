@@ -114,21 +114,27 @@ class _PaginaEquipeProgramaState extends State<PaginaEquipePrograma> {
 
   @override
   Widget build(BuildContext context) {
-    final usuario = widget.sessaoViewModel.usuarioAtual;
-    final clienteAtivoId = widget.sessaoViewModel.clienteAtivoId;
-    final eAdmin = usuario?.eAdminDoCliente(clienteAtivoId) ?? false;
-    final eMembroDoPrograma = usuario?.contextosAcesso.programas.any(
-          (p) => int.tryParse('${p['id']}') == widget.programaId,
-        ) ??
-        false;
-    final podeEditar = eAdmin || eMembroDoPrograma;
-
     return AnimatedBuilder(
       animation: _viewModel,
       builder: (context, _) {
         if (_viewModel.carregando && _viewModel.programa == null) {
           return const Center(child: CircularProgressIndicator());
         }
+
+        final usuario = widget.sessaoViewModel.usuarioAtual;
+        final clienteAtivoId = widget.sessaoViewModel.clienteAtivoId;
+        final clienteId = (_viewModel.programa?.clienteId != null && _viewModel.programa!.clienteId! > 0)
+            ? _viewModel.programa!.clienteId
+            : clienteAtivoId;
+        final eAdmin = usuario?.eAdminDoCliente(clienteId) ?? false;
+        final eMembroDoPrograma = usuario?.contextosAcesso.programas.any(
+              (p) =>
+                  int.tryParse('${p['id']}') == widget.programaId ||
+                  int.tryParse('${p['programa_id']}') == widget.programaId,
+            ) ??
+            false;
+        final podeEditar = eAdmin || eMembroDoPrograma;
+
         final nomePrograma = _viewModel.programa?.nome ?? '';
         return SingleChildScrollView(
           padding: const EdgeInsets.all(32),

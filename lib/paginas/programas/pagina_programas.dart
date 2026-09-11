@@ -118,7 +118,7 @@ class _PaginaProgramasState extends State<PaginaProgramas> {
             BotaoPrimario(
               texto: 'Variáveis',
               icone: LucideIcons.variable,
-              onPressed: () => context.push('/variaveis/definicoes'),
+              onPressed: () => context.push('/variaveis'),
             ),
             BotaoPrimario(
               texto: 'Equipe da Parceira',
@@ -303,10 +303,15 @@ class _CartaoProgramaState extends State<_CartaoPrograma> {
   Widget build(BuildContext context) {
     final usuario = widget.sessaoViewModel.usuarioAtual;
     final clienteAtivoId = widget.sessaoViewModel.clienteAtivoId;
-    final eAdminCliente = usuario?.eAdminDoCliente(clienteAtivoId) ?? false;
+    final clienteId = (widget.programa.clienteId != null && widget.programa.clienteId! > 0)
+        ? widget.programa.clienteId
+        : clienteAtivoId;
+    final eAdminCliente = usuario?.eAdminDoCliente(clienteId) ?? false;
     final eMembroDoPrograma =
         usuario?.contextosAcesso.programas.any(
-          (p) => int.tryParse('${p['id']}') == widget.programa.id,
+          (p) =>
+              int.tryParse('${p['id']}') == widget.programa.id ||
+              int.tryParse('${p['programa_id']}') == widget.programa.id,
         ) ??
         false;
 
@@ -318,7 +323,10 @@ class _CartaoProgramaState extends State<_CartaoPrograma> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
-        onTap: () => _exibirDetalhesPrograma(context, podeEditar, podeExcluir),
+        onTap: () async {
+          await context.push('/programas/${widget.programa.id}');
+          await widget.onEditado();
+        },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.all(24),
@@ -400,7 +408,7 @@ class _CartaoProgramaState extends State<_CartaoPrograma> {
                     tooltip: 'Projetos do programa',
                     onPressed: () async {
                       await context.push(
-                        '/programas/${widget.programa.id}/projetos',
+                        '/programas/${widget.programa.id}?aba=1',
                       );
                       await widget.onEditado();
                     },
@@ -409,7 +417,7 @@ class _CartaoProgramaState extends State<_CartaoPrograma> {
                   IconButton(
                     tooltip: 'Equipe fixa do programa',
                     onPressed: () => context.push(
-                      '/programas/${widget.programa.id}/equipe',
+                      '/programas/${widget.programa.id}?aba=3',
                     ),
                     icon: const Icon(LucideIcons.users, size: 18),
                   ),
@@ -442,307 +450,6 @@ class _CartaoProgramaState extends State<_CartaoPrograma> {
           ),
         ),
       ),
-    );
-  }
-
-  void _exibirDetalhesPrograma(
-    BuildContext context,
-    bool podeEditar,
-    bool podeExcluir,
-  ) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          backgroundColor: Cores.branco,
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 560),
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const IconeComFundo(
-                      cor: Cores.azulAcao,
-                      tamanho: 48,
-                      raio: 12,
-                      icone: LucideIcons.folder_kanban,
-                      tamanhoIcone: 24,
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.programa.nome,
-                            style: Tipografia.headlineMedium.copyWith(
-                              color: Cores.textoPrincipal,
-                              fontSize: 20,
-                            ),
-                          ),
-                          if (widget.programa.clienteNome.isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                const Icon(
-                                  LucideIcons.building_2,
-                                  size: 14,
-                                  color: Cores.cinzaMedio,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  widget.programa.clienteNome,
-                                  style: Tipografia.bodySmall.copyWith(
-                                    color: Cores.cinzaMedio,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(LucideIcons.x, size: 20),
-                      onPressed: () => Navigator.of(context).pop(),
-                      tooltip: 'Fechar',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                const Divider(height: 1, color: Cores.bordaSutil),
-                const SizedBox(height: 20),
-                Text(
-                  'Descrição',
-                  style: Tipografia.labelLarge.copyWith(
-                    color: Cores.cinzaEscuro,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  widget.programa.descricao.isEmpty
-                      ? 'Nenhuma descrição informada.'
-                      : widget.programa.descricao,
-                  style: Tipografia.bodyMedium.copyWith(
-                    color: Cores.textoPrincipal,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Cores.fundoSecao,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Cores.bordaSutil),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Text(
-                              '${widget.programa.projetos}',
-                              style: Tipografia.headlineMedium.copyWith(
-                                color: Cores.textoPrincipal,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Projetos vinculados',
-                              style: Tipografia.bodySmall.copyWith(
-                                color: Cores.cinzaMedio,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        height: 36,
-                        width: 1,
-                        color: Cores.bordaSutil,
-                      ),
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Text(
-                              '${widget.programa.eventos}',
-                              style: Tipografia.headlineMedium.copyWith(
-                                color: Cores.textoPrincipal,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Eventos mapeados',
-                              style: Tipografia.bodySmall.copyWith(
-                                color: Cores.cinzaMedio,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 28),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final modoCompacto = constraints.maxWidth < 480;
-
-                    return Row(
-                      children: [
-                        if (podeExcluir)
-                          modoCompacto
-                              ? IconButton(
-                                  tooltip: 'Excluir programa',
-                                  style: IconButton.styleFrom(
-                                    foregroundColor: Cores.vermelhoErro,
-                                    side: const BorderSide(
-                                      color: Cores.vermelhoErro,
-                                    ),
-                                  ),
-                                  onPressed: () async {
-                                    Navigator.of(context).pop();
-                                    await _confirmarExclusao(context);
-                                  },
-                                  icon: const Icon(
-                                    LucideIcons.trash_2,
-                                    size: 18,
-                                  ),
-                                )
-                              : OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Cores.vermelhoErro,
-                                    side: const BorderSide(
-                                      color: Cores.vermelhoErro,
-                                    ),
-                                  ),
-                                  onPressed: () async {
-                                    Navigator.of(context).pop();
-                                    await _confirmarExclusao(context);
-                                  },
-                                  icon: const Icon(
-                                    LucideIcons.trash_2,
-                                    size: 16,
-                                  ),
-                                  label: const Text('Excluir'),
-                                ),
-                        const Spacer(),
-                        modoCompacto
-                            ? IconButton(
-                                tooltip: 'Projetos do programa',
-                                onPressed: () async {
-                                  Navigator.of(context).pop();
-                                  await context.push(
-                                    '/programas/${widget.programa.id}/projetos',
-                                  );
-                                  await widget.onEditado();
-                                },
-                                icon: const Icon(
-                                  LucideIcons.git_branch,
-                                  size: 18,
-                                ),
-                              )
-                            : OutlinedButton.icon(
-                                onPressed: () async {
-                                  Navigator.of(context).pop();
-                                  await context.push(
-                                    '/programas/${widget.programa.id}/projetos',
-                                  );
-                                  await widget.onEditado();
-                                },
-                                icon: const Icon(
-                                  LucideIcons.git_branch,
-                                  size: 16,
-                                ),
-                                label: const Text('Projetos'),
-                              ),
-                        const SizedBox(width: 8),
-                        modoCompacto
-                            ? IconButton(
-                                tooltip: 'Equipe do programa',
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                  context.push(
-                                    '/programas/${widget.programa.id}/equipe',
-                                  );
-                                },
-                                icon: const Icon(
-                                  LucideIcons.users,
-                                  size: 18,
-                                ),
-                              )
-                            : OutlinedButton.icon(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                  context.push(
-                                    '/programas/${widget.programa.id}/equipe',
-                                  );
-                                },
-                                icon: const Icon(
-                                  LucideIcons.users,
-                                  size: 16,
-                                ),
-                                label: const Text('Equipe'),
-                              ),
-                        if (podeEditar) ...[
-                          const SizedBox(width: 8),
-                          modoCompacto
-                              ? IconButton(
-                                  tooltip: 'Editar programa',
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: Cores.azulAcao,
-                                    foregroundColor: Cores.branco,
-                                  ),
-                                  onPressed: () async {
-                                    Navigator.of(context).pop();
-                                    final alterado = await context.push<bool>(
-                                      '/programas/${widget.programa.id}/editar',
-                                    );
-                                    if (alterado == true) {
-                                      await widget.onEditado();
-                                    }
-                                  },
-                                  icon: const Icon(
-                                    LucideIcons.pencil,
-                                    size: 18,
-                                  ),
-                                )
-                              : ElevatedButton.icon(
-                                  onPressed: () async {
-                                    Navigator.of(context).pop();
-                                    final alterado = await context.push<bool>(
-                                      '/programas/${widget.programa.id}/editar',
-                                    );
-                                    if (alterado == true) {
-                                      await widget.onEditado();
-                                    }
-                                  },
-                                  icon: const Icon(
-                                    LucideIcons.pencil,
-                                    size: 16,
-                                  ),
-                                  label: const Text('Editar'),
-                                ),
-                        ],
-                      ],
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 

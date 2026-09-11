@@ -4,10 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/cadastro_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/campo_definicao_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/campo_valor_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/classe_evento_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/evento_form_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/eventos_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/gerar_relatorio_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/login_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/programa_form_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/relatorios_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/template_form_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/templates_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/agendamento_relatorio.dart';
 import 'package:gerelat_frontend/dominio/entidades/asset.dart';
 import 'package:gerelat_frontend/dominio/entidades/assinatura_template.dart';
@@ -118,11 +123,42 @@ void main() {
       expect(repositorio.eventoCriado, 'Evento Teste');
     });
 
+    test('ClasseEventoViewModel opera no nível programa e lista/cria classes', () async {
+      final repositorio = _RepositorioCatalogoFake();
+      final viewModel = ClasseEventoViewModel(repositorio);
+
+      await viewModel.carregarHierarquia();
+      expect(viewModel.niveisPermitidos, [NivelEscopo.programa]);
+      expect(viewModel.opcoesProgramas, hasLength(1));
+
+      final sucesso = await viewModel.salvar(nomeClasse: 'Nova Classe');
+      expect(sucesso, isTrue);
+    });
+
+    test('EventosViewModel filtra eventos por programa e projeto', () async {
+      final repositorio = _RepositorioCatalogoFake();
+      final viewModel = EventosViewModel(repositorio);
+
+      await viewModel.carregar();
+      expect(viewModel.eventos, hasLength(1));
+
+      viewModel.definirFiltroProgramaId(10);
+      expect(viewModel.eventos, hasLength(1));
+
+      viewModel.definirFiltroProjetoId(1);
+      expect(viewModel.eventos, hasLength(1));
+
+      viewModel.definirFiltroProjetoId(999);
+      expect(viewModel.eventos, isEmpty);
+    });
+
     test('GerarRelatorioViewModel envia a cadeia de escopo do template', () async {
       final repositorio = _RepositorioCatalogoFake();
       final viewModel = GerarRelatorioViewModel(repositorio);
 
       await viewModel.carregar();
+      viewModel.selecionarPrograma(10);
+      viewModel.selecionarProjeto(1);
       await viewModel.selecionarTemplate(4);
       final documento = await viewModel.obterDocumentoPreview();
 
@@ -172,6 +208,8 @@ void main() {
       final viewModel = GerarRelatorioViewModel(repositorio);
 
       await viewModel.carregar();
+      viewModel.selecionarPrograma(10);
+      viewModel.selecionarProjeto(1);
       await viewModel.selecionarTemplate(4);
 
       expect(viewModel.nivelExigido, NivelAplicacao.evento);
@@ -193,6 +231,8 @@ void main() {
       final viewModel = GerarRelatorioViewModel(repositorio);
 
       await viewModel.carregar();
+      viewModel.selecionarPrograma(10);
+      viewModel.selecionarProjeto(1);
       await viewModel.selecionarTemplate(4);
 
       expect(viewModel.refsNaoContempladas, ['nao_existe']);
@@ -209,11 +249,45 @@ void main() {
       final viewModel = GerarRelatorioViewModel(repositorio);
 
       await viewModel.carregar();
+      viewModel.selecionarPrograma(10);
+      viewModel.selecionarProjeto(1);
       await viewModel.selecionarTemplate(4);
 
       expect(viewModel.nivelExigido, NivelAplicacao.evento);
       expect(viewModel.refsNaoContempladas, isEmpty);
     });
+
+    test(
+      'dependência escondida num texto rico escala o nível exigido para o '
+      'que o backend calcular',
+      () async {
+        // O template só cita diretamente "texto_padrao" (nível Programa) —
+        // sem a resposta do backend, o cliente concluiria erroneamente que
+        // nenhum nível abaixo de Programa é exigido.
+        final repositorio = _RepositorioCatalogoFake(
+          modeloTemplate: docComVariavel('var_richtext', 'texto_padrao'),
+          variaveisDisponiveis: const [
+            VariavelDisponivel(
+              referencia: 'texto_padrao',
+              descricao: 'Parágrafo padrão',
+              tipo: TipoCampo.textoRico,
+              nivelAplicacao: NivelAplicacao.programa,
+              origem: OrigemVariavel.customizado,
+            ),
+          ],
+          nivelExigidoBackend: NivelAplicacao.projeto,
+        );
+        final viewModel = GerarRelatorioViewModel(repositorio);
+
+        await viewModel.carregar();
+        viewModel.selecionarPrograma(10);
+        viewModel.selecionarProjeto(1);
+        await viewModel.selecionarTemplate(4);
+
+        expect(viewModel.nivelExigido, NivelAplicacao.projeto);
+        expect(repositorio.nivelExigidoRecebido?.template, 4);
+      },
+    );
 
     test('bloco manual não conta como variável não contemplada', () async {
       final repositorio = _RepositorioCatalogoFake(
@@ -231,6 +305,8 @@ void main() {
       final viewModel = GerarRelatorioViewModel(repositorio);
 
       await viewModel.carregar();
+      viewModel.selecionarPrograma(10);
+      viewModel.selecionarProjeto(1);
       await viewModel.selecionarTemplate(4);
 
       expect(viewModel.refsNaoContempladas, isEmpty);
@@ -356,6 +432,88 @@ void main() {
         ref: 'local_evento',
       ));
     });
+
+    test('membro de projeto pode criar variáveis no seu projeto e gerenciar definições de projeto', () async {
+      const definicaoPrograma = CampoDefinicao(
+        id: 1,
+        programaId: 10,
+        nivelAplicacao: NivelAplicacao.programa,
+        referencia: 'var_programa',
+        descricao: 'Var Programa',
+        tipo: TipoCampo.texto,
+      );
+      const definicaoProjeto = CampoDefinicao(
+        id: 2,
+        projetoId: 1,
+        nivelAplicacao: NivelAplicacao.projeto,
+        referencia: 'var_projeto',
+        descricao: 'Var Projeto',
+        tipo: TipoCampo.texto,
+      );
+
+      final repositorio = _RepositorioCatalogoFake(
+        definicoes: const [definicaoPrograma, definicaoProjeto],
+        projetosDetalhados: const [
+          Projeto(id: 1, nome: 'Projeto 1', programaId: 10),
+          Projeto(id: 2, nome: 'Projeto 2', programaId: 10),
+        ],
+        programas: const [
+          Programa(
+            id: 10,
+            nome: 'Programa 10',
+            clienteId: 100,
+            descricao: '',
+            status: 'Ativo',
+            projetos: 2,
+            eventos: 0,
+          ),
+        ],
+      );
+
+      final viewModel = CampoDefinicaoViewModel(repositorio);
+      final usuario = Usuario(
+        id: 10,
+        nomeCompleto: 'Membro Projeto',
+        email: 'membro@proj.com',
+        contextosAcesso: const ContextosAcesso(
+          projetos: [
+            {'id': 1, 'nome': 'Projeto 1', 'cliente_id': 100}
+          ],
+        ),
+      );
+
+      viewModel.definirContexto(100, usuario);
+      await viewModel.carregarHierarquia();
+      await viewModel.selecionarEscopo(NivelEscopo.programa, 10);
+
+      // Definições visíveis: tanto a do programa quanto a do projeto 1
+      expect(viewModel.definicoes, hasLength(2));
+
+      // Permissões
+      expect(viewModel.podeCriarNoPrograma(10), isFalse);
+      expect(viewModel.projetosPermitidosParaCriar(10).map((p) => p.id), [1]);
+      expect(viewModel.podeCriarVariavel(10), isTrue);
+
+      expect(viewModel.podeEditarDefinicao(definicaoPrograma), isFalse);
+      expect(viewModel.podeEditarDefinicao(definicaoProjeto), isTrue);
+
+      // Salvar variável no escopo do projeto
+      await viewModel.salvar(
+        escopo: NivelEscopo.projeto,
+        escopoId: 1,
+        nivelAplicacao: NivelAplicacao.projeto,
+        referencia: 'nova_var_proj',
+        descricao: 'Nova Var Projeto',
+        tipo: TipoCampo.texto,
+        obrigatorio: false,
+      );
+
+      expect(repositorio.definicaoCriada, (
+        escopo: NivelEscopo.projeto,
+        escopoId: 1,
+        ref: 'nova_var_proj',
+      ));
+    });
   });
 
   group('scanner de gaps ProseMirror', () {
@@ -421,6 +579,225 @@ void main() {
 
     test('sem refs conhecidas, nenhum nível é exigido', () {
       expect(nivelExigidoPorRefs(const ['desconhecida'], const {}), isNull);
+    });
+  });
+
+  group('TemplatesViewModel - permissões e escopo', () {
+    test('membro de projeto pode ver templates de programa e projeto em niveisPermitidos', () {
+      final catalogo = _RepositorioCatalogoFake();
+      final viewModel = TemplatesViewModel(catalogo);
+      final usuario = Usuario(
+        id: 10,
+        nomeCompleto: 'Membro Projeto',
+        email: 'membro@proj.com',
+        contextosAcesso: const ContextosAcesso(
+          projetos: [
+            {'id': 1, 'nome': 'Projeto 1', 'cliente_id': 1}
+          ],
+        ),
+      );
+
+      viewModel.definirContexto(1, usuario);
+      expect(viewModel.niveisPermitidos, [NivelEscopo.programa, NivelEscopo.projeto]);
+    });
+
+    test('membro de projeto pode editar templates de seu projeto mas não de programa', () {
+      final catalogo = _RepositorioCatalogoFake();
+      final viewModel = TemplatesViewModel(catalogo);
+      final usuario = Usuario(
+        id: 10,
+        nomeCompleto: 'Membro Projeto',
+        email: 'membro@proj.com',
+        contextosAcesso: const ContextosAcesso(
+          projetos: [
+            {'id': 1, 'nome': 'Projeto 1', 'cliente_id': 1}
+          ],
+        ),
+      );
+
+      viewModel.definirContexto(1, usuario);
+
+      const templatePrograma = TemplateRelatorio(
+        id: 1,
+        nivel: NivelEscopo.programa,
+        programaId: 1,
+        nome: 'Template Programa',
+        descricao: '',
+        tipo: 'DOCX',
+        status: 'Ativo',
+      );
+
+      const templateProjeto = TemplateRelatorio(
+        id: 2,
+        nivel: NivelEscopo.projeto,
+        projetoId: 1,
+        nome: 'Template Projeto',
+        descricao: '',
+        tipo: 'DOCX',
+        status: 'Ativo',
+      );
+
+      expect(viewModel.podeEditarTemplate(templatePrograma), isFalse);
+      expect(viewModel.podeExcluirTemplate(templatePrograma), isFalse);
+      expect(viewModel.podeEditarTemplate(templateProjeto), isTrue);
+      expect(viewModel.podeExcluirTemplate(templateProjeto), isTrue);
+    });
+  });
+
+  group('relatórios', () {
+    test('RelatoriosViewModel filtra por todos, programa e projeto', () async {
+      final rel1 = Relatorio(
+        id: 1,
+        projetoId: 1, // Projeto 1 pertence ao Programa 10, Cliente 100
+        projetoNome: 'Projeto Alfa',
+        titulo: 'Relatório Alfa',
+        evento: 'Sem evento',
+        template: 'Template 1',
+        dataGeracao: '10/09/2026',
+        status: 'Concluído',
+      );
+      final rel2 = Relatorio(
+        id: 2,
+        projetoId: 2, // Projeto 2 pertence ao Programa 20 (outro programa), Cliente 100
+        projetoNome: 'Projeto Beta',
+        titulo: 'Relatório Beta',
+        evento: 'Sem evento',
+        template: 'Template 2',
+        dataGeracao: '10/09/2026',
+        status: 'Concluído',
+      );
+
+      final catalogo = _RepositorioCatalogoFake(
+        relatorios: [rel1, rel2],
+        projetosDetalhados: const [
+          Projeto(id: 1, nome: 'Projeto Alfa', programaId: 10),
+          Projeto(id: 2, nome: 'Projeto Beta', programaId: 20),
+        ],
+        programas: const [
+          Programa(id: 10, nome: 'Programa 10', clienteId: 100, descricao: '', status: 'Ativo', projetos: 1, eventos: 0),
+          Programa(id: 20, nome: 'Programa 20', clienteId: 100, descricao: '', status: 'Ativo', projetos: 1, eventos: 0),
+        ],
+      );
+
+      final viewModel = RelatoriosViewModel(catalogo);
+      viewModel.definirContexto(100, null);
+      await viewModel.carregar();
+
+      // "Todos": traz rel1 e rel2
+      expect(viewModel.relatorios.length, 2);
+
+      // Filtro por Programa 10: traz apenas rel1 (projeto alfa)
+      viewModel.definirFiltroNivel(NivelEscopo.programa);
+      viewModel.definirFiltroEscopoId(10);
+      expect(viewModel.relatorios.length, 1);
+      expect(viewModel.relatorios.first.id, 1);
+
+      // Filtro por Programa 20: traz apenas rel2 (projeto beta)
+      viewModel.definirFiltroEscopoId(20);
+      expect(viewModel.relatorios.length, 1);
+      expect(viewModel.relatorios.first.id, 2);
+
+      // Filtro por Projeto 1: traz rel1
+      viewModel.definirFiltroNivel(NivelEscopo.projeto);
+      viewModel.definirFiltroEscopoId(1);
+      expect(viewModel.relatorios.length, 1);
+      expect(viewModel.relatorios.first.id, 1);
+
+      // Busca por nome do projeto
+      viewModel.definirFiltroNivel(null);
+      viewModel.definirBusca('Beta');
+      expect(viewModel.relatorios.length, 1);
+      expect(viewModel.relatorios.first.id, 2);
+    });
+  });
+
+  group('criação inline de classe de evento', () {
+    test('EventoFormViewModel permite criar classe apenas para quem tem permissão no programa pai', () async {
+      final repositorio = _RepositorioCatalogoFake(
+        projetosDetalhados: const [
+          Projeto(id: 1, nome: 'Projeto 1', programaId: 10),
+        ],
+        programas: const [
+          Programa(id: 10, nome: 'Programa 10', clienteId: 100, descricao: '', status: 'Ativo', projetos: 1, eventos: 0),
+        ],
+      );
+      final viewModel = EventoFormViewModel(repositorio);
+
+      final usuarioComAcessoPrograma = Usuario(
+        id: 1,
+        nomeCompleto: 'Membro Programa',
+        email: 'programa@teste.com',
+        contextosAcesso: const ContextosAcesso(
+          programas: [
+            {'id': 10, 'nome': 'Programa 10', 'cliente_id': 100},
+          ],
+          projetos: [
+            {'id': 1, 'nome': 'Projeto 1', 'cliente_id': 100},
+          ],
+        ),
+      );
+
+      viewModel.definirContexto(100, usuarioComAcessoPrograma);
+      await viewModel.carregarOpcoes();
+
+      expect(viewModel.podeCriarClasse, isTrue);
+      expect(viewModel.nomeProgramaDoProjetoSelecionado, 'Programa 10');
+
+      final novaClasseId = await viewModel.criarClasseParaProgramaSelecionado('Oficina Nova');
+      expect(novaClasseId, 99);
+      expect(repositorio.classeEventoCriadaProgramaId, 10);
+      expect(repositorio.classeEventoCriadaNome, 'Oficina Nova');
+
+      // Usuário somente membro do projeto (sem acesso de programa)
+      final usuarioSoProjeto = Usuario(
+        id: 2,
+        nomeCompleto: 'Membro Apenas Projeto',
+        email: 'projeto@teste.com',
+        contextosAcesso: const ContextosAcesso(
+          projetos: [
+            {'id': 1, 'nome': 'Projeto 1', 'cliente_id': 100},
+          ],
+        ),
+      );
+
+      viewModel.definirContexto(100, usuarioSoProjeto);
+      expect(viewModel.podeCriarClasse, isFalse);
+    });
+
+    test('TemplateFormViewModel permite criar classe no programa e a vincula automaticamente', () async {
+      final repositorio = _RepositorioCatalogoFake(
+        projetosDetalhados: const [
+          Projeto(id: 1, nome: 'Projeto 1', programaId: 10),
+        ],
+        programas: const [
+          Programa(id: 10, nome: 'Programa 10', clienteId: 100, descricao: '', status: 'Ativo', projetos: 1, eventos: 0),
+        ],
+      );
+      final viewModel = TemplateFormViewModel(repositorio);
+
+      final usuarioComAcesso = Usuario(
+        id: 1,
+        nomeCompleto: 'Membro Programa',
+        email: 'programa@teste.com',
+        contextosAcesso: const ContextosAcesso(
+          programas: [
+            {'id': 10, 'nome': 'Programa 10', 'cliente_id': 100},
+          ],
+        ),
+      );
+
+      viewModel.definirContexto(100, usuarioComAcesso);
+      await viewModel.carregarOpcoes();
+
+      expect(viewModel.podeCriarClasse, isTrue);
+      expect(viewModel.nomeProgramaAtual, 'Programa 10');
+
+      final classeCriada = await viewModel.criarClasseParaProgramaAtual('Palestra');
+      expect(classeCriada?.id, 99);
+      expect(classeCriada?.nomeClasse, 'Palestra');
+      expect(viewModel.classesSelecionadas.contains(99), isTrue);
+      expect(repositorio.classeEventoCriadaProgramaId, 10);
+      expect(repositorio.classeEventoCriadaNome, 'Palestra');
     });
   });
 }
@@ -502,6 +879,16 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   final List<VariavelDisponivel> variaveisDisponiveis;
   final List<CampoDefinicao> definicoes;
   final List<CampoValor> valores;
+  final List<Relatorio> relatorios;
+  final List<Projeto>? projetosDetalhados;
+  final List<Programa>? programas;
+
+  /// Resposta simulada de `GET /templates/<id>/nivel-exigido/` — representa o
+  /// que o backend enxergaria ao descer dentro do valor de variáveis de texto
+  /// rico, que o cliente não tem como calcular sozinho. `null` por padrão
+  /// (sem dependência transitiva), para não afetar os testes que não a
+  /// configuram explicitamente.
+  final NivelAplicacao? nivelExigidoBackend;
 
   _RepositorioCatalogoFake({
     this.modeloTemplate = const {
@@ -511,17 +898,26 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
     this.variaveisDisponiveis = const [],
     this.definicoes = const [],
     this.valores = const [],
+    this.relatorios = const [],
+    this.projetosDetalhados,
+    this.programas,
+    this.nivelExigidoBackend,
   });
 
   String? programaCriado;
   String? projetoCriado;
   String? eventoCriado;
   String? templateCriado;
+  int? classeEventoCriadaProgramaId;
+  String? classeEventoCriadaNome;
+  List<ClasseEvento> classesDetalhadas = [];
   ({NivelEscopo escopo, int escopoId, String ref})? definicaoCriada;
   ({int definicao, NivelAplicacao alvo, int alvoId})? valorSalvo;
   ({int template, int? evento})? relatorioGerado;
   ({int template, int? cliente, int? programa, int? projeto, int? evento})?
   previsualizacaoRecebida;
+  ({int template, int? cliente, int? programa, int? projeto})?
+  nivelExigidoRecebido;
 
   // Hierarquia mínima e consistente: Cliente 100 > Programa 10 > Projeto 1 >
   // Evento 3. É o que permite aos view models resolverem a cadeia de escopo.
@@ -760,6 +1156,7 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
 
   @override
   Future<List<Projeto>> listarProjetosDetalhados({int? programaId}) async =>
+      projetosDetalhados ??
       const [Projeto(id: 1, programaId: 10, nome: 'Projeto')];
 
   @override
@@ -808,18 +1205,29 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
 
   @override
   Future<int> criarClasseEvento({
+    int? programaId,
     int? projetoId,
     NivelEscopo? escopo,
     int? escopoId,
     required String nomeClasse,
-  }) async => 2;
+  }) async {
+    classeEventoCriadaProgramaId = programaId;
+    classeEventoCriadaNome = nomeClasse;
+    classesDetalhadas = [
+      ...classesDetalhadas,
+      ClasseEvento(id: 99, nomeClasse: nomeClasse, programaId: programaId),
+    ];
+    return 99;
+  }
 
   @override
   Future<List<ClasseEvento>> listarClassesEventoDetalhadas({
+    int? programaId,
     int? projetoId,
     NivelEscopo? escopo,
     int? escopoId,
-  }) async => const [];
+  }) async =>
+      classesDetalhadas;
 
   @override
   Future<List<ClasseEvento>> listarClassesEventoDeProjetos(
@@ -987,6 +1395,22 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   }
 
   @override
+  Future<NivelAplicacao?> nivelExigidoTemplate({
+    required int templateId,
+    int? clienteId,
+    int? programaId,
+    int? projetoId,
+  }) async {
+    nivelExigidoRecebido = (
+      template: templateId,
+      cliente: clienteId,
+      programa: programaId,
+      projeto: projetoId,
+    );
+    return nivelExigidoBackend;
+  }
+
+  @override
   Future<List<VariavelDisponivel>> listarVariaveisDisponiveis({
     required NivelEscopo escopo,
     required int escopoId,
@@ -1079,6 +1503,7 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
 
   @override
   Future<List<OpcaoSelecao>> listarClassesEvento({
+    int? programaId,
     int? projetoId,
     NivelEscopo? escopo,
     int? escopoId,
@@ -1109,17 +1534,19 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   ];
 
   @override
-  Future<List<Programa>> listarProgramas() async => const [
-    Programa(
-      id: 10,
-      clienteId: 100,
-      nome: 'Programa',
-      descricao: 'Descrição',
-      projetos: 1,
-      eventos: 1,
-      status: 'Ativo',
-    ),
-  ];
+  Future<List<Programa>> listarProgramas() async =>
+      programas ??
+      const [
+        Programa(
+          id: 10,
+          clienteId: 100,
+          nome: 'Programa',
+          descricao: 'Descrição',
+          projetos: 1,
+          eventos: 1,
+          status: 'Ativo',
+        ),
+      ];
 
   @override
   Future<void> atualizarEvento({
@@ -1141,7 +1568,7 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
   Future<void> excluirEvento(int eventoId) async {}
 
   @override
-  Future<List<Relatorio>> listarRelatorios() async => const [];
+  Future<List<Relatorio>> listarRelatorios() async => relatorios;
 
   @override
   Future<ResumoDashboard> obterResumoDashboard({int? clienteId}) async =>

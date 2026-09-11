@@ -18,6 +18,15 @@ enum NivelEscopo {
 
   const NivelEscopo(this.valorApi, this.rotulo, this.ordem);
 
+  /// Escopos que o usuário pode escolher na interface. O nível `cliente`
+  /// continua existindo no enum (para ler dados legados e as variáveis nativas
+  /// `sistema.cliente.*`), mas não é mais oferecido em nenhum formulário ou
+  /// filtro — templates e variáveis são sempre de programa ou de projeto.
+  static const List<NivelEscopo> selecionaveis = [
+    NivelEscopo.programa,
+    NivelEscopo.projeto,
+  ];
+
   static NivelEscopo porValorApi(String valor) {
     return NivelEscopo.values.firstWhere(
       (nivel) => nivel.valorApi == valor,
@@ -58,6 +67,13 @@ enum NivelAplicacao {
 
   const NivelAplicacao(this.valorApi, this.rotulo, this.ordem);
 
+  /// Níveis de aplicação que o usuário pode escolher ao declarar uma variável.
+  /// `cliente` e `evento` ficam de fora (variáveis customizadas não são por evento).
+  static const List<NivelAplicacao> selecionaveis = [
+    NivelAplicacao.programa,
+    NivelAplicacao.projeto,
+  ];
+
   static NivelAplicacao porValorApi(String valor) {
     return NivelAplicacao.values.firstWhere(
       (nivel) => nivel.valorApi == valor,
@@ -76,12 +92,14 @@ enum NivelAplicacao {
   }
 
   /// Níveis iguais ou mais profundos que este (exceto evento, que não suporta variáveis customizadas).
-  /// Espelha a constraint `campodef_nivel_geq_escopo` do backend.
+  /// Espelha a constraint `campodef_nivel_geq_escopo` e a validação do backend.
   static List<NivelAplicacao> aPartirDe(NivelEscopo escopo) {
     return NivelAplicacao.values
         .where(
           (nivel) =>
-              nivel != NivelAplicacao.evento && nivel.ordem >= escopo.ordem,
+              nivel != NivelAplicacao.evento &&
+              nivel != NivelAplicacao.cliente &&
+              nivel.ordem >= escopo.ordem,
         )
         .toList();
   }

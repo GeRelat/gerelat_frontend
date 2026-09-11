@@ -2,8 +2,6 @@ import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 
 class Evento {
   final int? id;
-  final int? clienteId;
-  final int? programaId;
   final int? projetoId;
   final int? classeEventoId;
   final String nome;
@@ -16,12 +14,10 @@ class Evento {
 
   const Evento({
     this.id,
-    this.clienteId,
-    this.programaId,
     this.projetoId,
     this.classeEventoId,
     required this.nome,
-    required this.programa,
+    this.programa = '',
     required this.data,
     this.local = '',
     this.endereco = '',
@@ -29,12 +25,11 @@ class Evento {
     this.classeEventoNome = '',
   });
 
-  NivelEscopo? get escopo {
-    if (projetoId != null) return NivelEscopo.projeto;
-    if (programaId != null) return NivelEscopo.programa;
-    if (clienteId != null) return NivelEscopo.cliente;
-    return null;
-  }
+  NivelEscopo get escopo => NivelEscopo.projeto;
 
-  int? get escopoId => projetoId ?? programaId ?? clienteId;
+  int? get escopoId => projetoId;
+
+  // Compatibilidade com código legado que consulta clienteId / programaId
+  int? get clienteId => null;
+  int? get programaId => null;
 }

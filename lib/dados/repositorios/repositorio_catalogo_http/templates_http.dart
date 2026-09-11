@@ -26,7 +26,13 @@ mixin RepositorioTemplatesHttpMixin implements RepositorioTemplates {
   }
 
   TemplateRelatorio _templateDeMapa(Map<String, dynamic> template) {
-    final arquivo = paraTexto(template['modelo_arquivo_base']);
+    final dataCriacao = paraTexto(template['data_criacao']);
+    final ultimaAtualizacao = paraTexto(template['ultima_atualizacao']);
+    final modelo = template['modelo_json'];
+    final modeloJson = modelo is Map && modelo.isNotEmpty
+        ? Map<String, dynamic>.from(modelo)
+        : null;
+
     return TemplateRelatorio(
       id: paraInteiro(template['id']),
       nivel: NivelEscopo.porValorApi(paraTexto(template['nivel'])),
@@ -34,12 +40,14 @@ mixin RepositorioTemplatesHttpMixin implements RepositorioTemplates {
       programaId: paraInteiro(template['programa']),
       projetoId: paraInteiro(template['projeto']),
       nome: paraTexto(template['nome'], fallback: 'Template sem nome'),
-      descricao: arquivo.isEmpty
-          ? 'Template disponível para geração de relatórios.'
-          : 'Arquivo base: $arquivo',
+      descricao: 'Template disponível para geração de relatórios.',
       tipo: 'DOCX',
       status: 'Ativo',
-      arquivoBase: arquivo,
+      dataCriacao: formatarDataHoraTexto(dataCriacao),
+      ultimaAtualizacao: formatarDataHoraTexto(
+        ultimaAtualizacao.isEmpty ? dataCriacao : ultimaAtualizacao,
+      ),
+      modeloJson: modeloJson,
     );
   }
 
@@ -299,20 +307,18 @@ mixin RepositorioTemplatesHttpMixin implements RepositorioTemplates {
     final meventos = await api.listar(
       '/templates/$templateId/eventos-disponiveis/',
     );
-    return meventos.map((evento) {
+    return meventos.map<Evento>((evento) {
       final idProjeto = paraInteiro(evento['projeto']);
       final idClasse = paraInteiro(evento['classe_evento']);
       final nomeNoPayload = paraTexto(evento['classe_evento_nome']);
       return Evento(
         id: paraInteiro(evento['id']),
-        clienteId: paraInteiro(evento['cliente']),
-        programaId: paraInteiro(evento['programa']),
         projetoId: idProjeto,
         classeEventoId: idClasse,
         nome: paraTexto(evento['nome'], fallback: 'Evento sem nome'),
         programa: paraTexto(
           evento['programa_nome'],
-          fallback: 'Escopo direto',
+          fallback: 'Programa',
         ),
         data: DateTime.tryParse(paraTexto(evento['data'])),
         local: paraTexto(evento['local']),
@@ -345,6 +351,26 @@ mixin RepositorioTemplatesHttpMixin implements RepositorioTemplates {
       );
     }
     return Map<String, dynamic>.from(documento);
+  }
+
+  @override
+  Future<NivelAplicacao?> nivelExigidoTemplate({
+    required int templateId,
+    int? clienteId,
+    int? programaId,
+    int? projetoId,
+  }) async {
+    final query = _queryEscopo(
+      clienteId: clienteId,
+      programaId: programaId,
+      projetoId: projetoId,
+    );
+    final resposta = await api.obter(
+      '/templates/$templateId/nivel-exigido/$query',
+    );
+    final nivel = resposta['nivel_exigido'];
+    if (nivel is! String) return null;
+    return NivelAplicacao.porValorApiOuNulo(nivel);
   }
 
   @override

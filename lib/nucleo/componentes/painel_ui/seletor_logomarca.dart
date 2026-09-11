@@ -105,6 +105,8 @@ class _SeletorLogomarcaState extends State<SeletorLogomarca> {
 
   @override
   Widget build(BuildContext context) {
+    final exibirGaleria = widget.escopo != NivelEscopo.cliente;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -151,12 +153,14 @@ class _SeletorLogomarcaState extends State<SeletorLogomarca> {
                 label: Text(_enviando ? 'Enviando...' : 'Upload'),
               ),
             ),
-            const SizedBox(width: 8),
-            OutlinedButton.icon(
-              onPressed: _enviando ? null : _abrirGaleria,
-              icon: const Icon(LucideIcons.images, size: 16),
-              label: const Text('Galeria'),
-            ),
+            if (exibirGaleria) ...[
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: _enviando ? null : _abrirGaleria,
+                icon: const Icon(LucideIcons.images, size: 16),
+                label: const Text('Galeria'),
+              ),
+            ],
           ],
         ),
       ],

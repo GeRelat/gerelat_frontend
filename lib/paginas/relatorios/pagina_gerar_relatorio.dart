@@ -14,11 +14,17 @@ import 'package:go_router/go_router.dart';
 class PaginaGerarRelatorio extends StatefulWidget {
   final RepositorioCatalogo repositorioCatalogo;
   final SessaoViewModel sessaoViewModel;
+  final int? templateIdInicial;
+  final int? programaIdInicial;
+  final int? projetoIdInicial;
 
   const PaginaGerarRelatorio({
     super.key,
     required this.repositorioCatalogo,
     required this.sessaoViewModel,
+    this.templateIdInicial,
+    this.programaIdInicial,
+    this.projetoIdInicial,
   });
 
   @override
@@ -40,7 +46,48 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
       widget.sessaoViewModel.usuarioAtual,
     );
     widget.sessaoViewModel.addListener(_aoMudarSessao);
-    _viewModel.carregar();
+    _inicializar();
+  }
+
+  Future<void> _inicializar() async {
+    await _viewModel.carregar();
+    if (!mounted) return;
+
+    if (widget.programaIdInicial != null) {
+      _viewModel.selecionarPrograma(widget.programaIdInicial);
+    }
+    if (widget.projetoIdInicial != null) {
+      _viewModel.selecionarProjeto(widget.projetoIdInicial);
+    }
+    if (widget.templateIdInicial != null) {
+      final t = _viewModel.templates
+          .where((item) => item.id == widget.templateIdInicial)
+          .firstOrNull;
+      if (t != null) {
+        if (_viewModel.programaSelecionadoId == null) {
+          if (t.nivel == NivelEscopo.programa) {
+            _viewModel.selecionarPrograma(t.programaId);
+          } else if (t.nivel == NivelEscopo.projeto && t.projetoId != null) {
+            final progId = _viewModel.hierarquia
+                .cadeiaDe(NivelAplicacao.projeto, t.projetoId)
+                .programaId;
+            if (progId != null) {
+              _viewModel.selecionarPrograma(progId);
+            }
+            _viewModel.selecionarProjeto(t.projetoId);
+          }
+        } else if (_viewModel.projetoSelecionadoId == null &&
+            t.nivel == NivelEscopo.projeto &&
+            t.projetoId != null) {
+          _viewModel.selecionarProjeto(t.projetoId);
+        }
+      }
+
+      if (_viewModel.projetoSelecionadoId != null) {
+        setState(() => _templateId = widget.templateIdInicial);
+        await _viewModel.selecionarTemplate(widget.templateIdInicial);
+      }
+    }
   }
 
   void _aoMudarSessao() {
@@ -122,13 +169,56 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _campoFiltroTemplate(),
+                      CampoSelecao(
+                        label: 'Programa',
+                        valor: _viewModel.programaSelecionadoId,
+                        itens: _viewModel.opcoesPrograma
+                            .map(
+                              (item) => DropdownMenuItem(
+                                value: item.id,
+                                child: Text(item.nome),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() => _templateId = null);
+                          _viewModel.selecionarPrograma(value);
+                        },
+                      ),
                       const SizedBox(height: 18),
-                      if (_viewModel.templatesFiltrados.isEmpty)
+                      CampoSelecao(
+                        label: 'Projeto',
+                        valor: _viewModel.projetoSelecionadoId,
+                        itens: _viewModel.opcoesProjeto
+                            .map(
+                              (item) => DropdownMenuItem(
+                                value: item.id,
+                                child: Text(item.nome),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() => _templateId = null);
+                          _viewModel.selecionarProjeto(value);
+                        },
+                      ),
+                      const SizedBox(height: 18),
+                      if (_viewModel.projetoSelecionadoId == null)
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           child: Text(
-                            'Nenhum template encontrado para o escopo selecionado.',
+                            'Selecione o programa e o projeto para ver os '
+                            'templates disponíveis.',
+                            style: Tipografia.bodyMedium.copyWith(
+                              color: Cores.cinzaMedio,
+                            ),
+                          ),
+                        )
+                      else if (_viewModel.templatesFiltrados.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Text(
+                            'Nenhum template disponível para este projeto.',
                             style: Tipografia.bodyMedium.copyWith(
                               color: Cores.cinzaMedio,
                             ),
@@ -156,8 +246,7 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
                         ),
                       if (_templateId != null) ...[
                         const SizedBox(height: 18),
-                        ..._seletoresDeEscopo(),
-                        const SizedBox(height: 18),
+                        ..._seletorEvento(),
                         _painelAvisos(),
                         if (_viewModel.temSignatariosDisponiveis) ...[
                           const SizedBox(height: 18),
@@ -215,55 +304,29 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
     );
   }
 
-  /// Um seletor por nível abaixo do escopo do template, até o nível que as
-  /// variáveis do documento exigem. Se o template só usa variáveis do próprio
-  /// escopo, nenhum seletor aparece.
-  List<Widget> _seletoresDeEscopo() {
-    final template = _viewModel.template;
-    if (template == null) return const [];
-
-    final niveis = _viewModel.niveisASelecionar;
-    if (niveis.isEmpty) {
-      return [
-        _painelInformativo(
-          icone: LucideIcons.circle_check,
-          cor: Cores.verdeSucesso,
-          texto:
-              'Este template usa apenas variáveis de ${template.nivel.rotulo.toLowerCase()}. '
-              'Nada mais precisa ser escolhido.',
-        ),
-      ];
+  /// Programa e projeto já foram escolhidos; só resta o evento, e apenas quando
+  /// o template usa variáveis de evento.
+  List<Widget> _seletorEvento() {
+    if (!_viewModel.niveisASelecionar.contains(NivelAplicacao.evento)) {
+      return const [];
     }
-
     return [
-      for (final nivel in niveis) ...[
-        CampoSelecao(
-          label: nivel.rotulo,
-          valor: _valorDe(nivel),
-          itens: _viewModel
-              .opcoesDe(nivel)
-              .map(
-                (item) =>
-                    DropdownMenuItem(value: item.id, child: Text(item.nome)),
-              )
-              .toList(),
-          onChanged: (value) => _viewModel.definirEscopo(nivel, value),
-          // Validado pelo painel de avisos + botão desabilitado, não pelo
-          // Form: o `CampoSelecao` só é obrigatório quando é o nível exigido,
-          // e níveis intermediários podem ficar vazios.
-          validator: (_) => null,
-        ),
-        const SizedBox(height: 18),
-      ],
+      CampoSelecao(
+        label: 'Evento',
+        valor: _viewModel.eventoId,
+        itens: _viewModel
+            .opcoesDe(NivelAplicacao.evento)
+            .map(
+              (item) =>
+                  DropdownMenuItem(value: item.id, child: Text(item.nome)),
+            )
+            .toList(),
+        onChanged: (value) => _viewModel.definirEscopo(NivelAplicacao.evento, value),
+        validator: (_) => null,
+      ),
+      const SizedBox(height: 18),
     ];
   }
-
-  int? _valorDe(NivelAplicacao nivel) => switch (nivel) {
-    NivelAplicacao.cliente => _viewModel.clienteId,
-    NivelAplicacao.programa => _viewModel.programaId,
-    NivelAplicacao.projeto => _viewModel.projetoId,
-    NivelAplicacao.evento => _viewModel.eventoId,
-  };
 
   /// Tudo que o usuário deveria saber antes de gerar: escopo faltando,
   /// variáveis sem definição, obrigatórias em uso e blocos manuais.
@@ -386,61 +449,6 @@ class _PaginaGerarRelatorioState extends State<PaginaGerarRelatorio> {
     );
   }
 
-  Widget _campoFiltroTemplate() {
-    return _painelSecao(
-      children: [
-        Text(
-          'Filtrar templates por nível',
-          style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Selecione o nível do template que deseja utilizar.',
-          style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: _viewModel.niveisPermitidos.map((nivel) {
-            return ChoiceChip(
-              label: Text(nivel.rotulo),
-              selected: _viewModel.filtroNivel == nivel,
-              onSelected: (_) {
-                setState(() => _templateId = null);
-                _viewModel.selecionarFiltroNivel(nivel);
-              },
-              selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
-            );
-          }).toList(),
-        ),
-        if (_viewModel.filtroNivel != NivelEscopo.cliente &&
-            _viewModel.opcoesFiltroEscopo.isNotEmpty) ...[
-          const SizedBox(height: 14),
-          CampoSelecao(
-            label: 'Filtrar por ${_viewModel.filtroNivel.rotulo} (opcional)',
-            valor: _viewModel.filtroEscopoId ?? 0,
-            itens: [
-              DropdownMenuItem<int>(
-                value: 0,
-                child: Text('Todos os ${_viewModel.filtroNivel.rotulo.toLowerCase()}s'),
-              ),
-              ..._viewModel.opcoesFiltroEscopo.map(
-                (item) => DropdownMenuItem<int>(
-                  value: item.id,
-                  child: Text(item.nome),
-                ),
-              ),
-            ],
-            onChanged: (value) {
-              setState(() => _templateId = null);
-              _viewModel.selecionarFiltroEscopoId(value == 0 ? null : value);
-            },
-          ),
-        ],
-      ],
-    );
-  }
 
   Widget _painelSignatarios() {
     return _painelSecao(

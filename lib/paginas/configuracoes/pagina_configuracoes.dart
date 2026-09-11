@@ -2,22 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/alterar_senha_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
+import 'package:gerelat_frontend/dominio/entidades/cliente.dart';
 import 'package:gerelat_frontend/dominio/entidades/usuario.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_autenticacao.dart';
+import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/servicos/cliente_http.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
 import 'package:gerelat_frontend/nucleo/utils/validadores.dart';
+import 'package:go_router/go_router.dart';
 
 class PaginaConfiguracoes extends StatefulWidget {
   final RepositorioAutenticacao repositorioAutenticacao;
+  final RepositorioCatalogo? repositorioCatalogo;
   final SessaoViewModel? sessaoViewModel;
+  final String urlBase;
 
   const PaginaConfiguracoes({
     super.key,
     required this.repositorioAutenticacao,
+    this.repositorioCatalogo,
     this.sessaoViewModel,
+    this.urlBase = '',
   });
 
   @override
@@ -38,11 +45,26 @@ class _PaginaConfiguracoesState extends State<PaginaConfiguracoes> {
   Usuario? _usuario;
   bool _carregandoUsuario = true;
 
+  Cliente? _clienteAtivo;
+  bool _carregandoCliente = false;
+  String? _erroCliente;
+  int? _ultimoClienteId;
+
   @override
   void initState() {
     super.initState();
     _viewModel = AlterarSenhaViewModel(widget.repositorioAutenticacao);
+    widget.sessaoViewModel?.addListener(_aoMudarSessao);
     _carregarUsuario();
+    _carregarCliente();
+  }
+
+  void _aoMudarSessao() {
+    final novoId = widget.sessaoViewModel?.clienteAtivoId;
+    if (novoId != _ultimoClienteId) {
+      _ultimoClienteId = novoId;
+      _carregarCliente();
+    }
   }
 
   Future<void> _carregarUsuario() async {
@@ -54,8 +76,46 @@ class _PaginaConfiguracoesState extends State<PaginaConfiguracoes> {
     });
   }
 
+  Future<void> _carregarCliente() async {
+    final clienteId = widget.sessaoViewModel?.clienteAtivoId;
+    _ultimoClienteId = clienteId;
+    if (clienteId == null || widget.repositorioCatalogo == null) {
+      if (mounted) {
+        setState(() {
+          _clienteAtivo = null;
+          _carregandoCliente = false;
+          _erroCliente = null;
+        });
+      }
+      return;
+    }
+
+    setState(() {
+      _carregandoCliente = true;
+      _erroCliente = null;
+    });
+
+    try {
+      final cliente = await widget.repositorioCatalogo!.obterCliente(clienteId);
+      if (!mounted) return;
+      setState(() {
+        _clienteAtivo = cliente;
+        _carregandoCliente = false;
+        _erroCliente = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _clienteAtivo = null;
+        _carregandoCliente = false;
+        _erroCliente = 'Não foi possível carregar os dados da organização.';
+      });
+    }
+  }
+
   @override
   void dispose() {
+    widget.sessaoViewModel?.removeListener(_aoMudarSessao);
     _senhaAtual.dispose();
     _novaSenha.dispose();
     _confirmarSenha.dispose();
@@ -105,6 +165,8 @@ class _PaginaConfiguracoesState extends State<PaginaConfiguracoes> {
           const SizedBox(height: 24),
           _construirCartaoConta(),
           const SizedBox(height: 24),
+          _construirCartaoCliente(),
+          const SizedBox(height: 24),
           _construirCartaoSenha(),
         ],
       ),
@@ -124,25 +186,6 @@ class _PaginaConfiguracoesState extends State<PaginaConfiguracoes> {
 
   Widget _construirConteudoCartaoConta() {
     final usuario = widget.sessaoViewModel?.usuarioAtual ?? _usuario;
-    final clientes = usuario?.todosClientesDisponiveis ?? [];
-    final clienteAtivoId = widget.sessaoViewModel?.clienteAtivoId;
-
-    ItemContextoCliente? clienteAtivo;
-    if (clienteAtivoId != null) {
-      for (final c in clientes) {
-        if (c.id == clienteAtivoId) {
-          clienteAtivo = c;
-          break;
-        }
-      }
-    }
-    clienteAtivo ??= clientes.isNotEmpty ? clientes.first : null;
-
-    final logoUrl = clienteAtivo?.logomarca.trim() ?? '';
-    final temLogo = logoUrl.isNotEmpty;
-    final urlCompleta = logoUrl.startsWith('http')
-        ? logoUrl
-        : '${ClienteHttp.urlBasePadrao}$logoUrl';
 
     return CartaoConteudo(
       child: Row(
@@ -156,42 +199,29 @@ class _PaginaConfiguracoesState extends State<PaginaConfiguracoes> {
               shape: BoxShape.circle,
               border: Border.all(color: Cores.bordaSutil, width: 1.5),
             ),
-            child: temLogo
-                ? Image.network(
-                    urlCompleta,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => const Center(
-                      child: Icon(
-                        LucideIcons.user,
-                        color: Cores.azulAcao,
-                        size: 26,
-                      ),
-                    ),
-                  )
-                : const Center(
-                    child: Icon(
-                      LucideIcons.user,
-                      color: Cores.azulAcao,
-                      size: 26,
-                    ),
-                  ),
+            child: const Center(
+              child: Icon(
+                LucideIcons.user,
+                color: Cores.azulAcao,
+                size: 26,
+              ),
+            ),
           ),
           const SizedBox(width: 20),
-          Expanded(child: _construirDadosConta()),
+          Expanded(child: _construirDadosConta(usuario)),
         ],
       ),
     );
   }
 
-  Widget _construirDadosConta() {
-    if (_carregandoUsuario) {
+  Widget _construirDadosConta(Usuario? usuario) {
+    if (_carregandoUsuario && usuario == null) {
       return Text(
         'Carregando dados da conta...',
         style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
       );
     }
 
-    final usuario = _usuario;
     if (usuario == null) {
       return Text(
         'Não foi possível carregar os dados da conta.',
@@ -222,6 +252,318 @@ class _PaginaConfiguracoesState extends State<PaginaConfiguracoes> {
     );
   }
 
+  Widget _construirCartaoCliente() {
+    final sessao = widget.sessaoViewModel;
+    if (sessao != null) {
+      return ListenableBuilder(
+        listenable: sessao,
+        builder: (context, _) => _construirConteudoCartaoCliente(),
+      );
+    }
+    return _construirConteudoCartaoCliente();
+  }
+
+  Widget _construirConteudoCartaoCliente() {
+    if (_carregandoCliente) {
+      return CartaoConteudo(
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Carregando dados da organização...',
+              style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_erroCliente != null) {
+      return CartaoConteudo(
+        child: Row(
+          children: [
+            const Icon(LucideIcons.circle_alert, color: Cores.vermelhoErro, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                _erroCliente!,
+                style: Tipografia.bodyMedium.copyWith(color: Cores.vermelhoErro),
+              ),
+            ),
+            TextButton(
+              onPressed: _carregarCliente,
+              child: const Text('Tentar novamente'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final cliente = _clienteAtivo;
+    if (cliente == null) {
+      return CartaoConteudo(
+        child: Row(
+          children: [
+            const IconeComFundo(
+              icone: LucideIcons.building_2,
+              cor: Cores.cinzaEscuro,
+              tamanho: 48,
+              raio: 12,
+              tamanhoIcone: 24,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Organização',
+                    style: Tipografia.titleLarge.copyWith(color: Cores.textoPrincipal),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Nenhuma organização selecionada.',
+                    style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
+                  ),
+                ],
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => context.go('/solicitar-acesso'),
+              icon: const Icon(LucideIcons.plus, size: 14),
+              label: const Text('Solicitar acesso'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return CartaoConteudo(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _logomarcaCliente(cliente),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            cliente.nome.isNotEmpty ? cliente.nome : 'Organização',
+                            style: Tipografia.titleLarge.copyWith(
+                              color: Cores.textoPrincipal,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Cores.verdeSucesso.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: Cores.verdeSucesso.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                  color: Cores.verdeSucesso,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Organização Ativa',
+                                style: Tipografia.labelSmall.copyWith(
+                                  color: Cores.verdeSucesso,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      cliente.cnpj.isNotEmpty
+                          ? 'CNPJ: ${cliente.cnpj}'
+                          : 'CNPJ não informado',
+                      style: Tipografia.bodySmall.copyWith(
+                        color: Cores.cinzaMedio,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const Divider(height: 1, color: Cores.bordaSutil),
+          const SizedBox(height: 20),
+          _construirGradeInfoCliente(cliente),
+        ],
+      ),
+    );
+  }
+
+  Widget _logomarcaCliente(Cliente cliente) {
+    final url = cliente.logomarca.trim();
+    if (url.isEmpty) {
+      return const IconeComFundo(
+        cor: Cores.azulAcao,
+        tamanho: 56,
+        raio: 12,
+        icone: LucideIcons.building_2,
+        tamanhoIcone: 28,
+      );
+    }
+
+    final urlCompleta = url.startsWith('http')
+        ? url
+        : (widget.urlBase.isNotEmpty
+            ? '${widget.urlBase}$url'
+            : '${ClienteHttp.urlBasePadrao}$url');
+
+    return Container(
+      width: 56,
+      height: 56,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: Cores.cinzaClaro,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Cores.bordaSutil),
+      ),
+      child: Image.network(
+        urlCompleta,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => const IconeComFundo(
+          cor: Cores.azulAcao,
+          tamanho: 56,
+          raio: 12,
+          icone: LucideIcons.building_2,
+          tamanhoIcone: 28,
+        ),
+      ),
+    );
+  }
+
+  Widget _construirGradeInfoCliente(Cliente cliente) {
+    final usuario = widget.sessaoViewModel?.usuarioAtual ?? _usuario;
+    final eAdmin = usuario?.eAdminDoCliente(cliente.id) ?? false;
+
+    final itens = [
+      (
+        icone: LucideIcons.user,
+        rotulo: 'Responsável / Contato',
+        valor: cliente.nomeContato.isNotEmpty ? cliente.nomeContato : 'Não informado',
+      ),
+      (
+        icone: LucideIcons.mail,
+        rotulo: 'E-mail de Contato',
+        valor: cliente.emailContato.isNotEmpty ? cliente.emailContato : 'Não informado',
+      ),
+      (
+        icone: LucideIcons.phone,
+        rotulo: 'Telefone de Contato',
+        valor: cliente.foneContato.isNotEmpty ? cliente.foneContato : 'Não informado',
+      ),
+      if (eAdmin) ...[
+        (
+          icone: LucideIcons.signature,
+          rotulo: 'Número do Contrato',
+          valor: cliente.numeroContrato.isNotEmpty
+              ? cliente.numeroContrato
+              : 'Não informado',
+        ),
+        (
+          icone: LucideIcons.calendar,
+          rotulo: 'Vigência do Contrato',
+          valor: cliente.dataTerminoContrato != null
+              ? _formatarData(cliente.dataTerminoContrato!)
+              : 'Não informada',
+        ),
+      ],
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final largura = constraints.maxWidth;
+        final colunas = largura > 700 ? 3 : (largura > 450 ? 2 : 1);
+        final itemWidth = (largura - (colunas - 1) * 16) / colunas;
+
+        return Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          children: itens.map((item) {
+            return SizedBox(
+              width: itemWidth,
+              child: _itemInformacao(
+                icone: item.icone,
+                rotulo: item.rotulo,
+                valor: item.valor,
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _itemInformacao({
+    required IconData icone,
+    required String rotulo,
+    required String valor,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icone, size: 18, color: Cores.azulAcao),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                rotulo,
+                style: Tipografia.bodySmall.copyWith(
+                  color: Cores.cinzaEscuro,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                valor,
+                style: Tipografia.bodyMedium.copyWith(
+                  color: Cores.textoPrincipal,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   String _formatarData(DateTime data) {
     final dia = data.day.toString().padLeft(2, '0');
     final mes = data.month.toString().padLeft(2, '0');
@@ -229,9 +571,6 @@ class _PaginaConfiguracoesState extends State<PaginaConfiguracoes> {
   }
 
   Widget _construirCartaoSenha() {
-    // Só o botão "Salvar" depende de `_viewModel` (estado `carregando`) — o
-    // cartão inteiro (ícone, textos, campos) é estático, então o
-    // AnimatedBuilder fica restrito só a ele.
     return CartaoConteudo(
       child: Form(
         key: _formKey,
@@ -284,7 +623,6 @@ class _PaginaConfiguracoesState extends State<PaginaConfiguracoes> {
                 aoAlternar: () =>
                     setState(() => _novaSenhaVisivel = !_novaSenhaVisivel),
               ),
-              // Espelha AUTH_PASSWORD_VALIDATORS do backend (ver validarForcaSenha).
               validator: (valor) => validarForcaSenha(
                 valor,
                 atributosUsuario: [

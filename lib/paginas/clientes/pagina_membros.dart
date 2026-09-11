@@ -5,12 +5,19 @@ import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/membro_gerelat.dart';
 import 'package:gerelat_frontend/dominio/entidades/programa.dart';
 import 'package:gerelat_frontend/dominio/entidades/projeto.dart';
+import 'package:gerelat_frontend/dominio/entidades/solicitacao_cliente.dart';
 import 'package:gerelat_frontend/dominio/entidades/usuario_cliente.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/dialogo_confirmacao_exclusao.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
 import 'package:gerelat_frontend/nucleo/temas/cores.dart';
 import 'package:gerelat_frontend/nucleo/temas/tipografia.dart';
+
+enum AbaMembros {
+  membros,
+  aprovacoes,
+  adminsGerelat,
+}
 
 class PaginaMembros extends StatefulWidget {
   final RepositorioCatalogo repositorioCatalogo;
@@ -28,7 +35,7 @@ class PaginaMembros extends StatefulWidget {
 
 class _PaginaMembrosState extends State<PaginaMembros> {
   late final GestaoMembrosViewModel _viewModel;
-  int _abaSelecionada = 0;
+  AbaMembros _abaSelecionada = AbaMembros.membros;
 
   @override
   void initState() {
@@ -53,6 +60,22 @@ class _PaginaMembrosState extends State<PaginaMembros> {
 
   @override
   Widget build(BuildContext context) {
+    final usuario = widget.sessaoViewModel.usuarioAtual;
+    final clienteAtivoId = widget.sessaoViewModel.clienteAtivoId;
+    final podeVerAprovacoes =
+        usuario?.eAdminDoCliente(clienteAtivoId) ?? false;
+    final podeVerAdminsGerelat = usuario?.isAdminGeRelat == true;
+
+    final abasDisponiveis = <AbaMembros>[
+      AbaMembros.membros,
+      if (podeVerAprovacoes) AbaMembros.aprovacoes,
+      if (podeVerAdminsGerelat) AbaMembros.adminsGerelat,
+    ];
+
+    final abaAtual = abasDisponiveis.contains(_abaSelecionada)
+        ? _abaSelecionada
+        : AbaMembros.membros;
+
     return AnimatedBuilder(
       animation: _viewModel,
       builder: (context, child) {
@@ -61,9 +84,9 @@ class _PaginaMembrosState extends State<PaginaMembros> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _cabecalho(),
+              _cabecalho(abasDisponiveis, abaAtual),
               const SizedBox(height: 24),
-              _conteudo(),
+              _conteudo(abaAtual),
             ],
           ),
         );
@@ -71,8 +94,7 @@ class _PaginaMembrosState extends State<PaginaMembros> {
     );
   }
 
-  Widget _cabecalho() {
-    final me = widget.sessaoViewModel.usuarioAtual;
+  Widget _cabecalho(List<AbaMembros> abasDisponiveis, AbaMembros abaAtual) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -84,27 +106,31 @@ class _PaginaMembrosState extends State<PaginaMembros> {
         ),
         const SizedBox(height: 6),
         Text(
-          'Visualize e gerencie os usuários e permissões do sistema.',
+          'Visualize e gerencie os usuários, solicitações de acesso e permissões do sistema.',
           style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
         ),
-        if (me?.isAdminGeRelat == true) ...[
+        if (abasDisponiveis.length > 1) ...[
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _chipAba(
-                rotulo: 'Membros do Cliente',
-                icone: LucideIcons.users,
-                selecionado: _abaSelecionada == 0,
-                onTap: () => setState(() => _abaSelecionada = 0),
-              ),
-              _chipAba(
-                rotulo: 'Admins GeRelat (Plataforma)',
-                icone: LucideIcons.shield_check,
-                selecionado: _abaSelecionada == 1,
-                onTap: () => setState(() => _abaSelecionada = 1),
-              ),
+          SeletorAbas(
+            selecionado: abasDisponiveis.indexOf(abaAtual),
+            aoSelecionar: (i) =>
+                setState(() => _abaSelecionada = abasDisponiveis[i]),
+            itens: [
+              for (final aba in abasDisponiveis)
+                switch (aba) {
+                  AbaMembros.membros => (
+                      rotulo: 'Membros',
+                      icone: LucideIcons.users,
+                    ),
+                  AbaMembros.aprovacoes => (
+                      rotulo: 'Aprovações',
+                      icone: LucideIcons.user_check,
+                    ),
+                  AbaMembros.adminsGerelat => (
+                      rotulo: 'Admins GeRelat',
+                      icone: LucideIcons.shield_check,
+                    ),
+                },
             ],
           ),
         ],
@@ -112,54 +138,26 @@ class _PaginaMembrosState extends State<PaginaMembros> {
     );
   }
 
-  Widget _chipAba({
-    required String rotulo,
-    required IconData icone,
-    required bool selecionado,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: selecionado ? Cores.azulAcao : Cores.fundoSecao,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selecionado ? Cores.azulAcao : Cores.bordaSutil,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icone,
-              size: 16,
-              color: selecionado ? Colors.white : Cores.cinzaEscuro,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              rotulo,
-              style: Tipografia.labelMedium.copyWith(
-                color: selecionado ? Colors.white : Cores.cinzaEscuro,
-                fontWeight: selecionado ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _conteudo() {
+  Widget _conteudo(AbaMembros abaAtual) {
     if (_viewModel.carregando) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_abaSelecionada == 1 &&
-        widget.sessaoViewModel.usuarioAtual?.isAdminGeRelat == true) {
+    if (abaAtual == AbaMembros.aprovacoes) {
+      if (_viewModel.mensagemErro != null && _viewModel.solicitacoes.isEmpty) {
+        return EstadoVazio(
+          icone: LucideIcons.circle_alert,
+          titulo: 'Erro ao carregar solicitações',
+          descricao: _viewModel.mensagemErro!,
+          acao: 'Tentar novamente',
+          onAcao: () => _viewModel.carregar(
+              clienteId: widget.sessaoViewModel.clienteAtivoId),
+        );
+      }
+      return _secaoSolicitacoes();
+    }
+
+    if (abaAtual == AbaMembros.adminsGerelat) {
       return _secaoAdminsGeRelat();
     }
 
@@ -169,12 +167,17 @@ class _PaginaMembrosState extends State<PaginaMembros> {
         titulo: 'Erro ao carregar dados',
         descricao: _viewModel.mensagemErro!,
         acao: 'Tentar novamente',
-        onAcao: () => _viewModel.carregar(clienteId: widget.sessaoViewModel.clienteAtivoId),
+        onAcao: () => _viewModel.carregar(
+            clienteId: widget.sessaoViewModel.clienteAtivoId),
       );
     }
 
     return _secaoMembros();
   }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ABA 1: MEMBROS
+  // ══════════════════════════════════════════════════════════════════════════
 
   Widget _secaoMembros() {
     final usuarios = _viewModel.usuarios;
@@ -265,7 +268,6 @@ class _PaginaMembrosState extends State<PaginaMembros> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Nome + badge "Você"
                 Wrap(
                   crossAxisAlignment: WrapCrossAlignment.center,
                   spacing: 8,
@@ -304,7 +306,6 @@ class _PaginaMembrosState extends State<PaginaMembros> {
                     ),
                   ),
                 const SizedBox(height: 6),
-                // Access badges
                 Wrap(
                   spacing: 6,
                   runSpacing: 4,
@@ -734,6 +735,442 @@ class _PaginaMembrosState extends State<PaginaMembros> {
     }
   }
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // ABA 2: APROVAÇÕES
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Widget _secaoSolicitacoes() {
+    final solicitacoes = _viewModel.solicitacoes;
+
+    return CartaoConteudo(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(LucideIcons.user_plus, color: Cores.azulAcao),
+              const SizedBox(width: 10),
+              Text(
+                'Solicitações de Acesso Pendentes',
+                style: Tipografia.titleLarge.copyWith(
+                  color: Cores.textoPrincipal,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                decoration: BoxDecoration(
+                  color: solicitacoes.isNotEmpty
+                      ? Cores.ambarAlerta.withValues(alpha: 0.2)
+                      : Cores.fundoSecao,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${solicitacoes.length}',
+                  style: Tipografia.labelMedium.copyWith(
+                    color: solicitacoes.isNotEmpty
+                        ? Cores.ambarAlerta
+                        : Cores.cinzaEscuro,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Gerencie as solicitações de acesso pendentes para o cliente selecionado.',
+            style: Tipografia.bodySmall.copyWith(color: Cores.cinzaEscuro),
+          ),
+          const SizedBox(height: 16),
+          if (solicitacoes.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                'Nenhuma solicitação de acesso pendente no momento.',
+                style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaMedio),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: solicitacoes.length,
+              separatorBuilder: (_, _) =>
+                  const Divider(height: 1, color: Cores.bordaSutil),
+              itemBuilder: (context, index) {
+                final sol = solicitacoes[index];
+                return _itemSolicitacao(sol);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _itemSolicitacao(SolicitacaoClienteModel sol) {
+    final nomeUsuario = sol.userNome.isNotEmpty
+        ? sol.userNome
+        : (sol.userEmail.isNotEmpty ? sol.userEmail : 'Usuário #${sol.user}');
+    final nomeCliente = sol.clienteNome.isNotEmpty
+        ? sol.clienteNome
+        : 'ID #${sol.cliente}';
+    final processando = _viewModel.isProcessando(sol.id);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  nomeUsuario,
+                  style: Tipografia.titleMedium.copyWith(
+                    color: Cores.textoPrincipal,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Cliente: $nomeCliente',
+                  style: Tipografia.bodySmall.copyWith(color: Cores.cinzaEscuro),
+                ),
+                if (sol.createdAt != null)
+                  Text(
+                    'Solicitado em: ${sol.createdAt!.toIso8601String().split('T').first}',
+                    style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
+                  ),
+              ],
+            ),
+          ),
+          if (processando)
+            const SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            )
+          else
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () => _exibirDialogoAprovacao(sol),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Cores.verdeSucesso,
+                    foregroundColor: Cores.branco,
+                  ),
+                  icon: const Icon(LucideIcons.check, size: 16),
+                  label: const Text('Aprovar'),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final ok = await _viewModel.recusarSolicitacao(sol.id);
+                    if (mounted) {
+                      final msg = ok
+                          ? 'Solicitação recusada.'
+                          : (_viewModel.mensagemErro ??
+                              'Erro ao recusar solicitação.');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(msg),
+                          backgroundColor:
+                              ok ? Cores.cinzaEscuro : Cores.vermelhoErro,
+                        ),
+                      );
+                    }
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Cores.vermelhoErro,
+                    side: const BorderSide(color: Cores.vermelhoErro),
+                  ),
+                  icon: const Icon(LucideIcons.x, size: 16),
+                  label: const Text('Recusar'),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _exibirDialogoAprovacao(SolicitacaoClienteModel sol) async {
+    bool eAdminCliente = false;
+    final Set<int> programasSelecionados = {};
+    final Set<int> projetosSelecionados = {};
+
+    List<Programa> todosProgramas = [];
+    List<Projeto> todosProjetos = [];
+    bool carregandoOpcoes = true;
+    String? erroModal;
+
+    try {
+      final progResult = await widget.repositorioCatalogo.listarProgramas();
+      final projResult =
+          await widget.repositorioCatalogo.listarProjetosDetalhados();
+      todosProgramas =
+          progResult.where((p) => p.clienteId == sol.cliente).toList();
+      final progIdsDoCliente =
+          todosProgramas.map((p) => p.id).whereType<int>().toSet();
+      todosProjetos = projResult
+          .where((p) =>
+              p.programaId != null &&
+              progIdsDoCliente.contains(p.programaId))
+          .toList();
+    } catch (e) {
+      erroModal = 'Erro ao carregar programas/projetos: $e';
+    } finally {
+      carregandoOpcoes = false;
+    }
+
+    if (!mounted) return;
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final erroForm = erroModal;
+            final nomeUsuario = sol.userNome.isNotEmpty
+                ? sol.userNome
+                : (sol.userEmail.isNotEmpty
+                    ? sol.userEmail
+                    : 'Usuário #${sol.user}');
+
+            final projetosCobertos = todosProjetos
+                .where((p) =>
+                    p.programaId != null &&
+                    programasSelecionados.contains(p.programaId))
+                .toSet();
+            final projetosIndependentes = todosProjetos
+                .where((p) => !projetosCobertos.contains(p))
+                .toList();
+
+            return AlertDialog(
+              title: Text('Aprovar Solicitação — $nomeUsuario'),
+              content: SizedBox(
+                width: 520,
+                child: carregandoOpcoes
+                    ? const SizedBox(
+                        height: 100,
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    : SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Selecione o nível de acesso a ser concedido.',
+                              style: Tipografia.bodySmall
+                                  .copyWith(color: Cores.cinzaEscuro),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // ── Administrador do Cliente ──────────────────
+                            CheckboxListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text(
+                                'Administrador do Cliente',
+                                style:
+                                    TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              subtitle: const Text(
+                                'Acesso administrativo total — inclui todos os '
+                                'programas e projetos deste cliente.',
+                              ),
+                              value: eAdminCliente,
+                              onChanged: (val) {
+                                setDialogState(() {
+                                  eAdminCliente = val ?? false;
+                                  if (eAdminCliente) {
+                                    programasSelecionados.clear();
+                                    projetosSelecionados.clear();
+                                  }
+                                });
+                              },
+                            ),
+
+                            // ── Programas & Projetos (only when not admin) ─
+                            if (!eAdminCliente) ...[
+                              const Divider(height: 24),
+                              const Text(
+                                'Programas',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Acesso a um programa inclui automaticamente '
+                                'todos os seus projetos.',
+                                style: Tipografia.bodySmall
+                                    .copyWith(color: Cores.cinzaEscuro),
+                              ),
+                              const SizedBox(height: 8),
+                              if (todosProgramas.isEmpty)
+                                const Text(
+                                  'Nenhum programa cadastrado para este cliente.',
+                                  style:
+                                      TextStyle(color: Cores.cinzaMedio),
+                                )
+                              else
+                                ...todosProgramas.map((prog) {
+                                  final progId = prog.id;
+                                  if (progId == null) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  final selecionado =
+                                      programasSelecionados.contains(progId);
+                                  return CheckboxListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    dense: true,
+                                    title: Text(prog.nome),
+                                    value: selecionado,
+                                    onChanged: (val) {
+                                      setDialogState(() {
+                                        if (val == true) {
+                                          programasSelecionados.add(progId);
+                                          for (final proj in todosProjetos) {
+                                            if (proj.programaId == progId) {
+                                              projetosSelecionados
+                                                  .remove(proj.id);
+                                            }
+                                          }
+                                        } else {
+                                          programasSelecionados
+                                              .remove(progId);
+                                        }
+                                      });
+                                    },
+                                  );
+                                }),
+
+                              // ── Projetos individuais ──────────────────
+                              const Divider(height: 24),
+                              const Text(
+                                'Projetos individuais',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Projetos cujo programa já está selecionado '
+                                'acima não aparecem aqui (acesso já herdado).',
+                                style: Tipografia.bodySmall
+                                    .copyWith(color: Cores.cinzaEscuro),
+                              ),
+                              const SizedBox(height: 8),
+                              if (projetosIndependentes.isEmpty)
+                                const Text(
+                                  'Nenhum projeto adicional disponível.',
+                                  style:
+                                      TextStyle(color: Cores.cinzaMedio),
+                                )
+                              else
+                                ...projetosIndependentes.map((proj) {
+                                  final projId = proj.id;
+                                  if (projId == null) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  final selecionado =
+                                      projetosSelecionados.contains(projId);
+                                  return CheckboxListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    dense: true,
+                                    title: Text(proj.nome),
+                                    value: selecionado,
+                                    onChanged: (val) {
+                                      setDialogState(() {
+                                        if (val == true) {
+                                          projetosSelecionados.add(projId);
+                                        } else {
+                                          projetosSelecionados
+                                              .remove(projId);
+                                        }
+                                      });
+                                    },
+                                  );
+                                }),
+                            ],
+
+                            if (erroForm != null) ...[
+                              const SizedBox(height: 12),
+                              Text(
+                                erroForm,
+                                style: const TextStyle(
+                                    color: Cores.vermelhoErro),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: carregandoOpcoes
+                      ? null
+                      : () async {
+                          if (!eAdminCliente &&
+                              programasSelecionados.isEmpty &&
+                              projetosSelecionados.isEmpty) {
+                            setDialogState(() {
+                              erroModal =
+                                  'Selecione ao menos um nível de acesso para aprovar.';
+                            });
+                            return;
+                          }
+
+                          final listProgs = programasSelecionados
+                              .map((id) => {'id': id})
+                              .toList();
+                          final listProjs = projetosSelecionados
+                              .map((id) => {'id': id})
+                              .toList();
+
+                          final messenger = ScaffoldMessenger.of(context);
+                          Navigator.of(dialogContext).pop();
+
+                          final ok = await _viewModel.aprovarSolicitacao(
+                            sol.id,
+                            eAdminCliente: eAdminCliente,
+                            programas: listProgs,
+                            projetos: listProjs,
+                          );
+
+                          if (mounted) {
+                            final msg = ok
+                                ? 'Solicitação aprovada! Acessos concedidos com sucesso.'
+                                : (_viewModel.mensagemErro ??
+                                    'Erro ao aprovar solicitação.');
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(msg),
+                                backgroundColor: ok
+                                    ? Cores.verdeSucesso
+                                    : Cores.vermelhoErro,
+                              ),
+                            );
+                          }
+                        },
+                  child: const Text('Aprovar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ABA 3: ADMINS GERELAT
+  // ══════════════════════════════════════════════════════════════════════════
+
   Widget _secaoAdminsGeRelat() {
     final admins = _viewModel.membrosGeRelat;
 
@@ -1066,7 +1503,7 @@ class _PaginaMembrosState extends State<PaginaMembros> {
     if (mounted) {
       final msg = ok
           ? 'Administrador removido com sucesso.'
-          : (_viewModel.mensagemErro ?? 'Erro ao remover Administrador.');
+          : (_viewModel.mensagemErro ?? 'Erro ao remover Administrador GeRelat.');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(msg),

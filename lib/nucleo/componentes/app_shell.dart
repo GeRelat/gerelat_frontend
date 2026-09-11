@@ -12,11 +12,9 @@ import 'package:go_router/go_router.dart';
 enum SecaoApp {
   dashboard,
   clientes,
-  aprovacoes,
   membros,
   programas,
   variaveis,
-  variaveisValores,
   eventos,
   relatorios,
   templates,
@@ -156,18 +154,31 @@ class _TopAppBar extends StatelessWidget {
           // Material — igual aos demais IconButton do app (ex.: editar/
           // excluir nos cartões de lista), sem o `style` "quadrado" usado
           // pelo botão de menu acima.
-          if (context.canPop())
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: IconButton(
-                tooltip: 'Voltar',
-                onPressed: () {
-                  context.pop();
-                },
-                icon: const Icon(LucideIcons.arrow_left, size: 20),
-                color: Cores.textoPrincipal,
-              ),
-            ),
+          Builder(
+            builder: (context) {
+              bool podeVoltar = false;
+              try {
+                podeVoltar = context.canPop();
+              } catch (_) {
+                podeVoltar = false;
+              }
+              if (!podeVoltar) return const SizedBox.shrink();
+
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: IconButton(
+                  tooltip: 'Voltar',
+                  onPressed: () {
+                    try {
+                      context.pop();
+                    } catch (_) {}
+                  },
+                  icon: const Icon(LucideIcons.arrow_left, size: 20),
+                  color: Cores.textoPrincipal,
+                ),
+              );
+            },
+          ),
 
           Expanded(
             child: Text(
@@ -497,12 +508,6 @@ const _itensMenuPrincipal = <_ItemMenu>[
     rota: '/clientes',
   ),
   (
-    icone: LucideIcons.user_check,
-    rotulo: 'Aprovações',
-    secao: SecaoApp.aprovacoes,
-    rota: '/clientes/aprovacoes',
-  ),
-  (
     icone: LucideIcons.users,
     rotulo: 'Membros',
     secao: SecaoApp.membros,
@@ -514,19 +519,11 @@ const _itensMenuPrincipal = <_ItemMenu>[
     secao: SecaoApp.programas,
     rota: '/programas',
   ),
-  // Variáveis têm duas telas por causa da separação entre schema
-  // (`CampoDefinicao`) e valor (`CampoValor`) feita no backend.
   (
     icone: LucideIcons.variable,
     rotulo: 'Variáveis',
     secao: SecaoApp.variaveis,
-    rota: '/variaveis/definicoes',
-  ),
-  (
-    icone: LucideIcons.pencil_ruler,
-    rotulo: 'Valores das variáveis',
-    secao: SecaoApp.variaveisValores,
-    rota: '/variaveis/valores',
+    rota: '/variaveis',
   ),
   (
     icone: LucideIcons.calendar,
@@ -662,19 +659,9 @@ class _SideNav extends StatelessWidget {
       listenable: sessao,
       builder: (context, _) {
         final usuario = sessao.usuarioAtual;
-        final clienteAtivoId = sessao.clienteAtivoId;
-        final eAdminDoClienteAtivo =
-            usuario?.eAdminDoCliente(clienteAtivoId) ?? false;
-
-        // Regra de permissão para menu:
-        // - Aprovações: visível apenas se for Admin GeRelat ou Admin do Cliente Ativo
-        // - Membros: visível para qualquer usuário autenticado com acesso
         final itensFiltrados = _itensMenuPrincipal.where((item) {
-          if (item.secao == SecaoApp.aprovacoes) {
-            return eAdminDoClienteAtivo;
-          }
-          if (item.secao == SecaoApp.membros) {
-            return true;
+          if (item.secao == SecaoApp.clientes && usuario?.isAdminGeRelat != true) {
+            return false;
           }
           return true;
         }).toList();

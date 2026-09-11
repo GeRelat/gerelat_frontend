@@ -33,9 +33,11 @@ class RelatoriosViewModel extends BaseViewModel {
 
   List<NivelEscopo> get niveisPermitidos {
     final usuario = _usuarioAtual;
-    if (usuario == null) return NivelEscopo.values;
+    if (usuario == null) {
+      return const [NivelEscopo.programa, NivelEscopo.projeto];
+    }
     if (usuario.isAdminGeRelat || usuario.eAdminDoCliente(_clienteAtivoId)) {
-      return const [NivelEscopo.cliente, NivelEscopo.programa, NivelEscopo.projeto];
+      return const [NivelEscopo.programa, NivelEscopo.projeto];
     }
 
     final eMembroPrograma = usuario.contextosAcesso.programas.any((p) {
@@ -64,7 +66,19 @@ class RelatoriosViewModel extends BaseViewModel {
   List<OpcaoSelecao> get opcoesFiltroEscopo {
     final nivel = _filtroNivel;
     if (nivel == null) return const [];
-    return _hierarquia.opcoesDeEscopo(nivel, clienteId: _clienteAtivoId);
+    if (nivel == NivelEscopo.programa) {
+      return _hierarquia.opcoesDe(
+        NivelAplicacao.programa,
+        clienteId: _clienteAtivoId,
+      );
+    }
+    if (nivel == NivelEscopo.projeto) {
+      return _hierarquia.opcoesDe(
+        NivelAplicacao.projeto,
+        clienteId: _clienteAtivoId,
+      );
+    }
+    return const [];
   }
 
   void definirFiltroNivel(NivelEscopo? nivel) {
@@ -110,43 +124,20 @@ class RelatoriosViewModel extends BaseViewModel {
   List<Relatorio> get relatorios {
     var lista = _relatorios;
 
-    if (_filtroNivel != null) {
+    if (_filtroNivel != null &&
+        _filtroEscopoId != null &&
+        _filtroEscopoId != 0) {
       lista = lista.where((r) {
-        final t = _templatesPorId[r.templateId];
-        if (t != null) {
-          if (t.nivel != _filtroNivel) return false;
-          if (_filtroEscopoId != null) {
-            if (_filtroNivel == NivelEscopo.programa) {
-              return t.programaId == _filtroEscopoId;
-            } else if (_filtroNivel == NivelEscopo.projeto) {
-              return t.projetoId == _filtroEscopoId;
-            }
-          }
-          return true;
-        }
-
-        // Fallback por evento caso o template não esteja no mapa
-        final cadeia = _hierarquia.cadeiaDe(NivelAplicacao.evento, r.eventoId);
-        if (_filtroNivel == NivelEscopo.cliente) {
-          return cadeia.clienteId == _clienteAtivoId &&
-              cadeia.programaId == null &&
-              cadeia.projetoId == null;
-        } else if (_filtroNivel == NivelEscopo.programa) {
-          if (cadeia.projetoId != null || cadeia.programaId == null) {
-            return false;
-          }
-          if (_filtroEscopoId != null) {
-            return cadeia.programaId == _filtroEscopoId;
-          }
-          return true;
+        if (_filtroNivel == NivelEscopo.programa) {
+          final cadeia = _hierarquia.cadeiaDe(
+            NivelAplicacao.projeto,
+            r.projetoId,
+          );
+          return cadeia.programaId == _filtroEscopoId;
         } else if (_filtroNivel == NivelEscopo.projeto) {
-          if (cadeia.projetoId == null) return false;
-          if (_filtroEscopoId != null) {
-            return cadeia.projetoId == _filtroEscopoId;
-          }
-          return true;
+          return r.projetoId == _filtroEscopoId;
         }
-        return false;
+        return true;
       }).toList();
     }
 
@@ -157,6 +148,7 @@ class RelatoriosViewModel extends BaseViewModel {
             return relatorio.titulo.toLowerCase().contains(termo) ||
                 relatorio.evento.toLowerCase().contains(termo) ||
                 relatorio.template.toLowerCase().contains(termo) ||
+                (relatorio.projetoNome ?? '').toLowerCase().contains(termo) ||
                 relatorio.status.toLowerCase().contains(termo);
           })
           .toList(growable: false);
@@ -170,7 +162,10 @@ class RelatoriosViewModel extends BaseViewModel {
   Future<void> carregar() async {
     iniciarCarregamento();
     try {
-      _hierarquia = await HierarquiaEscopo.carregar(_catalogo, comEventos: true);
+      _hierarquia = await HierarquiaEscopo.carregar(
+        _catalogo,
+        comEventos: true,
+      );
       final todosRelatorios = await _repositorio.listarRelatorios();
       final todosTemplates = await _catalogo.listarTemplates();
       _templatesPorId = {
@@ -180,15 +175,20 @@ class RelatoriosViewModel extends BaseViewModel {
 
       if (_clienteAtivoId != null) {
         _relatorios = todosRelatorios.where((r) {
-          final t = _templatesPorId[r.templateId];
-          if (t != null) {
+          if (r.projetoId != null) {
             final clienteId =
-                _hierarquia.cadeiaDeEscopo(t.nivel, t.escopoId).clienteId;
+                _hierarquia.cadeiaDe(NivelAplicacao.projeto, r.projetoId).clienteId;
             return clienteId == _clienteAtivoId;
           }
           if (r.eventoId != null) {
             final clienteId =
                 _hierarquia.cadeiaDe(NivelAplicacao.evento, r.eventoId).clienteId;
+            return clienteId == _clienteAtivoId;
+          }
+          final t = _templatesPorId[r.templateId];
+          if (t != null) {
+            final clienteId =
+                _hierarquia.cadeiaDeEscopo(t.nivel, t.escopoId).clienteId;
             return clienteId == _clienteAtivoId;
           }
           return true;

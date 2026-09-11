@@ -4,7 +4,7 @@ import 'package:gerelat_frontend/nucleo/componentes/app_shell.dart';
 import 'package:gerelat_frontend/nucleo/navegacao/pagina_nao_encontrada.dart';
 import 'package:gerelat_frontend/paginas/assets/pagina_assets.dart';
 import 'package:gerelat_frontend/paginas/cadastro/pagina_cadastro.dart';
-import 'package:gerelat_frontend/paginas/clientes/pagina_aprovacoes.dart';
+
 import 'package:gerelat_frontend/paginas/clientes/pagina_clientes.dart';
 import 'package:gerelat_frontend/paginas/clientes/pagina_formulario_cliente.dart';
 import 'package:gerelat_frontend/paginas/clientes/pagina_membros.dart';
@@ -17,6 +17,7 @@ import 'package:gerelat_frontend/paginas/login/pagina_login.dart';
 import 'package:gerelat_frontend/paginas/programas/pagina_equipe_programa.dart';
 import 'package:gerelat_frontend/paginas/programas/pagina_equipe_projeto.dart';
 import 'package:gerelat_frontend/paginas/programas/pagina_formulario_programa.dart';
+import 'package:gerelat_frontend/paginas/programas/pagina_detalhe_programa.dart';
 import 'package:gerelat_frontend/paginas/programas/pagina_formulario_projeto.dart';
 import 'package:gerelat_frontend/paginas/programas/pagina_programas.dart';
 import 'package:gerelat_frontend/paginas/programas/pagina_projetos_programa.dart';
@@ -32,8 +33,7 @@ import 'package:gerelat_frontend/paginas/sucesso_cadastro/pagina_sucesso_cadastr
 import 'package:gerelat_frontend/paginas/templates/pagina_editor_template.dart';
 import 'package:gerelat_frontend/paginas/templates/pagina_formulario_template.dart';
 import 'package:gerelat_frontend/paginas/templates/pagina_templates.dart';
-import 'package:gerelat_frontend/paginas/variaveis/pagina_definicoes_variaveis.dart';
-import 'package:gerelat_frontend/paginas/variaveis/pagina_valores_variaveis.dart';
+import 'package:gerelat_frontend/paginas/variaveis/pagina_variaveis.dart';
 import 'package:go_router/go_router.dart';
 
 /// Faz o parse seguro de um parâmetro numérico de rota (`:id` etc.).
@@ -58,10 +58,8 @@ const _rotasPublicas = <String>[
 /// a partir do caminho da rota, evitando repetir essa informação em cada página.
 ({SecaoApp secao, String titulo}) _chromeParaRota(String caminho) {
   if (caminho.startsWith('/clientes')) {
-    if (caminho == '/clientes/aprovacoes') {
-      return (secao: SecaoApp.aprovacoes, titulo: 'Aprovações de Acesso');
-    }
-    if (caminho == '/clientes/membros') {
+    if (caminho == '/clientes/membros' ||
+        caminho == '/clientes/aprovacoes') {
       return (secao: SecaoApp.membros, titulo: 'Membros do Cliente');
     }
     final titulo = caminho.endsWith('/editar')
@@ -84,13 +82,13 @@ const _rotasPublicas = <String>[
         ? 'Equipe do Programa'
         : caminho.endsWith('/novo')
         ? 'Novo Programa'
+        : RegExp(r'^/programas/\d+$').hasMatch(caminho)
+        ? 'Programa'
         : 'Gestão de Programas';
     return (secao: SecaoApp.programas, titulo: titulo);
   }
   if (caminho.startsWith('/variaveis')) {
-    return caminho.endsWith('/valores')
-        ? (secao: SecaoApp.variaveisValores, titulo: 'Valores de Variáveis')
-        : (secao: SecaoApp.variaveis, titulo: 'Definições de Variáveis');
+    return (secao: SecaoApp.variaveis, titulo: 'Variáveis');
   }
   if (caminho.startsWith('/projetos')) {
     return (secao: SecaoApp.programas, titulo: 'Equipe da Parceira');
@@ -122,7 +120,7 @@ const _rotasPublicas = <String>[
     return (secao: SecaoApp.relatorios, titulo: titulo);
   }
   if (caminho.startsWith('/assets')) {
-    return (secao: SecaoApp.assets, titulo: 'Galeria de Imagens');
+    return (secao: SecaoApp.assets, titulo: 'Imagens');
   }
   if (caminho.startsWith('/configuracoes')) {
     return (secao: SecaoApp.configuracoes, titulo: 'Configurações');
@@ -283,6 +281,8 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
           ),
           GoRoute(
             path: '/clientes',
+            redirect: (context, state) =>
+                sessao.usuarioAtual?.isAdminGeRelat == true ? null : '/dashboard',
             builder: (context, state) => PaginaClientes(
               repositorioCatalogo: repositorioCatalogo,
               urlBase: urlBase,
@@ -291,10 +291,7 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
           ),
           GoRoute(
             path: '/clientes/aprovacoes',
-            builder: (context, state) => PaginaAprovacoes(
-              repositorioCatalogo: repositorioCatalogo,
-              sessaoViewModel: sessao,
-            ),
+            redirect: (context, state) => '/clientes/membros',
           ),
           GoRoute(
             path: '/clientes/membros',
@@ -305,6 +302,8 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
           ),
           GoRoute(
             path: '/clientes/novo',
+            redirect: (context, state) =>
+                sessao.usuarioAtual?.isAdminGeRelat == true ? null : '/dashboard',
             builder: (context, state) => PaginaFormularioCliente(
               repositorioCatalogo: repositorioCatalogo,
               urlBase: urlBase,
@@ -313,10 +312,12 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
           ),
           GoRoute(
             path: '/clientes/:id/editar',
+            redirect: (context, state) =>
+                sessao.usuarioAtual?.isAdminGeRelat == true ? null : '/dashboard',
             builder: (context, state) {
               final clienteId = _idDaRota(state);
               if (clienteId == null) {
-                return const PaginaNaoEncontrada(rotaDestino: '/clientes');
+                return const PaginaNaoEncontrada(rotaDestino: '/dashboard');
               }
               return PaginaFormularioCliente(
                 edicao: true,
@@ -336,6 +337,13 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
           ),
           GoRoute(
             path: '/programas/novo',
+            redirect: (context, state) {
+              final usuario = sessao.usuarioAtual;
+              final clienteAtivoId = sessao.clienteAtivoId;
+              final podeCriar =
+                  usuario?.eAdminDoCliente(clienteAtivoId) ?? false;
+              return podeCriar ? null : '/programas';
+            },
             builder: (context, state) => PaginaFormularioPrograma(
               repositorioCatalogo: repositorioCatalogo,
               urlBase: urlBase,
@@ -344,6 +352,22 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
           ),
           GoRoute(
             path: '/programas/:id/editar',
+            redirect: (context, state) {
+              final programaId = _idDaRota(state);
+              if (programaId == null) return '/programas';
+              final usuario = sessao.usuarioAtual;
+              final clienteAtivoId = sessao.clienteAtivoId;
+              final eAdminCliente =
+                  usuario?.eAdminDoCliente(clienteAtivoId) ?? false;
+              final eMembroDoPrograma = usuario?.contextosAcesso.programas.any(
+                    (p) =>
+                        int.tryParse('${p['id']}') == programaId ||
+                        int.tryParse('${p['programa_id']}') == programaId,
+                  ) ??
+                  false;
+              final podeEditar = eAdminCliente || eMembroDoPrograma;
+              return podeEditar ? null : '/programas/$programaId';
+            },
             builder: (context, state) {
               final programaId = _idDaRota(state);
               if (programaId == null) {
@@ -384,6 +408,22 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
             },
           ),
           GoRoute(
+            path: '/programas/:id',
+            builder: (context, state) {
+              final programaId = _idDaRota(state);
+              if (programaId == null) {
+                return const PaginaNaoEncontrada(rotaDestino: '/programas');
+              }
+              final aba = int.tryParse(state.uri.queryParameters['aba'] ?? '');
+              return PaginaDetalhePrograma(
+                programaId: programaId,
+                repositorioCatalogo: repositorioCatalogo,
+                sessaoViewModel: sessao,
+                abaInicial: aba ?? 0,
+              );
+            },
+          ),
+          GoRoute(
             path: '/programas/:id/projetos',
             builder: (context, state) {
               final programaId = _idDaRota(state);
@@ -417,19 +457,21 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
                 PaginaEquipeProjeto(repositorioCatalogo: repositorioCatalogo),
           ),
           GoRoute(
-            path: '/variaveis/definicoes',
-            builder: (context, state) => PaginaDefinicoesVariaveis(
-              repositorioCatalogo: repositorioCatalogo,
-              sessaoViewModel: sessao,
-            ),
-          ),
-          GoRoute(
-            path: '/variaveis/valores',
-            builder: (context, state) => PaginaValoresVariaveis(
+            path: '/variaveis',
+            builder: (context, state) => PaginaVariaveis(
               repositorioCatalogo: repositorioCatalogo,
               urlBase: urlBase,
               sessaoViewModel: sessao,
             ),
+          ),
+          // Rotas antigas — redirecionam para a tela unificada.
+          GoRoute(
+            path: '/variaveis/definicoes',
+            redirect: (context, state) => '/variaveis',
+          ),
+          GoRoute(
+            path: '/variaveis/valores',
+            redirect: (context, state) => '/variaveis',
           ),
           GoRoute(
             path: '/eventos',
@@ -505,10 +547,24 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
           ),
           GoRoute(
             path: '/relatorios/gerar',
-            builder: (context, state) => PaginaGerarRelatorio(
-              repositorioCatalogo: repositorioCatalogo,
-              sessaoViewModel: sessao,
-            ),
+            builder: (context, state) {
+              final extra = state.extra;
+              int? templateId;
+              int? programaId;
+              int? projetoId;
+              if (extra is Map<String, dynamic>) {
+                templateId = extra['templateId'] as int?;
+                programaId = extra['programaId'] as int?;
+                projetoId = extra['projetoId'] as int?;
+              }
+              return PaginaGerarRelatorio(
+                repositorioCatalogo: repositorioCatalogo,
+                sessaoViewModel: sessao,
+                templateIdInicial: templateId,
+                programaIdInicial: programaId,
+                projetoIdInicial: projetoId,
+              );
+            },
           ),
           GoRoute(
             path: '/relatorios/agendar',
@@ -529,7 +585,9 @@ GoRouter _construirAppRouter(DependenciasApp dependencias) {
             path: '/configuracoes',
             builder: (context, state) => PaginaConfiguracoes(
               repositorioAutenticacao: repositorioAutenticacao,
+              repositorioCatalogo: repositorioCatalogo,
               sessaoViewModel: sessao,
+              urlBase: urlBase,
             ),
           ),
         ],

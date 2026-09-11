@@ -23,6 +23,9 @@ class TemplateFormViewModel extends BaseViewModel {
   HierarquiaEscopo _hierarquia = const HierarquiaEscopo();
   NivelEscopo _nivel = NivelEscopo.projeto;
   int? _escopoId;
+  // Programa escolhido no primeiro passo. Quando o template é de nível programa,
+  // é o próprio escopo; quando é de nível projeto, filtra a lista de projetos.
+  int? _programaSelecionadoId;
   int? _clienteAtivoId;
   Usuario? _usuarioAtual;
 
@@ -58,9 +61,9 @@ class TemplateFormViewModel extends BaseViewModel {
 
   List<NivelEscopo> get niveisPermitidos {
     final usuario = _usuarioAtual;
-    if (usuario == null) return NivelEscopo.values;
+    if (usuario == null) return NivelEscopo.selecionaveis;
     if (usuario.isAdminGeRelat || usuario.eAdminDoCliente(_clienteAtivoId)) {
-      return const [NivelEscopo.cliente, NivelEscopo.programa, NivelEscopo.projeto];
+      return NivelEscopo.selecionaveis;
     }
 
     final eMembroPrograma = usuario.contextosAcesso.programas.any((p) {
@@ -86,13 +89,92 @@ class TemplateFormViewModel extends BaseViewModel {
     return const [NivelEscopo.projeto];
   }
 
-  List<OpcaoSelecao> get opcoesEscopo =>
-      _hierarquia.opcoesDeEscopo(_nivel, clienteId: _clienteAtivoId);
+  int? get programaSelecionadoId => _programaSelecionadoId;
+
+  /// `true` quando o usuário pode criar template para um programa inteiro.
+  /// Membros só de projeto ficam restritos a "um projeto específico".
+  bool get podeEscolherPrograma =>
+      niveisPermitidos.contains(NivelEscopo.programa);
+
+  /// `true` = "para um projeto específico"; `false` = "para todos os projetos
+  /// de um programa".
+  bool get projetoEspecifico => _nivel == NivelEscopo.projeto;
+
+  List<OpcaoSelecao> get opcoesPrograma =>
+      _hierarquia.opcoesDeEscopo(NivelEscopo.programa, clienteId: _clienteAtivoId);
+
+  List<OpcaoSelecao> get opcoesProjeto => _hierarquia.opcoesDe(
+    NivelAplicacao.projeto,
+    clienteId: _clienteAtivoId,
+    programaId: _programaSelecionadoId,
+  );
 
   List<ClasseEvento> get classesDisponiveis =>
       List.unmodifiable(_classesDisponiveis);
   Set<int> get classesSelecionadas => Set.unmodifiable(_classesSelecionadas);
   TemplateRelatorio? get template => _template;
+
+  int? get programaAtualId {
+    if (_nivel == NivelEscopo.programa) {
+      return _programaSelecionadoId ?? _escopoId;
+    }
+    if (_escopoId != null) {
+      return _hierarquia.projetoPorId(_escopoId!)?.programaId ??
+          _programaSelecionadoId;
+    }
+    return _programaSelecionadoId;
+  }
+
+  String? get nomeProgramaAtual {
+    final progId = programaAtualId;
+    if (progId == null) return null;
+    return _hierarquia.nomeDe(NivelAplicacao.programa, progId);
+  }
+
+  bool get podeCriarClasse {
+    final progId = programaAtualId;
+    if (progId == null) return false;
+    final usuario = _usuarioAtual;
+    if (usuario == null) return true;
+    if (usuario.isAdminGeRelat) return true;
+    if (_clienteAtivoId != null && usuario.eAdminDoCliente(_clienteAtivoId)) {
+      return true;
+    }
+    return usuario.contextosAcesso.programas
+        .any((p) => int.tryParse('${p['id']}') == progId);
+  }
+
+  Future<ClasseEvento?> criarClasseParaProgramaAtual(String nomeClasse) async {
+    final progId = programaAtualId;
+    if (progId == null) {
+      throw Exception('Selecione um programa ou projeto antes de criar uma classe.');
+    }
+    try {
+      final novaClasseId = await _catalogo.criarClasseEvento(
+        programaId: progId,
+        nomeClasse: nomeClasse,
+      );
+      final classes = await _eventosRepositorio.listarClassesEventoDetalhadas(
+        programaId: progId,
+        escopo: NivelEscopo.programa,
+        escopoId: progId,
+      );
+      _classesDisponiveis = classes;
+      _classesSelecionadas.add(novaClasseId);
+      notifyListeners();
+      return classes.firstWhere(
+        (c) => c.id == novaClasseId,
+        orElse: () => ClasseEvento(
+          id: novaClasseId,
+          nomeClasse: nomeClasse,
+          programaId: progId,
+        ),
+      );
+    } catch (erro) {
+      definirErro(erro);
+      rethrow;
+    }
+  }
 
   List<MembroEquipePrograma> get membrosPrograma =>
       List.unmodifiable(_membrosPrograma);
@@ -113,16 +195,8 @@ class TemplateFormViewModel extends BaseViewModel {
       _hierarquia.nomeDe(NivelAplicacao.cliente, clienteId);
 
   String nomeOrigemClasse(ClasseEvento classe) {
-    if (classe.clienteId != null &&
-        classe.programaId == null &&
-        classe.projetoId == null) {
-      return 'Cliente: ${nomeCliente(classe.clienteId)}';
-    }
-    if (classe.programaId != null && classe.projetoId == null) {
+    if (classe.programaId != null) {
       return 'Programa: ${nomePrograma(classe.programaId)}';
-    }
-    if (classe.projetoId != null) {
-      return 'Projeto: ${nomeProjeto(classe.projetoId)}';
     }
     return 'Geral';
   }
@@ -159,34 +233,68 @@ class TemplateFormViewModel extends BaseViewModel {
   }
 
   void _ajustarSelecaoEscopo() {
-    final permitidos = niveisPermitidos;
-    if (permitidos.isNotEmpty && !permitidos.contains(_nivel)) {
-      _nivel = permitidos.first;
+    // Membro só de projeto não pode escolher "programa inteiro".
+    if (!podeEscolherPrograma && _nivel == NivelEscopo.programa) {
+      _nivel = NivelEscopo.projeto;
     }
-    final opcoes = opcoesEscopo;
-    if (_escopoId != null && !opcoes.any((o) => o.id == _escopoId)) {
-      _escopoId = opcoes.isNotEmpty ? opcoes.first.id : null;
-    } else if (_escopoId == null && opcoes.isNotEmpty) {
-      _escopoId = opcoes.first.id;
+
+    final programas = opcoesPrograma;
+    if (_programaSelecionadoId == null ||
+        !programas.any((o) => o.id == _programaSelecionadoId)) {
+      _programaSelecionadoId = programas.isNotEmpty ? programas.first.id : null;
+    }
+
+    if (_nivel == NivelEscopo.programa) {
+      _escopoId = _programaSelecionadoId;
+    } else {
+      final projetos = opcoesProjeto;
+      if (_escopoId == null || !projetos.any((o) => o.id == _escopoId)) {
+        _escopoId = projetos.isNotEmpty ? projetos.first.id : null;
+      }
     }
   }
 
-  Future<void> selecionarEscopo(NivelEscopo nivel, int? escopoId) async {
-    _nivel = nivel;
-    final opcoes = _hierarquia.opcoesDeEscopo(nivel, clienteId: _clienteAtivoId);
-    if (escopoId != null) {
-      _escopoId = escopoId;
+  /// Passo 1: "para todos os projetos de um programa" (`false`) ou
+  /// "para um projeto específico" (`true`).
+  Future<void> selecionarAbrangencia(bool projetoEspecifico) async {
+    _nivel = projetoEspecifico ? NivelEscopo.projeto : NivelEscopo.programa;
+    if (_nivel == NivelEscopo.programa) {
+      _escopoId = _programaSelecionadoId;
     } else {
-      _escopoId = opcoes.isNotEmpty ? opcoes.first.id : null;
+      final projetos = opcoesProjeto;
+      _escopoId = projetos.isNotEmpty ? projetos.first.id : null;
     }
-    if (_escopoId == null) {
+    await _recarregarEscopoAtual();
+  }
+
+  /// Passo 2 (sempre visível): programa dono ou pai do template.
+  Future<void> selecionarPrograma(int? id) async {
+    _programaSelecionadoId = id;
+    if (_nivel == NivelEscopo.programa) {
+      _escopoId = id;
+    } else {
+      final projetos = opcoesProjeto;
+      _escopoId = projetos.isNotEmpty ? projetos.first.id : null;
+    }
+    await _recarregarEscopoAtual();
+  }
+
+  /// Passo 3 (só quando "projeto específico"): projeto dono do template.
+  Future<void> selecionarProjeto(int? id) async {
+    _escopoId = id;
+    await _recarregarEscopoAtual();
+  }
+
+  Future<void> _recarregarEscopoAtual() async {
+    final escopoId = _escopoId;
+    if (escopoId == null) {
       _limparEscopo();
       notifyListeners();
       return;
     }
     iniciarCarregamento();
     try {
-      await _carregarEscopo(nivel, _escopoId!);
+      await _carregarEscopo(_nivel, escopoId);
       finalizarCarregamento();
     } catch (erro) {
       definirErro(erro);
@@ -205,10 +313,18 @@ class TemplateFormViewModel extends BaseViewModel {
   Future<void> _carregarEscopo(NivelEscopo nivel, int escopoId) async {
     final alcance = _hierarquia.descendentesDe(nivel, escopoId);
 
-    _classesDisponiveis = await _eventosRepositorio.listarClassesEventoDetalhadas(
-      escopo: nivel,
-      escopoId: escopoId,
-    );
+    final programaId = nivel == NivelEscopo.programa
+        ? escopoId
+        : (_hierarquia.projetoPorId(escopoId)?.programaId ??
+            _programaSelecionadoId);
+
+    _classesDisponiveis = programaId != null
+        ? await _eventosRepositorio.listarClassesEventoDetalhadas(
+            programaId: programaId,
+            escopo: NivelEscopo.programa,
+            escopoId: programaId,
+          )
+        : [];
     _membrosPrograma = await _equipeProgramaRepositorio.listarEquipeDeProgramas(
       alcance.programaIds,
     );
@@ -264,6 +380,8 @@ class TemplateFormViewModel extends BaseViewModel {
       _template = template;
       _nivel = template.nivel;
       _escopoId = template.escopoId;
+      _programaSelecionadoId =
+          _hierarquia.cadeiaDeEscopo(template.nivel, template.escopoId).programaId;
 
       final escopoId = _escopoId;
       if (escopoId != null) {

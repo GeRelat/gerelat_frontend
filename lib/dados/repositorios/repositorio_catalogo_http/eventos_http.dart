@@ -35,14 +35,12 @@ mixin RepositorioEventosHttpMixin implements RepositorioEventos {
       final nomeNoPayload = paraTexto(evento['classe_evento_nome']);
       return Evento(
         id: paraInteiro(evento['id']),
-        clienteId: paraInteiro(evento['cliente']),
-        programaId: paraInteiro(evento['programa']),
         projetoId: idProjeto,
         classeEventoId: idClasse,
         nome: paraTexto(evento['nome'], fallback: 'Evento sem nome'),
         programa: idProjeto != null
             ? (programaPorProjeto[idProjeto] ?? 'Programa nao informado')
-            : 'Escopo direto',
+            : 'Programa nao informado',
         data: DateTime.tryParse(paraTexto(evento['data'])),
         local: paraTexto(evento['local']),
         endereco: paraTexto(evento['endereco']),
@@ -78,8 +76,6 @@ mixin RepositorioEventosHttpMixin implements RepositorioEventos {
 
     return Evento(
       id: paraInteiro(evento['id']),
-      clienteId: paraInteiro(evento['cliente']),
-      programaId: paraInteiro(evento['programa']),
       projetoId: projetoId,
       classeEventoId: classeEventoId,
       nome: paraTexto(evento['nome'], fallback: 'Evento sem nome'),
@@ -104,16 +100,19 @@ mixin RepositorioEventosHttpMixin implements RepositorioEventos {
 
   @override
   Future<List<OpcaoSelecao>> listarClassesEvento({
+    int? programaId,
     int? projetoId,
     NivelEscopo? escopo,
     int? escopoId,
   }) async {
     final classes = await api.listar('/classes-evento/');
+    final targetProgramaId =
+        programaId ?? (escopo == NivelEscopo.programa ? escopoId : null);
     final filtradas = classes.where((classe) {
-      if (escopo != null && escopoId != null) {
-        return paraInteiro(classe[escopo.valorApi]) == escopoId;
+      if (targetProgramaId != null) {
+        return paraInteiro(classe['programa']) == targetProgramaId;
       }
-      return projetoId == null || paraInteiro(classe['projeto']) == projetoId;
+      return true;
     });
     return paraOpcoes(
       filtradas.toList(),
@@ -124,41 +123,43 @@ mixin RepositorioEventosHttpMixin implements RepositorioEventos {
 
   @override
   Future<int> criarClasseEvento({
+    int? programaId,
     int? projetoId,
     NivelEscopo? escopo,
     int? escopoId,
     required String nomeClasse,
   }) async {
-    final Map<String, dynamic> payload = {'nome_classe': nomeClasse};
-    if (escopo != null && escopoId != null) {
-      payload[escopo.valorApi] = escopoId;
-    } else if (projetoId != null) {
-      payload['projeto'] = projetoId;
-    }
+    final targetProgramaId =
+        programaId ?? (escopo == NivelEscopo.programa ? escopoId : escopoId);
+    final Map<String, dynamic> payload = {
+      'programa': targetProgramaId,
+      'nome_classe': nomeClasse,
+    };
     final resposta = await api.criar('/classes-evento/', payload);
     return idCriado(resposta, 'id', 'classe de evento');
   }
 
   @override
   Future<List<ClasseEvento>> listarClassesEventoDetalhadas({
+    int? programaId,
     int? projetoId,
     NivelEscopo? escopo,
     int? escopoId,
   }) async {
     final classes = await api.listar('/classes-evento/');
+    final targetProgramaId =
+        programaId ?? (escopo == NivelEscopo.programa ? escopoId : null);
     final filtradas = classes.where((classe) {
-      if (escopo != null && escopoId != null) {
-        return paraInteiro(classe[escopo.valorApi]) == escopoId;
+      if (targetProgramaId != null) {
+        return paraInteiro(classe['programa']) == targetProgramaId;
       }
-      return projetoId == null || paraInteiro(classe['projeto']) == projetoId;
+      return true;
     });
     return filtradas
         .map(
           (classe) => ClasseEvento(
             id: paraInteiro(classe['id']),
-            clienteId: paraInteiro(classe['cliente']),
             programaId: paraInteiro(classe['programa']),
-            projetoId: paraInteiro(classe['projeto']),
             nomeClasse: paraTexto(
               classe['nome_classe'],
               fallback: 'Classe sem nome',
@@ -186,9 +187,7 @@ mixin RepositorioEventosHttpMixin implements RepositorioEventos {
         .map(
           (classe) => ClasseEvento(
             id: paraInteiro(classe['id']),
-            clienteId: paraInteiro(classe['cliente']),
             programaId: paraInteiro(classe['programa']),
-            projetoId: paraInteiro(classe['projeto']),
             nomeClasse: paraTexto(
               classe['nome_classe'],
               fallback: 'Classe sem nome',
@@ -225,7 +224,10 @@ mixin RepositorioEventosHttpMixin implements RepositorioEventos {
     String endereco = '',
     String objetivo = '',
   }) async {
+    final targetProjetoId =
+        projetoId ?? (escopo == NivelEscopo.projeto ? escopoId : escopoId);
     final Map<String, dynamic> payload = {
+      'projeto': targetProjetoId,
       'classe_evento': classeEventoId,
       'nome': nome,
       'data': formatarDataParaApi(data),
@@ -233,11 +235,6 @@ mixin RepositorioEventosHttpMixin implements RepositorioEventos {
       'endereco': endereco,
       'objetivo': objetivo,
     };
-    if (escopo != null && escopoId != null) {
-      payload[escopo.valorApi] = escopoId;
-    } else if (projetoId != null) {
-      payload['projeto'] = projetoId;
-    }
 
     await api.criar('/eventos/', payload);
   }
@@ -255,7 +252,10 @@ mixin RepositorioEventosHttpMixin implements RepositorioEventos {
     String endereco = '',
     String objetivo = '',
   }) async {
+    final targetProjetoId =
+        projetoId ?? (escopo == NivelEscopo.projeto ? escopoId : escopoId);
     final Map<String, dynamic> payload = {
+      'projeto': targetProjetoId,
       'classe_evento': classeEventoId,
       'nome': nome,
       'data': formatarDataParaApi(data),
@@ -263,11 +263,6 @@ mixin RepositorioEventosHttpMixin implements RepositorioEventos {
       'endereco': endereco,
       'objetivo': objetivo,
     };
-    if (escopo != null && escopoId != null) {
-      payload[escopo.valorApi] = escopoId;
-    } else if (projetoId != null) {
-      payload['projeto'] = projetoId;
-    }
 
     await api.atualizar('/eventos/$eventoId/', payload);
   }

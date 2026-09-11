@@ -201,14 +201,14 @@ class _PaginaAssetsState extends State<PaginaAssets> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Escopo da galeria',
+            'Escopo das imagens',
             style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
           ),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: NivelEscopo.values.map((escopo) {
+            children: NivelEscopo.selecionaveis.map((escopo) {
               return ChoiceChip(
                 label: Text(escopo.rotulo),
                 selected: _viewModel.escopo == escopo,
@@ -241,7 +241,7 @@ class _PaginaAssetsState extends State<PaginaAssets> {
         _viewModel.podeEditarEscopo(_viewModel.escopo, _viewModel.escopoId);
 
     return CabecalhoPagina(
-      titulo: 'Galeria de imagens',
+      titulo: 'Imagens',
       subtitulo: 'Imagens enviadas para uso em textos de projeto e relatórios.',
       acao: BotaoPrimario(
         texto: 'Enviar Imagem',

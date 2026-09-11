@@ -19,3 +19,4 @@ part 'painel_ui/seletor_logomarca.dart';
 part 'painel_ui/dialogo_selecao_asset.dart';
 part 'painel_ui/barra_acoes_formulario.dart';
 part 'painel_ui/tabela_crud.dart';
+part 'painel_ui/abas.dart';

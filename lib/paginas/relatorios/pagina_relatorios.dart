@@ -109,7 +109,7 @@ class _PaginaRelatoriosState extends State<PaginaRelatorios> {
         Row(
           children: [
             Text(
-              'Nível:',
+              'Filtrar por:',
               style: Tipografia.bodyMedium.copyWith(
                 color: Cores.cinzaEscuro,
                 fontWeight: FontWeight.w600,
@@ -718,8 +718,12 @@ class __ModalDetalhesRelatorioState extends State<_ModalDetalhesRelatorio> {
                                   ? (constraints.maxWidth - 16) / 2
                                   : constraints.maxWidth,
                               child: _blocoInfo(
-                                icone: LucideIcons.calendar,
-                                rotulo: 'Evento',
+                                icone: relatorio.eventoId != null
+                                    ? LucideIcons.calendar
+                                    : LucideIcons.briefcase,
+                                rotulo: relatorio.eventoId != null
+                                    ? 'Evento'
+                                    : 'Projeto',
                                 valor: relatorio.evento,
                               ),
                             ),
@@ -1421,7 +1425,7 @@ class _ModalAgendamentosState extends State<_ModalAgendamentos> {
                 selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
               ),
               const SizedBox(width: 8),
-              for (final nivel in NivelEscopo.values) ...[
+              for (final nivel in NivelEscopo.selecionaveis) ...[
                 ChoiceChip(
                   label: Text(nivel.rotulo),
                   selected: _filtroNivel == nivel,

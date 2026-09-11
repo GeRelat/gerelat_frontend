@@ -10,7 +10,7 @@ class ClasseEventoViewModel extends BaseViewModel {
   final RepositorioCatalogo _repositorio;
 
   HierarquiaEscopo _hierarquia = const HierarquiaEscopo();
-  NivelEscopo _escopo = NivelEscopo.projeto;
+  NivelEscopo _escopo = NivelEscopo.programa;
   int? _escopoId;
   int? _clienteAtivoId;
   Usuario? _usuarioAtual;
@@ -23,85 +23,60 @@ class ClasseEventoViewModel extends BaseViewModel {
   HierarquiaEscopo get hierarquia => _hierarquia;
   NivelEscopo get escopo => _escopo;
   int? get escopoId => _escopoId;
+  int? get programaSelecionadoId => _escopoId;
   int? get clienteAtivoId => _clienteAtivoId;
   Usuario? get usuarioAtual => _usuarioAtual;
 
-  List<NivelEscopo> get niveisPermitidos {
-    final usuario = _usuarioAtual;
-    if (usuario == null) return NivelEscopo.values;
-    if (usuario.isAdminGeRelat) return NivelEscopo.values;
-    if (_clienteAtivoId != null && usuario.eAdminDoCliente(_clienteAtivoId)) {
-      return NivelEscopo.values;
-    }
+  List<NivelEscopo> get niveisPermitidos => const [NivelEscopo.programa];
 
-    final niveis = <NivelEscopo>[];
-    final temPrograma = usuario.contextosAcesso.programas.any((p) {
-      if (_clienteAtivoId == null) return true;
-      final pId = int.tryParse('${p['id']}');
-      return _hierarquia.programaPorId(pId)?.clienteId == _clienteAtivoId;
-    });
-    if (temPrograma) {
-      niveis.add(NivelEscopo.programa);
-      niveis.add(NivelEscopo.projeto);
-    }
-
-    final temProjeto = usuario.contextosAcesso.projetos.any((p) {
-      if (_clienteAtivoId == null) return true;
-      final projId = int.tryParse('${p['id']}');
-      final cId = _hierarquia.cadeiaDe(NivelAplicacao.projeto, projId).clienteId;
-      return cId == _clienteAtivoId;
-    });
-    if (temProjeto && !niveis.contains(NivelEscopo.projeto)) {
-      niveis.add(NivelEscopo.projeto);
-    }
-
-    return niveis.isEmpty ? NivelEscopo.values : niveis;
-  }
-
-  bool temPermissaoNoEscopo(NivelEscopo escopo, int? escopoId) {
+  bool podeEditarPrograma(int? programaId) {
     final usuario = _usuarioAtual;
     if (usuario == null) return true;
     if (usuario.isAdminGeRelat) return true;
     if (_clienteAtivoId != null && usuario.eAdminDoCliente(_clienteAtivoId)) {
       return true;
     }
-    if (escopoId == null) return false;
-
-    switch (escopo) {
-      case NivelEscopo.cliente:
-        return false;
-
-      case NivelEscopo.programa:
-        return usuario.contextosAcesso.programas
-            .any((p) => int.tryParse('${p['id']}') == escopoId);
-
-      case NivelEscopo.projeto:
-        final eMembroDoProjeto = usuario.contextosAcesso.projetos
-            .any((p) => int.tryParse('${p['id']}') == escopoId);
-        if (eMembroDoProjeto) return true;
-
-        final progPaiId = _hierarquia.projetoPorId(escopoId)?.programaId;
-        final eMembroDoProgramaPai = progPaiId != null &&
-            usuario.contextosAcesso.programas
-                .any((p) => int.tryParse('${p['id']}') == progPaiId);
-        return eMembroDoProgramaPai;
-    }
+    if (programaId == null) return false;
+    return usuario.contextosAcesso.programas
+        .any((p) => int.tryParse('${p['id']}') == programaId);
   }
 
-  List<OpcaoSelecao> get opcoesEscopo {
-    final todas = _hierarquia.opcoesDe(_escopo.comoAplicacao, clienteId: _clienteAtivoId);
+  bool get podeEditar => podeEditarPrograma(_escopoId);
+
+  bool temAcessoAoPrograma(int? programaId) {
+    final usuario = _usuarioAtual;
+    if (usuario == null) return true;
+    if (usuario.isAdminGeRelat) return true;
+    if (_clienteAtivoId != null && usuario.eAdminDoCliente(_clienteAtivoId)) {
+      return true;
+    }
+    if (programaId == null) return false;
+    if (podeEditarPrograma(programaId)) return true;
+
+    // Membros de projetos do programa têm acesso de leitura
+    return usuario.contextosAcesso.projetos.any((p) {
+      final projId = int.tryParse('${p['id']}');
+      final progId = _hierarquia.projetoPorId(projId)?.programaId;
+      return progId == programaId;
+    });
+  }
+
+  List<OpcaoSelecao> get opcoesProgramas {
+    final todas = _hierarquia.opcoesDe(NivelAplicacao.programa, clienteId: _clienteAtivoId);
     final usuario = _usuarioAtual;
     if (usuario == null || usuario.isAdminGeRelat) return todas;
     if (_clienteAtivoId != null && usuario.eAdminDoCliente(_clienteAtivoId)) return todas;
 
-    return todas.where((op) => temPermissaoNoEscopo(_escopo, op.id)).toList();
+    return todas.where((op) => temAcessoAoPrograma(op.id)).toList();
   }
+
+  List<OpcaoSelecao> get opcoesEscopo => opcoesProgramas;
 
   List<ClasseEvento> get classes => List.unmodifiable(_classes);
 
   // Backward compatibility getters
   List<OpcaoSelecao> get projetos => _hierarquia.opcoesDeEscopo(NivelEscopo.projeto, clienteId: _clienteAtivoId);
-  int? get projetoSelecionadoId => _escopo == NivelEscopo.projeto ? _escopoId : null;
+  int? get projetoSelecionadoId => null;
 
   void definirContexto(int? clienteAtivoId, Usuario? usuarioAtual) {
     final mudou = _clienteAtivoId != clienteAtivoId || _usuarioAtual != usuarioAtual;
@@ -113,19 +88,15 @@ class ClasseEventoViewModel extends BaseViewModel {
     if (mudou) {
       notifyListeners();
       if (_escopoId != null) {
-        selecionarEscopo(_escopo, _escopoId);
+        selecionarPrograma(_escopoId);
       }
     }
   }
 
   void _ajustarSelecaoEscopo() {
-    final permitidos = niveisPermitidos;
-    if (!permitidos.contains(_escopo)) {
-      _escopo = permitidos.first;
-      _escopoId = null;
-    }
-    final opcoes = opcoesEscopo;
-    if (_escopoId != null && !opcoes.any((o) => o.id == _escopoId)) {
+    _escopo = NivelEscopo.programa;
+    final opcoes = opcoesProgramas;
+    if (_escopoId == null || !opcoes.any((o) => o.id == _escopoId)) {
       _escopoId = opcoes.isNotEmpty ? opcoes.first.id : null;
     }
   }
@@ -148,19 +119,18 @@ class ClasseEventoViewModel extends BaseViewModel {
     await carregarHierarquia();
   }
 
-  Future<void> selecionarEscopo(NivelEscopo escopo, int? escopoId) async {
-    _escopo = escopo;
-    _escopoId = escopoId;
+  Future<void> selecionarPrograma(int? programaId) async {
+    _escopo = NivelEscopo.programa;
+    _escopoId = programaId;
     _classes = [];
     final token = ++_tokenClasses;
     notifyListeners();
-    if (escopoId == null) return;
+    if (programaId == null) return;
 
     iniciarCarregamento();
     try {
       final classes = await _repositorio.listarClassesEventoDetalhadas(
-        escopo: escopo,
-        escopoId: escopoId,
+        programaId: programaId,
       );
       if (token != _tokenClasses) return;
       _classes = classes;
@@ -171,16 +141,19 @@ class ClasseEventoViewModel extends BaseViewModel {
     }
   }
 
+  Future<void> selecionarEscopo(NivelEscopo escopo, int? escopoId) async {
+    await selecionarPrograma(escopoId);
+  }
+
   Future<void> selecionarProjeto(int? projetoId) async {
-    await selecionarEscopo(NivelEscopo.projeto, projetoId);
+    await selecionarPrograma(projetoId);
   }
 
   Future<bool> salvar({int? classeId, required String nomeClasse}) {
-    return _executarAcaoClasse((escopo, escopoId) async {
+    return _executarAcaoClasse((programaId) async {
       if (classeId == null) {
         await _repositorio.criarClasseEvento(
-          escopo: escopo,
-          escopoId: escopoId,
+          programaId: programaId,
           nomeClasse: nomeClasse,
         );
       } else {
@@ -194,22 +167,21 @@ class ClasseEventoViewModel extends BaseViewModel {
 
   Future<bool> excluir(int classeId) {
     return _executarAcaoClasse(
-      (_, _) => _repositorio.excluirClasseEvento(classeId),
+      (_) => _repositorio.excluirClasseEvento(classeId),
     );
   }
 
   Future<bool> _executarAcaoClasse(
-    Future<void> Function(NivelEscopo escopo, int escopoId) acao,
+    Future<void> Function(int programaId) acao,
   ) async {
-    final escopoId = _escopoId;
-    if (escopoId == null) return false;
+    final programaId = _escopoId;
+    if (programaId == null) return false;
 
     iniciarCarregamento();
     try {
-      await acao(_escopo, escopoId);
+      await acao(programaId);
       _classes = await _repositorio.listarClassesEventoDetalhadas(
-        escopo: _escopo,
-        escopoId: escopoId,
+        programaId: programaId,
       );
       finalizarCarregamento();
       return true;

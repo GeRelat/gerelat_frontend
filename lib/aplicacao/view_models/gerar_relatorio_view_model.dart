@@ -43,8 +43,11 @@ class GerarRelatorioViewModel extends BaseViewModel {
 
   int? _clienteAtivoId;
   Usuario? _usuarioAtual;
-  NivelEscopo _filtroNivel = NivelEscopo.projeto;
-  int? _filtroEscopoId;
+
+  // Passo 1 e 2 do fluxo: o relatório é sempre gerado a partir de um projeto de
+  // um programa. Definem quais templates aparecem e resolvem a cadeia de escopo.
+  int? _programaSelecionadoId;
+  int? _projetoSelecionadoId;
 
   GerarRelatorioViewModel(RepositorioCatalogo repositorio)
     : _templatesRepositorio = repositorio,
@@ -63,14 +66,23 @@ class GerarRelatorioViewModel extends BaseViewModel {
 
   int? get clienteAtivoId => _clienteAtivoId;
   Usuario? get usuarioAtual => _usuarioAtual;
-  NivelEscopo get filtroNivel => _filtroNivel;
-  int? get filtroEscopoId => _filtroEscopoId;
+  int? get programaSelecionadoId => _programaSelecionadoId;
+  int? get projetoSelecionadoId => _projetoSelecionadoId;
+
+  List<OpcaoSelecao> get opcoesPrograma =>
+      _hierarquia.opcoesDeEscopo(NivelEscopo.programa, clienteId: _clienteAtivoId);
+
+  List<OpcaoSelecao> get opcoesProjeto => _hierarquia.opcoesDe(
+    NivelAplicacao.projeto,
+    clienteId: _clienteAtivoId,
+    programaId: _programaSelecionadoId,
+  );
 
   List<NivelEscopo> get niveisPermitidos {
     final usuario = _usuarioAtual;
-    if (usuario == null) return NivelEscopo.values;
+    if (usuario == null) return NivelEscopo.selecionaveis;
     if (usuario.isAdminGeRelat || usuario.eAdminDoCliente(_clienteAtivoId)) {
-      return const [NivelEscopo.cliente, NivelEscopo.programa, NivelEscopo.projeto];
+      return NivelEscopo.selecionaveis;
     }
 
     final eMembroPrograma = usuario.contextosAcesso.programas.any((p) {
@@ -101,63 +113,41 @@ class GerarRelatorioViewModel extends BaseViewModel {
     _clienteAtivoId = clienteAtivoId;
     _usuarioAtual = usuarioAtual;
 
-    _ajustarFiltros();
-
     if (mudou) {
-      _template = null;
+      _programaSelecionadoId = null;
+      _projetoSelecionadoId = null;
+      _limparTemplate();
       notifyListeners();
     }
   }
 
-  void _ajustarFiltros() {
-    final permitidos = niveisPermitidos;
-    if (permitidos.isNotEmpty && !permitidos.contains(_filtroNivel)) {
-      _filtroNivel = permitidos.first;
-    }
-    final opcoes = opcoesFiltroEscopo;
-    if (_filtroEscopoId != null && !opcoes.any((o) => o.id == _filtroEscopoId)) {
-      _filtroEscopoId = null;
-    }
-  }
-
-  void selecionarFiltroNivel(NivelEscopo nivel) {
-    _filtroNivel = nivel;
-    _filtroEscopoId = null;
-    _template = null;
+  /// Passo 1: programa. Zera o projeto e o template escolhidos.
+  void selecionarPrograma(int? id) {
+    _programaSelecionadoId = id;
+    _projetoSelecionadoId = null;
+    _limparTemplate();
     notifyListeners();
   }
 
-  void selecionarFiltroEscopoId(int? id) {
-    _filtroEscopoId = id;
-    _template = null;
+  /// Passo 2: projeto (obrigatório). Zera o template escolhido.
+  void selecionarProjeto(int? id) {
+    _projetoSelecionadoId = id;
+    _limparTemplate();
     notifyListeners();
   }
 
-  List<OpcaoSelecao> get opcoesFiltroEscopo =>
-      _hierarquia.opcoesDeEscopo(_filtroNivel, clienteId: _clienteAtivoId);
-
+  /// Templates que servem para o projeto escolhido: os de nível programa do
+  /// programa selecionado + os de nível projeto daquele projeto.
   List<TemplateRelatorio> get templatesFiltrados {
+    if (_projetoSelecionadoId == null) return const [];
     return _templates.where((t) {
-      // 1. Cliente ativo
-      if (_clienteAtivoId != null) {
-        final cId = resolverClienteIdDoTemplate(t);
-        if (cId != _clienteAtivoId) return false;
+      if (t.nivel == NivelEscopo.programa) {
+        return t.programaId == _programaSelecionadoId;
       }
-
-      // 2. Filtro de Nível
-      if (t.nivel != _filtroNivel) return false;
-
-      // 3. Filtro específico de escopo (Programa ou Projeto)
-      if (_filtroEscopoId != null) {
-        if (_filtroNivel == NivelEscopo.programa && t.programaId != _filtroEscopoId) {
-          return false;
-        }
-        if (_filtroNivel == NivelEscopo.projeto && t.projetoId != _filtroEscopoId) {
-          return false;
-        }
+      if (t.nivel == NivelEscopo.projeto) {
+        return t.projetoId == _projetoSelecionadoId;
       }
-
-      return true;
+      return false;
     }).toList();
   }
 
@@ -258,31 +248,13 @@ class GerarRelatorioViewModel extends BaseViewModel {
       )
       .toList();
 
-  /// Níveis que o usuário precisa escolher: os níveis abaixo do escopo do template
-  /// cujas variáveis são usadas no documento (mais ancestrais necessários).
-  /// Se houver variáveis de evento, a opção de Evento é posicionada em primeiro.
+  /// Como programa e projeto já foram escolhidos, a única escolha de nível que
+  /// pode restar é o evento — e só quando o template usa variáveis de evento.
   List<NivelAplicacao> get niveisASelecionar {
-    final template = _template;
-    if (template == null) return const [];
-
-    final exigidos = niveisExigidos;
-    if (exigidos.isEmpty) return const [];
-
-    final selecionar = <NivelAplicacao>{};
-    for (final nivel in exigidos) {
-      selecionar.add(nivel);
-      if (nivel == NivelAplicacao.projeto && template.nivel == NivelEscopo.cliente) {
-        selecionar.add(NivelAplicacao.programa);
-      }
-    }
-
-    final lista = selecionar.toList();
-    lista.sort((a, b) {
-      if (a == NivelAplicacao.evento) return -1;
-      if (b == NivelAplicacao.evento) return 1;
-      return a.ordem.compareTo(b.ordem);
-    });
-    return lista;
+    if (_template == null) return const [];
+    return niveisExigidos.contains(NivelAplicacao.evento)
+        ? const [NivelAplicacao.evento]
+        : const [];
   }
 
   /// Níveis cujas variáveis (ou referências de sistema) são efetivamente
@@ -315,39 +287,27 @@ class GerarRelatorioViewModel extends BaseViewModel {
         .toSet();
   }
 
-  /// `true` quando toda a cadeia de níveis exigida pelo template já foi informada.
+  /// `true` quando programa, projeto e (se o template usar variável de evento) o
+  /// evento já foram informados.
   bool get escopoCompleto {
-    final template = _template;
-    if (template == null) return false;
-    final exigidos = niveisExigidos;
-    if (exigidos.isEmpty) return true;
-
-    for (final nivel in exigidos) {
-      final preenchido = switch (nivel) {
-        NivelAplicacao.cliente => _clienteId != null,
-        NivelAplicacao.programa => _programaId != null,
-        NivelAplicacao.projeto => _projetoId != null,
-        NivelAplicacao.evento => _eventoId != null,
-      };
-      if (!preenchido) return false;
+    if (_template == null) return false;
+    if (_projetoSelecionadoId == null) return false;
+    if (niveisASelecionar.contains(NivelAplicacao.evento)) {
+      return _eventoId != null;
     }
     return true;
   }
 
   String? get mensagemEscopoIncompleto {
     if (escopoCompleto) return null;
-    final niveisFaltando = niveisExigidos.where((nivel) {
-      return switch (nivel) {
-        NivelAplicacao.cliente => _clienteId == null,
-        NivelAplicacao.programa => _programaId == null,
-        NivelAplicacao.projeto => _projetoId == null,
-        NivelAplicacao.evento => _eventoId == null,
-      };
-    }).map((n) => n.rotulo.toLowerCase()).toList();
-
-    if (niveisFaltando.isEmpty) return null;
-    return 'Este template requer a seleção de: ${niveisFaltando.join(', ')}. '
-        'Selecione os valores correspondentes para gerar o relatório.';
+    if (_projetoSelecionadoId == null) {
+      return 'Selecione o programa e o projeto para gerar o relatório.';
+    }
+    if (niveisASelecionar.contains(NivelAplicacao.evento) && _eventoId == null) {
+      return 'Este template usa variáveis de evento. Selecione o evento para o '
+          'qual o relatório será gerado.';
+    }
+    return null;
   }
 
   Future<void> carregar() async {
@@ -355,39 +315,26 @@ class GerarRelatorioViewModel extends BaseViewModel {
     try {
       _hierarquia = await HierarquiaEscopo.carregar(_catalogo);
       _templates = await _templatesRepositorio.listarTemplates();
-      _ajustarFiltros();
       finalizarCarregamento();
     } catch (erro) {
       definirErro(erro);
     }
   }
 
+  /// Eventos do projeto escolhido — a única escolha de nível que resta depois
+  /// que programa e projeto já estão definidos.
   List<OpcaoSelecao> opcoesDe(NivelAplicacao nivel) {
-    if (nivel == NivelAplicacao.evento &&
-        _template != null &&
-        _eventosDisponiveis != null) {
-      final templateNivel = _template!.nivel;
-      final listaFiltrada = _eventosDisponiveis!.where((evento) {
-        if (evento.id == null) return false;
-
-        switch (templateNivel) {
-          case NivelEscopo.cliente:
-            return evento.clienteId == _clienteId;
-          case NivelEscopo.programa:
-            return evento.programaId == _programaId;
-          case NivelEscopo.projeto:
-            return evento.projetoId == _projetoId;
-        }
-      });
-
+    if (nivel == NivelAplicacao.evento) {
+      final eventos = _eventosDisponiveis ?? const [];
       return [
-        for (final evento in listaFiltrada)
-          OpcaoSelecao(
-            id: evento.id!,
-            nome: evento.classeEventoNome.isNotEmpty
-                ? '${evento.nome} (${evento.classeEventoNome})'
-                : evento.nome,
-          ),
+        for (final evento in eventos)
+          if (evento.id != null && evento.projetoId == _projetoSelecionadoId)
+            OpcaoSelecao(
+              id: evento.id!,
+              nome: evento.classeEventoNome.isNotEmpty
+                  ? '${evento.nome} (${evento.classeEventoNome})'
+                  : evento.nome,
+            ),
       ];
     }
     return _hierarquia.opcoesDe(
@@ -398,10 +345,8 @@ class GerarRelatorioViewModel extends BaseViewModel {
     );
   }
 
-  /// Carrega o documento e as variáveis do template escolhido e calcula, no
-  /// cliente, o que o backend validaria só na hora de gerar: nível exigido e
-  /// referências sem definição.
-  Future<void> selecionarTemplate(int? templateId) async {
+  /// Zera o template escolhido e tudo que dele deriva.
+  void _limparTemplate() {
     _template = null;
     _eventosDisponiveis = null;
     _variaveisDisponiveis = [];
@@ -417,6 +362,13 @@ class GerarRelatorioViewModel extends BaseViewModel {
     _programaId = null;
     _projetoId = null;
     _eventoId = null;
+  }
+
+  /// Carrega o documento e as variáveis do template escolhido e calcula, no
+  /// cliente, o que o backend validaria só na hora de gerar: nível exigido e
+  /// referências sem definição.
+  Future<void> selecionarTemplate(int? templateId) async {
+    _limparTemplate();
     notifyListeners();
     if (templateId == null) return;
 
@@ -428,15 +380,15 @@ class GerarRelatorioViewModel extends BaseViewModel {
       );
       _template = template;
 
-      // A cadeia do próprio template já está definida pelo escopo dele; só os
-      // níveis abaixo é que o usuário precisa escolher.
-      final cadeia = _hierarquia.cadeiaDeEscopo(
-        template.nivel,
-        template.escopoId,
+      // Programa e projeto já foram escolhidos nos passos anteriores; a cadeia
+      // completa vem do projeto selecionado.
+      final cadeia = _hierarquia.cadeiaDe(
+        NivelAplicacao.projeto,
+        _projetoSelecionadoId,
       );
       _clienteId = cadeia.clienteId;
-      _programaId = cadeia.programaId;
-      _projetoId = cadeia.projetoId;
+      _programaId = cadeia.programaId ?? _programaSelecionadoId;
+      _projetoId = _projetoSelecionadoId;
 
       final escopoId = template.escopoId;
       final documento = await _templatesRepositorio.obterModeloTemplate(
@@ -481,6 +433,25 @@ class GerarRelatorioViewModel extends BaseViewModel {
               )
               .toList()
             ..sort();
+
+      // O cálculo acima só enxerga as refs diretas do template — uma
+      // dependência escondida dentro do valor de uma variável de texto rico
+      // (ex.: um texto de nível Programa que cita uma variável de nível
+      // Projeto) não aparece, porque o cliente não tem o conteúdo da
+      // variável. O backend tem (`scan_required_nivel` desce dentro do
+      // texto rico), então perguntamos a ele e só escalamos o nível exigido
+      // se a resposta for mais profunda do que o que já tínhamos localmente
+      // — nunca o contrário, para não regredir o aviso já calculado.
+      final nivelTransitivo = await _templatesRepositorio.nivelExigidoTemplate(
+        templateId: templateId,
+        clienteId: _clienteId,
+        programaId: _programaId,
+        projetoId: _projetoId,
+      );
+      if (nivelTransitivo != null &&
+          (_nivelExigido == null || nivelTransitivo.ordem > _nivelExigido!.ordem)) {
+        _nivelExigido = nivelTransitivo;
+      }
 
       finalizarCarregamento();
     } catch (erro) {

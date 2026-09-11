@@ -86,9 +86,14 @@ class _PaginaProjetosProgramaState extends State<PaginaProjetosPrograma> {
   Widget build(BuildContext context) {
     final usuario = widget.sessaoViewModel.usuarioAtual;
     final clienteAtivoId = widget.sessaoViewModel.clienteAtivoId;
-    final eAdmin = usuario?.eAdminDoCliente(clienteAtivoId) ?? false;
+    final clienteId = (_viewModel.programa?.clienteId != null && _viewModel.programa!.clienteId! > 0)
+        ? _viewModel.programa!.clienteId
+        : clienteAtivoId;
+    final eAdmin = usuario?.eAdminDoCliente(clienteId) ?? false;
     final eMembroDoPrograma = usuario?.contextosAcesso.programas.any(
-          (p) => int.tryParse('${p['id']}') == widget.programaId,
+          (p) =>
+              int.tryParse('${p['id']}') == widget.programaId ||
+              int.tryParse('${p['programa_id']}') == widget.programaId,
         ) ??
         false;
 

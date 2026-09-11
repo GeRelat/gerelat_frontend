@@ -116,6 +116,7 @@ class CampoSelecao extends StatelessWidget {
   final List<DropdownMenuItem<int>> itens;
   final ValueChanged<int?>? onChanged;
   final String? Function(int?)? validator;
+  final Widget? acaoRotulo;
 
   const CampoSelecao({
     super.key,
@@ -124,6 +125,7 @@ class CampoSelecao extends StatelessWidget {
     required this.itens,
     this.onChanged,
     this.validator,
+    this.acaoRotulo,
   });
 
   @override
@@ -131,8 +133,16 @@ class CampoSelecao extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _RotuloCampo(label),
-        const SizedBox(height: 8),
+        if (label.isNotEmpty || acaoRotulo != null) ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              if (label.isNotEmpty) _RotuloCampo(label),
+              ?acaoRotulo,
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
         DropdownButtonFormField<int>(
           initialValue: valor,
           items: itens,

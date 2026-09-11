@@ -2,6 +2,8 @@ class Relatorio {
   final int? id;
   final int? eventoId;
   final int? templateId;
+  final int? projetoId;
+  final String? projetoNome;
   final String titulo;
   final String evento;
   final String template;
@@ -15,6 +17,8 @@ class Relatorio {
     this.id,
     this.eventoId,
     this.templateId,
+    this.projetoId,
+    this.projetoNome,
     required this.titulo,
     required this.evento,
     required this.template,

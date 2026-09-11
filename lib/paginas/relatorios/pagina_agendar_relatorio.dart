@@ -202,13 +202,56 @@ class _PaginaAgendarRelatorioState extends State<PaginaAgendarRelatorio> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _campoFiltroTemplate(),
+                      CampoSelecao(
+                        label: 'Programa',
+                        valor: _viewModel.programaSelecionadoId,
+                        itens: _viewModel.opcoesPrograma
+                            .map(
+                              (item) => DropdownMenuItem(
+                                value: item.id,
+                                child: Text(item.nome),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() => _templateId = null);
+                          _viewModel.selecionarPrograma(value);
+                        },
+                      ),
                       const SizedBox(height: 18),
-                      if (_viewModel.templatesFiltrados.isEmpty)
+                      CampoSelecao(
+                        label: 'Projeto',
+                        valor: _viewModel.projetoSelecionadoId,
+                        itens: _viewModel.opcoesProjeto
+                            .map(
+                              (item) => DropdownMenuItem(
+                                value: item.id,
+                                child: Text(item.nome),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() => _templateId = null);
+                          _viewModel.selecionarProjeto(value);
+                        },
+                      ),
+                      const SizedBox(height: 18),
+                      if (_viewModel.projetoSelecionadoId == null)
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           child: Text(
-                            'Nenhum template encontrado para o escopo selecionado.',
+                            'Selecione o programa e o projeto para ver os '
+                            'templates disponíveis.',
+                            style: Tipografia.bodyMedium.copyWith(
+                              color: Cores.cinzaMedio,
+                            ),
+                          ),
+                        )
+                      else if (_viewModel.templatesFiltrados.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Text(
+                            'Nenhum template disponível para este projeto.',
                             style: Tipografia.bodyMedium.copyWith(
                               color: Cores.cinzaMedio,
                             ),
@@ -236,8 +279,7 @@ class _PaginaAgendarRelatorioState extends State<PaginaAgendarRelatorio> {
                         ),
                       if (_templateId != null) ...[
                         const SizedBox(height: 18),
-                        ..._seletoresDeEscopo(),
-                        const SizedBox(height: 18),
+                        ..._seletorEvento(),
                         _painelAvisos(),
                       ],
                       const SizedBox(height: 18),
@@ -452,51 +494,30 @@ class _PaginaAgendarRelatorioState extends State<PaginaAgendarRelatorio> {
     );
   }
 
-  List<Widget> _seletoresDeEscopo() {
-    final template = _viewModel.template;
-    if (template == null) return const [];
-
-    final niveis = _viewModel.niveisASelecionar;
-    if (niveis.isEmpty) {
-      return [
-        _painelInformativo(
-          icone: LucideIcons.circle_check,
-          cor: Cores.verdeSucesso,
-          texto:
-              'Este template usa apenas variáveis de ${template.nivel.rotulo.toLowerCase()}. '
-              'Nada mais precisa ser escolhido.',
-        ),
-      ];
+  List<Widget> _seletorEvento() {
+    if (!_viewModel.niveisASelecionar.contains(NivelAplicacao.evento)) {
+      return const [];
     }
-
     return [
-      for (final nivel in niveis) ...[
-        CampoSelecao(
-          label: nivel.rotulo,
-          valor: _valorDe(nivel),
-          itens: _viewModel
-              .opcoesDe(nivel)
-              .map(
-                (item) => DropdownMenuItem(
-                  value: item.id,
-                  child: Text(item.nome),
-                ),
-              )
-              .toList(),
-          onChanged: (value) => _viewModel.definirEscopo(nivel, value),
-          validator: (_) => null,
-        ),
-        const SizedBox(height: 18),
-      ],
+      CampoSelecao(
+        label: 'Evento',
+        valor: _viewModel.eventoId,
+        itens: _viewModel
+            .opcoesDe(NivelAplicacao.evento)
+            .map(
+              (item) => DropdownMenuItem(
+                value: item.id,
+                child: Text(item.nome),
+              ),
+            )
+            .toList(),
+        onChanged: (value) =>
+            _viewModel.definirEscopo(NivelAplicacao.evento, value),
+        validator: (_) => null,
+      ),
+      const SizedBox(height: 18),
     ];
   }
-
-  int? _valorDe(NivelAplicacao nivel) => switch (nivel) {
-        NivelAplicacao.cliente => _viewModel.clienteId,
-        NivelAplicacao.programa => _viewModel.programaId,
-        NivelAplicacao.projeto => _viewModel.projetoId,
-        NivelAplicacao.evento => _viewModel.eventoId,
-      };
 
   Widget _painelAvisos() {
     final avisos = <Widget>[];
@@ -603,75 +624,4 @@ class _PaginaAgendarRelatorioState extends State<PaginaAgendarRelatorio> {
     );
   }
 
-  Widget _campoFiltroTemplate() {
-    return _painelSecao(
-      children: [
-        Text(
-          'Filtrar templates por nível',
-          style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Selecione o nível do template que deseja utilizar.',
-          style: Tipografia.bodySmall.copyWith(color: Cores.cinzaMedio),
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: _viewModel.niveisPermitidos.map((nivel) {
-            return ChoiceChip(
-              label: Text(nivel.rotulo),
-              selected: _viewModel.filtroNivel == nivel,
-              onSelected: (_) {
-                setState(() => _templateId = null);
-                _viewModel.selecionarFiltroNivel(nivel);
-              },
-              selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
-            );
-          }).toList(),
-        ),
-        if (_viewModel.filtroNivel != NivelEscopo.cliente &&
-            _viewModel.opcoesFiltroEscopo.isNotEmpty) ...[
-          const SizedBox(height: 14),
-          CampoSelecao(
-            label: 'Filtrar por ${_viewModel.filtroNivel.rotulo} (opcional)',
-            valor: _viewModel.filtroEscopoId ?? 0,
-            itens: [
-              DropdownMenuItem<int>(
-                value: 0,
-                child: Text('Todos os ${_viewModel.filtroNivel.rotulo.toLowerCase()}s'),
-              ),
-              ..._viewModel.opcoesFiltroEscopo.map(
-                (item) => DropdownMenuItem<int>(
-                  value: item.id,
-                  child: Text(item.nome),
-                ),
-              ),
-            ],
-            onChanged: (value) {
-              setState(() => _templateId = null);
-              _viewModel.selecionarFiltroEscopoId(value == 0 ? null : value);
-            },
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _painelSecao({required List<Widget> children}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Cores.fundoSecao,
-        border: Border.all(color: Cores.bordaSutil),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: children,
-      ),
-    );
-  }
 }

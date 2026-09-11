@@ -23,84 +23,97 @@ class EventoFormViewModel extends BaseViewModel {
   HierarquiaEscopo get hierarquia => _hierarquia;
   NivelEscopo get escopo => _escopo;
   int? get escopoId => _escopoId;
+  int? get projetoSelecionadoId => _escopoId;
   int? get clienteAtivoId => _clienteAtivoId;
   Usuario? get usuarioAtual => _usuarioAtual;
 
-  List<NivelEscopo> get niveisPermitidos {
-    final usuario = _usuarioAtual;
-    if (usuario == null) return NivelEscopo.values;
-    if (usuario.isAdminGeRelat) return NivelEscopo.values;
-    if (_clienteAtivoId != null && usuario.eAdminDoCliente(_clienteAtivoId)) {
-      return NivelEscopo.values;
-    }
+  List<NivelEscopo> get niveisPermitidos => const [NivelEscopo.projeto];
 
-    final niveis = <NivelEscopo>[];
-    final temPrograma = usuario.contextosAcesso.programas.any((p) {
-      if (_clienteAtivoId == null) return true;
-      final pId = int.tryParse('${p['id']}');
-      return _hierarquia.programaPorId(pId)?.clienteId == _clienteAtivoId;
-    });
-    if (temPrograma) {
-      niveis.add(NivelEscopo.programa);
-      niveis.add(NivelEscopo.projeto);
-    }
-
-    final temProjeto = usuario.contextosAcesso.projetos.any((p) {
-      if (_clienteAtivoId == null) return true;
-      final projId = int.tryParse('${p['id']}');
-      final cId = _hierarquia.cadeiaDe(NivelAplicacao.projeto, projId).clienteId;
-      return cId == _clienteAtivoId;
-    });
-    if (temProjeto && !niveis.contains(NivelEscopo.projeto)) {
-      niveis.add(NivelEscopo.projeto);
-    }
-
-    return niveis.isEmpty ? NivelEscopo.values : niveis;
-  }
-
-  bool temPermissaoNoEscopo(NivelEscopo escopo, int? escopoId) {
+  bool temPermissaoNoProjeto(int? projetoId) {
     final usuario = _usuarioAtual;
     if (usuario == null) return true;
     if (usuario.isAdminGeRelat) return true;
     if (_clienteAtivoId != null && usuario.eAdminDoCliente(_clienteAtivoId)) {
       return true;
     }
-    if (escopoId == null) return false;
+    if (projetoId == null) return false;
 
-    switch (escopo) {
-      case NivelEscopo.cliente:
-        return false;
+    final eMembroDoProjeto = usuario.contextosAcesso.projetos
+        .any((p) => int.tryParse('${p['id']}') == projetoId);
+    if (eMembroDoProjeto) return true;
 
-      case NivelEscopo.programa:
-        return usuario.contextosAcesso.programas
-            .any((p) => int.tryParse('${p['id']}') == escopoId);
-
-      case NivelEscopo.projeto:
-        final eMembroDoProjeto = usuario.contextosAcesso.projetos
-            .any((p) => int.tryParse('${p['id']}') == escopoId);
-        if (eMembroDoProjeto) return true;
-
-        final progPaiId = _hierarquia.projetoPorId(escopoId)?.programaId;
-        final eMembroDoProgramaPai = progPaiId != null &&
-            usuario.contextosAcesso.programas
-                .any((p) => int.tryParse('${p['id']}') == progPaiId);
-        return eMembroDoProgramaPai;
-    }
+    final progPaiId = _hierarquia.projetoPorId(projetoId)?.programaId;
+    final eMembroDoProgramaPai = progPaiId != null &&
+        usuario.contextosAcesso.programas
+            .any((p) => int.tryParse('${p['id']}') == progPaiId);
+    return eMembroDoProgramaPai;
   }
 
-  List<OpcaoSelecao> get opcoesEscopo {
-    final todas = _hierarquia.opcoesDe(_escopo.comoAplicacao, clienteId: _clienteAtivoId);
+  List<OpcaoSelecao> get opcoesProjetos {
+    final todas = _hierarquia.opcoesDe(NivelAplicacao.projeto, clienteId: _clienteAtivoId);
     final usuario = _usuarioAtual;
     if (usuario == null || usuario.isAdminGeRelat) return todas;
     if (_clienteAtivoId != null && usuario.eAdminDoCliente(_clienteAtivoId)) return todas;
 
-    return todas.where((op) => temPermissaoNoEscopo(_escopo, op.id)).toList();
+    return todas.where((op) => temPermissaoNoProjeto(op.id)).toList();
   }
 
-  // Backward compatibility
-  List<OpcaoSelecao> get projetos => _hierarquia.opcoesDeEscopo(NivelEscopo.projeto, clienteId: _clienteAtivoId);
+  List<OpcaoSelecao> get opcoesEscopo => opcoesProjetos;
+  List<OpcaoSelecao> get projetos => opcoesProjetos;
   List<OpcaoSelecao> get classes => List.unmodifiable(_classes);
   Evento? get evento => _evento;
+
+  int? get programaDoProjetoSelecionadoId {
+    final projId = _escopoId;
+    if (projId == null) return null;
+    return _hierarquia.projetoPorId(projId)?.programaId;
+  }
+
+  String? get nomeProgramaDoProjetoSelecionado {
+    final progId = programaDoProjetoSelecionadoId;
+    if (progId == null) return null;
+    return _hierarquia.nomeDe(NivelAplicacao.programa, progId);
+  }
+
+  bool get podeCriarClasse {
+    final progId = programaDoProjetoSelecionadoId;
+    if (progId == null) return false;
+    final usuario = _usuarioAtual;
+    if (usuario == null) return true;
+    if (usuario.isAdminGeRelat) return true;
+    if (_clienteAtivoId != null && usuario.eAdminDoCliente(_clienteAtivoId)) {
+      return true;
+    }
+    return usuario.contextosAcesso.programas
+        .any((p) => int.tryParse('${p['id']}') == progId);
+  }
+
+  Future<int?> criarClasseParaProgramaSelecionado(String nomeClasse) async {
+    final progId = programaDoProjetoSelecionadoId;
+    if (progId == null) {
+      throw Exception('Selecione um projeto antes de criar uma classe.');
+    }
+    try {
+      final novaClasseId = await _repositorio.criarClasseEvento(
+        programaId: progId,
+        nomeClasse: nomeClasse,
+      );
+      final projId = _escopoId;
+      if (projId != null) {
+        final classes = await _repositorio.listarClassesEvento(
+          programaId: progId,
+          escopo: NivelEscopo.programa,
+          escopoId: progId,
+        );
+        _classes = classes;
+        notifyListeners();
+      }
+      return novaClasseId;
+    } catch (erro) {
+      definirErro(erro);
+      rethrow;
+    }
+  }
 
   void definirContexto(int? clienteAtivoId, Usuario? usuarioAtual) {
     final mudou = _clienteAtivoId != clienteAtivoId || _usuarioAtual != usuarioAtual;
@@ -112,19 +125,15 @@ class EventoFormViewModel extends BaseViewModel {
     if (mudou) {
       notifyListeners();
       if (_escopoId != null) {
-        selecionarEscopo(_escopo, _escopoId);
+        selecionarProjeto(_escopoId);
       }
     }
   }
 
   void _ajustarSelecaoEscopo() {
-    final permitidos = niveisPermitidos;
-    if (!permitidos.contains(_escopo)) {
-      _escopo = permitidos.first;
-      _escopoId = null;
-    }
-    final opcoes = opcoesEscopo;
-    if (_escopoId != null && !opcoes.any((o) => o.id == _escopoId)) {
+    _escopo = NivelEscopo.projeto;
+    final opcoes = opcoesProjetos;
+    if (_escopoId == null || !opcoes.any((o) => o.id == _escopoId)) {
       _escopoId = opcoes.isNotEmpty ? opcoes.first.id : null;
     }
   }
@@ -136,33 +145,45 @@ class EventoFormViewModel extends BaseViewModel {
         _repositorio,
         comEventos: false,
       );
-      _classes = await _repositorio.listarClassesEvento();
+      _ajustarSelecaoEscopo();
+      final projId = _escopoId;
+      if (projId != null) {
+        await _carregarClassesDoProgramaDoProjeto(projId);
+      } else {
+        _classes = [];
+      }
       finalizarCarregamento();
     } catch (erro) {
       definirErro(erro);
     }
   }
 
-  Future<void> selecionarEscopo(NivelEscopo escopo, int? escopoId) async {
-    _escopo = escopo;
-    _escopoId = escopoId;
+  Future<void> selecionarProjeto(int? projetoId) async {
+    _escopo = NivelEscopo.projeto;
+    _escopoId = projetoId;
     _classes = [];
     notifyListeners();
-    if (escopoId == null) return;
-    await carregarClassesEscopo(escopo, escopoId);
+    if (projetoId == null) return;
+    await _carregarClassesDoProgramaDoProjeto(projetoId);
+  }
+
+  Future<void> selecionarEscopo(NivelEscopo escopo, int? escopoId) async {
+    await selecionarProjeto(escopoId);
   }
 
   Future<void> carregarClassesProjeto(int projetoId) async {
-    await selecionarEscopo(NivelEscopo.projeto, projetoId);
+    await selecionarProjeto(projetoId);
   }
 
-  Future<void> carregarClassesEscopo(NivelEscopo escopo, int escopoId) async {
+  Future<void> _carregarClassesDoProgramaDoProjeto(int projetoId) async {
     final token = ++_tokenClasses;
     iniciarCarregamento();
     try {
+      final progId = _hierarquia.projetoPorId(projetoId)?.programaId;
       final classes = await _repositorio.listarClassesEvento(
-        escopo: escopo,
-        escopoId: escopoId,
+        programaId: progId,
+        escopo: NivelEscopo.programa,
+        escopoId: progId,
       );
       if (token != _tokenClasses) return;
       _classes = classes;
@@ -182,24 +203,20 @@ class EventoFormViewModel extends BaseViewModel {
       );
       _evento = await _repositorio.obterEvento(eventoId);
       if (_evento != null) {
-        if (_evento!.projetoId != null) {
-          _escopo = NivelEscopo.projeto;
-          _escopoId = _evento!.projetoId;
-        } else if (_evento!.programaId != null) {
-          _escopo = NivelEscopo.programa;
-          _escopoId = _evento!.programaId;
-        } else if (_evento!.clienteId != null) {
-          _escopo = NivelEscopo.cliente;
-          _escopoId = _evento!.clienteId;
-        }
+        _escopo = NivelEscopo.projeto;
+        _escopoId = _evento!.projetoId;
       }
-      final escopoId = _escopoId;
-      _classes = escopoId == null
-          ? await _repositorio.listarClassesEvento()
-          : await _repositorio.listarClassesEvento(
-              escopo: _escopo,
-              escopoId: escopoId,
-            );
+      final projId = _escopoId;
+      if (projId != null) {
+        final progId = _hierarquia.projetoPorId(projId)?.programaId;
+        _classes = await _repositorio.listarClassesEvento(
+          programaId: progId,
+          escopo: NivelEscopo.programa,
+          escopoId: progId,
+        );
+      } else {
+        _classes = [];
+      }
       finalizarCarregamento();
     } catch (erro) {
       definirErro(erro);
@@ -220,11 +237,10 @@ class EventoFormViewModel extends BaseViewModel {
   }) async {
     iniciarCarregamento();
     try {
-      final targetEscopo = escopo ?? _escopo;
-      final targetEscopoId = escopoId ?? _escopoId ?? projetoId;
+      final targetProjetoId = projetoId ?? _escopoId ?? escopoId;
 
-      if (targetEscopoId == null) {
-        throw Exception('Selecione um escopo (cliente, programa ou projeto).');
+      if (targetProjetoId == null) {
+        throw Exception('Selecione um projeto.');
       }
 
       final classeId = classeEventoId;
@@ -235,8 +251,7 @@ class EventoFormViewModel extends BaseViewModel {
 
       if (eventoId == null) {
         await _repositorio.criarEvento(
-          escopo: targetEscopo,
-          escopoId: targetEscopoId,
+          projetoId: targetProjetoId,
           classeEventoId: classeId,
           nome: nome,
           data: data,
@@ -247,8 +262,7 @@ class EventoFormViewModel extends BaseViewModel {
       } else {
         await _repositorio.atualizarEvento(
           eventoId: eventoId,
-          escopo: targetEscopo,
-          escopoId: targetEscopoId,
+          projetoId: targetProjetoId,
           classeEventoId: classeId,
           nome: nome,
           data: data,

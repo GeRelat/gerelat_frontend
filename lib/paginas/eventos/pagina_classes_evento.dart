@@ -3,7 +3,6 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/classe_evento_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/sessao_view_model.dart';
 import 'package:gerelat_frontend/dominio/entidades/classe_evento.dart';
-import 'package:gerelat_frontend/dominio/entidades/nivel.dart';
 import 'package:gerelat_frontend/dominio/repositorios/repositorio_catalogo.dart';
 import 'package:gerelat_frontend/nucleo/componentes/dialogo_confirmacao_exclusao.dart';
 import 'package:gerelat_frontend/nucleo/componentes/painel_ui.dart';
@@ -122,12 +121,10 @@ class _PaginaClassesEventoState extends State<PaginaClassesEvento> {
 
   @override
   Widget build(BuildContext context) {
-    // O título é a única parte que não depende de `_viewModel`; é passado
-    // como `child` para não ser reconstruído a cada notificação.
     return AnimatedBuilder(
       animation: _viewModel,
       builder: (context, child) {
-        if (_viewModel.carregando && _viewModel.projetos.isEmpty) {
+        if (_viewModel.carregando && _viewModel.opcoesProgramas.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
         return SingleChildScrollView(
@@ -137,9 +134,9 @@ class _PaginaClassesEventoState extends State<PaginaClassesEvento> {
             children: [
               child!,
               const SizedBox(height: 24),
-              _seletorEscopo(),
+              _seletorPrograma(),
               const SizedBox(height: 24),
-              if (_viewModel.escopoId == null)
+              if (_viewModel.programaSelecionadoId == null)
                 CartaoConteudo(
                   child: Row(
                     children: [
@@ -151,7 +148,7 @@ class _PaginaClassesEventoState extends State<PaginaClassesEvento> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Escolha um escopo acima para ver e gerenciar suas classes de evento.',
+                          'Escolha um programa acima para ver e gerenciar suas classes de evento.',
                           style: Tipografia.bodyMedium.copyWith(
                             color: Cores.cinzaEscuro,
                           ),
@@ -161,8 +158,10 @@ class _PaginaClassesEventoState extends State<PaginaClassesEvento> {
                   ),
                 )
               else ...[
-                _formularioClasse(),
-                const SizedBox(height: 32),
+                if (_viewModel.podeEditar) ...[
+                  _formularioClasse(),
+                  const SizedBox(height: 32),
+                ],
                 _conteudoLista(),
               ],
             ],
@@ -180,7 +179,7 @@ class _PaginaClassesEventoState extends State<PaginaClassesEvento> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Categorias usadas para classificar os eventos de cada projeto.',
+            'Categorias de nível Programa usadas para classificar os eventos dos projetos.',
             style: Tipografia.bodyMedium.copyWith(color: Cores.cinzaEscuro),
           ),
         ],
@@ -188,36 +187,20 @@ class _PaginaClassesEventoState extends State<PaginaClassesEvento> {
     );
   }
 
-  Widget _seletorEscopo() {
+  Widget _seletorPrograma() {
     return CartaoConteudo(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Escopo das classes de evento',
+            'Programa',
             style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
           ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _viewModel.niveisPermitidos.map((escopo) {
-              return ChoiceChip(
-                label: Text(escopo.rotulo),
-                selected: _viewModel.escopo == escopo,
-                onSelected: (_) {
-                  _cancelarEdicao();
-                  _viewModel.selecionarEscopo(escopo, null);
-                },
-                selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           CampoSelecao(
-            label: _viewModel.escopo.rotulo,
-            valor: _viewModel.escopoId,
-            itens: _viewModel.opcoesEscopo
+            label: 'Selecione o Programa',
+            valor: _viewModel.programaSelecionadoId,
+            itens: _viewModel.opcoesProgramas
                 .map(
                   (item) =>
                       DropdownMenuItem(value: item.id, child: Text(item.nome)),
@@ -225,7 +208,7 @@ class _PaginaClassesEventoState extends State<PaginaClassesEvento> {
                 .toList(),
             onChanged: (value) {
               _cancelarEdicao();
-              _viewModel.selecionarEscopo(_viewModel.escopo, value);
+              _viewModel.selecionarPrograma(value);
             },
           ),
         ],
@@ -291,9 +274,11 @@ class _PaginaClassesEventoState extends State<PaginaClassesEvento> {
       return EstadoVazio(
         icone: LucideIcons.tags,
         titulo: 'Nenhuma classe cadastrada',
-        descricao: 'Adicione a primeira classe de evento deste projeto.',
+        descricao: _viewModel.podeEditar
+            ? 'Adicione a primeira classe de evento deste programa.'
+            : 'Nenhuma classe de evento cadastrada para este programa.',
         acao: 'Adicionar classe',
-        onAcao: () => _focoNome.requestFocus(),
+        onAcao: _viewModel.podeEditar ? () => _focoNome.requestFocus() : null,
       );
     }
 
@@ -308,13 +293,14 @@ class _PaginaClassesEventoState extends State<PaginaClassesEvento> {
     );
   }
 
-  static const _colunas = [
-    ColunaTabelaCrud(rotulo: 'Nome da Classe', flex: 3),
-    ColunaTabelaCrud(rotulo: 'Ações', flex: 1),
-  ];
+  List<ColunaTabelaCrud> get _colunas => [
+        const ColunaTabelaCrud(rotulo: 'Nome da Classe', flex: 3),
+        if (_viewModel.podeEditar)
+          const ColunaTabelaCrud(rotulo: 'Ações', flex: 1),
+      ];
 
   Widget _cabecalhoTabela() {
-    return const CabecalhoTabelaCrud(colunas: _colunas);
+    return CabecalhoTabelaCrud(colunas: _colunas);
   }
 
   Widget _linha(ClasseEvento classe) {
@@ -325,24 +311,25 @@ class _PaginaClassesEventoState extends State<PaginaClassesEvento> {
           classe.nomeClasse,
           style: Tipografia.labelLarge.copyWith(color: Cores.textoPrincipal),
         ),
-        Row(
-          children: [
-            IconButton(
-              tooltip: 'Editar',
-              onPressed: () => _iniciarEdicao(classe),
-              icon: const Icon(LucideIcons.pencil, size: 18),
-            ),
-            IconButton(
-              tooltip: 'Remover',
-              onPressed: () => _confirmarExclusao(classe),
-              icon: const Icon(
-                LucideIcons.trash_2,
-                size: 18,
-                color: Cores.vermelhoErro,
+        if (_viewModel.podeEditar)
+          Row(
+            children: [
+              IconButton(
+                tooltip: 'Editar',
+                onPressed: () => _iniciarEdicao(classe),
+                icon: const Icon(LucideIcons.pencil, size: 18),
               ),
-            ),
-          ],
-        ),
+              IconButton(
+                tooltip: 'Remover',
+                onPressed: () => _confirmarExclusao(classe),
+                icon: const Icon(
+                  LucideIcons.trash_2,
+                  size: 18,
+                  color: Cores.vermelhoErro,
+                ),
+              ),
+            ],
+          ),
       ],
     );
   }
