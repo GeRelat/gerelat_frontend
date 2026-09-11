@@ -11,11 +11,12 @@ Future<void> main() async {
   configurarEstrategiaUrl();
 
   final dependencias = DependenciasApp.instancia;
-  await dependencias.sessao.inicializar();
 
   dependencias.clienteHttp.onSessaoExpirada = () async {
     dependencias.sessao.notificarMudancaAutenticacao();
   };
+
+  await dependencias.sessao.inicializar();
 
   runApp(const AplicativoGeRelat());
 }

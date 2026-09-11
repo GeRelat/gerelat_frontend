@@ -33,6 +33,14 @@ class SessaoViewModel extends BaseViewModel {
   Future<void> carregarUsuario() async {
     try {
       _usuarioAtual = await _repositorio.obterUsuarioAtual();
+      if (_usuarioAtual == null) {
+        if (estaAutenticado) {
+          await _repositorio.sair();
+        }
+        _clienteAtivoId = null;
+        notifyListeners();
+        return;
+      }
       var disponiveis = _usuarioAtual?.todosClientesDisponiveis ?? [];
 
       // Se houver algum cliente sem nome (ou formato placeholder), busca os nomes via endpoint público /clientes/publicos/
