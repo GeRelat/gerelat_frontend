@@ -20,11 +20,15 @@ class EditorTemplateViewModel extends BaseViewModel {
   Map<String, dynamic>? _documentoInicial;
   List<VariavelDisponivel> _variaveis = [];
   bool _salvando = false;
+  bool _modoPrevisualizacao = false;
+  bool _carregandoPrevisualizacao = false;
 
   TemplateRelatorio? get template => _template;
   Map<String, dynamic>? get documentoInicial => _documentoInicial;
   List<VariavelDisponivel> get variaveis => List.unmodifiable(_variaveis);
   bool get salvando => _salvando;
+  bool get modoPrevisualizacao => _modoPrevisualizacao;
+  bool get carregandoPrevisualizacao => _carregandoPrevisualizacao;
 
   /// Campos nativos (`sistema.*`), sempre disponíveis.
   List<VariavelDisponivel> get variaveisDeSistema =>
@@ -72,6 +76,40 @@ class EditorTemplateViewModel extends BaseViewModel {
       _salvando = false;
       definirErro(erro);
       return false;
+    }
+  }
+
+  void definirModoPrevisualizacao(bool ativo) {
+    _modoPrevisualizacao = ativo;
+    notifyListeners();
+  }
+
+  /// Resolve o [documento] atual com os valores reais das variáveis para o
+  /// escopo do template. Retorna o documento ProseMirror com variáveis resolvidas
+  /// ou `null` em caso de falha.
+  Future<Map<String, dynamic>?> resolverPrevisualizacao(
+    int templateId,
+    Map<String, dynamic> documento,
+  ) async {
+    final t = _template;
+    if (t == null) return null;
+    _carregandoPrevisualizacao = true;
+    notifyListeners();
+    try {
+      final docResolvido = await _templatesRepositorio.previsualizarTemplate(
+        templateId: templateId,
+        clienteId: t.clienteId,
+        programaId: t.programaId,
+        projetoId: t.projetoId,
+        documentoJson: documento,
+      );
+      _carregandoPrevisualizacao = false;
+      notifyListeners();
+      return docResolvido;
+    } catch (erro) {
+      _carregandoPrevisualizacao = false;
+      definirErro(erro);
+      return null;
     }
   }
 }

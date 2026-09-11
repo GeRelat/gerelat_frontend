@@ -60,13 +60,13 @@ Set<String> extrairRefsDeVariaveis(
   return refs;
 }
 
-/// Rótulos dos blocos manuais (`custom_text`) do documento, na ordem em que
-/// aparecem e sem repetição — são os trechos que o usuário vai poder editar
-/// livremente na pré-visualização do relatório.
+/// Rótulos dos blocos manuais (`custom_text` e `custom_inline`) do documento,
+/// na ordem em que aparecem e sem repetição — são os trechos que o usuário vai
+/// poder editar livremente na pré-visualização do relatório.
 List<String> extrairLabelsDeBlocosManuais(Map<String, dynamic> documento) {
   final labels = <String>{};
   _percorrer(documento['content'], (tipo, attrs) {
-    if (tipo != 'custom_text') return;
+    if (tipo != 'custom_text' && tipo != 'custom_inline') return;
     final label = attrs['label'];
     if (label is String && label.isNotEmpty) labels.add(label);
   });

@@ -58,6 +58,9 @@ class EditorProseMirrorController {
   void inserirBloco(String label) =>
       _ponte?.enviar({'type': 'INSERT_CUSTOM_TEXT', 'label': label});
 
+  void inserirBlocoInline(String label) =>
+      _ponte?.enviar({'type': 'INSERT_CUSTOM_INLINE', 'label': label});
+
   // ── Formatação ──────────────────────────────────────────────────
   void negrito() => _ponte?.enviar({'type': 'FORMAT_BOLD'});
   void italico() => _ponte?.enviar({'type': 'FORMAT_ITALIC'});

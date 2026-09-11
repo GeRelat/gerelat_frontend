@@ -1,4 +1,4 @@
-import { C as EditorState, S as EditorView, _ as baseKeymap, a as insertVarText, b as redo, c as toggleBold, d as toggleUnderline, g as gapCursor, h as schema, i as insertVarTable, m as buildInputRules, n as insertVarImage, o as setHeading, p as nodeViews, r as insertVarRichtext, s as setParagraph, t as insertCustomText, u as toggleItalic, v as keymap, w as Plugin, x as undo, y as history } from "./commands-DW3W4uyt.js";
+import { C as EditorState, S as EditorView, _ as baseKeymap, a as insertVarText, b as redo, c as toggleBold, d as toggleUnderline, g as gapCursor, h as schema, i as insertVarTable, m as buildInputRules, n as insertVarImage, o as setHeading, p as nodeViews, r as insertVarRichtext, s as setParagraph, t as insertCustomText, u as toggleItalic, v as keymap, w as Plugin, x as undo, y as history, insertCustomInline } from "./commands-DW3W4uyt.js";
 //#region src/editor-only.js
 /**
 * editor-only.js — ProseMirror editor for embedding in Flutter via iframe.
@@ -39,9 +39,15 @@ var reportModePlugin = new Plugin({ filterTransaction(tr, state) {
 			let endInside = false;
 			try {
 				const $from = state.doc.resolve(step.from);
-				for (let i = $from.depth; i > 0; i--) if ($from.node(i).type.name === "custom_text") startInside = true;
+				for (let i = $from.depth; i >= 0; i--) {
+					const type = $from.node(i).type.name;
+					if (type === "custom_text" || type === "custom_inline") startInside = true;
+				}
 				const $to = state.doc.resolve(step.to ?? step.from);
-				for (let i = $to.depth; i > 0; i--) if ($to.node(i).type.name === "custom_text") endInside = true;
+				for (let i = $to.depth; i >= 0; i--) {
+					const type = $to.node(i).type.name;
+					if (type === "custom_text" || type === "custom_inline") endInside = true;
+				}
 			} catch {}
 			if (!startInside || !endInside) allowed = false;
 		});
@@ -58,8 +64,10 @@ var reportModePlugin = new Plugin({ filterTransaction(tr, state) {
 function isInsideCustomText($pos) {
 	if (!$pos) return false;
 	for (let i = $pos.depth; i > 0; i--) {
-		if ($pos.node(i).type.name === "custom_text") return true;
+		const type = $pos.node(i).type.name;
+		if (type === "custom_text" || type === "custom_inline") return true;
 	}
+	if ($pos.parent && ($pos.parent.type.name === "custom_text" || $pos.parent.type.name === "custom_inline")) return true;
 	return false;
 }
 function pluginsForMode(mode) {
@@ -260,6 +268,10 @@ document.getElementById("btn-undo").addEventListener("click", () => {
 			break;
 		case "INSERT_CUSTOM_TEXT":
 			insertCustomText(msg.label ?? "bloco")(view.state, view.dispatch);
+			view.focus();
+			break;
+		case "INSERT_CUSTOM_INLINE":
+			insertCustomInline(msg.label ?? "campo livre")(view.state, view.dispatch);
 			view.focus();
 			break;
 		case "FORMAT_BOLD":

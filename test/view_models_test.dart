@@ -5,6 +5,7 @@ import 'package:gerelat_frontend/aplicacao/view_models/cadastro_view_model.dart'
 import 'package:gerelat_frontend/aplicacao/view_models/campo_definicao_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/campo_valor_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/classe_evento_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/editor_template_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/evento_form_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/eventos_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/gerar_relatorio_view_model.dart';
@@ -559,11 +560,34 @@ void main() {
       });
     });
 
-    test('separa os rótulos dos blocos manuais das variáveis', () {
-      expect(extrairLabelsDeBlocosManuais(documento), ['Bloco livre']);
+    test('separa os rótulos dos blocos manuais das variáveis (bloco e inline)', () {
+      final docComInline = {
+        'type': 'doc',
+        'content': [
+          {
+            'type': 'paragraph',
+            'content': [
+              {'type': 'text', 'text': 'Texto '},
+              {
+                'type': 'custom_inline',
+                'attrs': {'label': 'Fiscal responsável'},
+              },
+            ],
+          },
+          {
+            'type': 'custom_text',
+            'attrs': {'label': 'Bloco livre'},
+            'content': <dynamic>[],
+          },
+        ],
+      };
+      expect(extrairLabelsDeBlocosManuais(docComInline), [
+        'Fiscal responsável',
+        'Bloco livre',
+      ]);
       expect(
-        extrairRefsDeVariaveis(documento),
-        isNot(contains('Bloco livre')),
+        extrairRefsDeVariaveis(docComInline),
+        isNot(contains('Fiscal responsável')),
       );
     });
 
@@ -798,6 +822,35 @@ void main() {
       expect(viewModel.classesSelecionadas.contains(99), isTrue);
       expect(repositorio.classeEventoCriadaProgramaId, 10);
       expect(repositorio.classeEventoCriadaNome, 'Palestra');
+    });
+  });
+
+  group('EditorTemplateViewModel e pré-visualização de template', () {
+    test('carrega template, alterna modo de pré-visualização e resolve variáveis', () async {
+      final repositorio = _RepositorioCatalogoFake();
+      final viewModel = EditorTemplateViewModel(repositorio);
+
+      await viewModel.carregar(4);
+      expect(viewModel.template?.nome, 'Template');
+      expect(viewModel.modoPrevisualizacao, isFalse);
+
+      viewModel.definirModoPrevisualizacao(true);
+      expect(viewModel.modoPrevisualizacao, isTrue);
+
+      final draftDoc = {
+        'type': 'doc',
+        'content': [
+          {
+            'type': 'paragraph',
+            'content': [
+              {'type': 'text', 'text': 'Testando draft'},
+            ],
+          }
+        ],
+      };
+      final docResolvido = await viewModel.resolverPrevisualizacao(4, draftDoc);
+      expect(docResolvido, isNotNull);
+      expect(docResolvido?['content'][0]['content'][0]['text'], 'Resolvido com sucesso');
     });
   });
 }
@@ -1383,6 +1436,7 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
     int? programaId,
     int? projetoId,
     int? eventoId,
+    Map<String, dynamic>? documentoJson,
   }) async {
     previsualizacaoRecebida = (
       template: templateId,
@@ -1391,6 +1445,19 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
       projeto: projetoId,
       evento: eventoId,
     );
+    if (documentoJson != null) {
+      return {
+        'type': 'doc',
+        'content': [
+          {
+            'type': 'paragraph',
+            'content': [
+              {'type': 'text', 'text': 'Resolvido com sucesso'}
+            ],
+          }
+        ],
+      };
+    }
     return const {'type': 'doc', 'content': <Map<String, dynamic>>[]};
   }
 

@@ -276,13 +276,15 @@ abstract interface class RepositorioTemplates {
   /// Resolve as variáveis da cadeia de escopo informada sobre o `modelo_json`
   /// do template (via `/templates/<id>/preview/`) e retorna o documento
   /// ProseMirror resultante, para pré-visualização antes de gerar o relatório
-  /// definitivo. Os ids omitidos caem no escopo do próprio template.
+  /// definitivo. Se [documentoJson] for fornecido, resolve sobre ele em vez do
+  /// `modelo_json` salvo no banco. Os ids omitidos caem no escopo do próprio template.
   Future<Map<String, dynamic>> previsualizarTemplate({
     required int templateId,
     int? clienteId,
     int? programaId,
     int? projetoId,
     int? eventoId,
+    Map<String, dynamic>? documentoJson,
   });
 
   /// Nível mais profundo (cliente/programa/projeto/evento) exigido para

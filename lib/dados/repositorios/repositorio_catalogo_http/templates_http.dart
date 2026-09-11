@@ -336,6 +336,7 @@ mixin RepositorioTemplatesHttpMixin implements RepositorioTemplates {
     int? programaId,
     int? projetoId,
     int? eventoId,
+    Map<String, dynamic>? documentoJson,
   }) async {
     final query = _queryEscopo(
       clienteId: clienteId,
@@ -343,7 +344,11 @@ mixin RepositorioTemplatesHttpMixin implements RepositorioTemplates {
       projetoId: projetoId,
       eventoId: eventoId,
     );
-    final resposta = await api.obter('/templates/$templateId/preview/$query');
+    final resposta = documentoJson != null
+        ? await api.criar('/templates/$templateId/preview/$query', {
+            'documento_json': documentoJson,
+          })
+        : await api.obter('/templates/$templateId/preview/$query');
     final documento = resposta['documento_json'];
     if (documento is! Map) {
       throw Exception(

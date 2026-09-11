@@ -56,6 +56,7 @@
       body.light-theme .node-block-table { background: #E6F7F0; border-color: #04815A; color: #025239; }
       body.light-theme .node-custom-text { background: #F8FAFC; border: 1px solid #DFE3E8; border-left: 3px solid #0054D3; color: #191C1E; }
       body.light-theme .node-custom-text .custom-label { color: #00488D; opacity: 1; }
+      body.light-theme .node-custom-inline { background: #F0F7FF; border: 1px dashed #0054D3; color: #00488D; }
       body.light-theme .node-block-resolved { background: #F8FAFC; border: 1px solid #DFE3E8; color: #424752; }
       body.light-theme .dt-table th,
       body.light-theme .dt-table td { border: 1px solid #DFE3E8; }
@@ -83,6 +84,7 @@
       body.dark-theme .node-block-table { background: #0d2a14; border-color: #22c55e; color: #86efac; }
       body.dark-theme .node-custom-text { background: #0d1a30; border: 1px solid #2563eb; border-left: 3px solid #6FE7C8; color: #e2e8f0; }
       body.dark-theme .node-custom-text .custom-label { color: #6FE7C8; opacity: .7; }
+      body.dark-theme .node-custom-inline { background: #0d1a30; border: 1px dashed #3B82F6; color: #93c5fd; }
       body.dark-theme .node-block-resolved { background: #0d1a30; border: 1px solid #22304D; color: #94a3b8; }
       body.dark-theme .dt-table th,
       body.dark-theme .dt-table td { border: 1px solid #22304D; }
@@ -143,6 +145,25 @@
         font-size: 11px; font-family: 'JetBrains Mono', monospace;
         margin-bottom: 4px;
       }
+      .node-custom-inline {
+        display: inline-flex;
+        align-items: center;
+        padding: 1px 6px;
+        border-radius: 4px;
+        margin: 0 2px;
+        vertical-align: baseline;
+        font-size: 13px;
+        min-height: 22px;
+        min-width: 48px;
+        position: relative;
+        outline: none;
+      }
+      .node-custom-inline:empty::before {
+        content: "[" attr(data-label) "]";
+        font-style: italic;
+        opacity: 0.75;
+        cursor: text;
+      }
       .node-block-resolved {
         border-radius: 8px;
         padding: 10px 14px; margin: 8px 0; font-size: 13px;
@@ -163,6 +184,13 @@
         cursor: text;
       }
       body.mode-report .node-custom-text * {
+        user-select: text;
+      }
+      body.mode-report .node-custom-inline {
+        user-select: text;
+        cursor: text;
+      }
+      body.mode-report .node-custom-inline * {
         user-select: text;
       }
     </style>
