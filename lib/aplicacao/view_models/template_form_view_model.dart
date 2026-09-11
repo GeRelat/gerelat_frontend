@@ -133,16 +133,8 @@ class TemplateFormViewModel extends BaseViewModel {
       _hierarquia.nomeDe(NivelAplicacao.cliente, clienteId);
 
   String nomeOrigemClasse(ClasseEvento classe) {
-    if (classe.clienteId != null &&
-        classe.programaId == null &&
-        classe.projetoId == null) {
-      return 'Cliente: ${nomeCliente(classe.clienteId)}';
-    }
-    if (classe.programaId != null && classe.projetoId == null) {
+    if (classe.programaId != null) {
       return 'Programa: ${nomePrograma(classe.programaId)}';
-    }
-    if (classe.projetoId != null) {
-      return 'Projeto: ${nomeProjeto(classe.projetoId)}';
     }
     return 'Geral';
   }
@@ -259,10 +251,18 @@ class TemplateFormViewModel extends BaseViewModel {
   Future<void> _carregarEscopo(NivelEscopo nivel, int escopoId) async {
     final alcance = _hierarquia.descendentesDe(nivel, escopoId);
 
-    _classesDisponiveis = await _eventosRepositorio.listarClassesEventoDetalhadas(
-      escopo: nivel,
-      escopoId: escopoId,
-    );
+    final programaId = nivel == NivelEscopo.programa
+        ? escopoId
+        : (_hierarquia.projetoPorId(escopoId)?.programaId ??
+            _programaSelecionadoId);
+
+    _classesDisponiveis = programaId != null
+        ? await _eventosRepositorio.listarClassesEventoDetalhadas(
+            programaId: programaId,
+            escopo: NivelEscopo.programa,
+            escopoId: programaId,
+          )
+        : [];
     _membrosPrograma = await _equipeProgramaRepositorio.listarEquipeDeProgramas(
       alcance.programaIds,
     );

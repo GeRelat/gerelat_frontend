@@ -117,12 +117,14 @@ abstract interface class RepositorioEventos {
   Future<List<OpcaoSelecao>> listarProjetos();
 
   Future<List<OpcaoSelecao>> listarClassesEvento({
+    int? programaId,
     int? projetoId,
     NivelEscopo? escopo,
     int? escopoId,
   });
 
   Future<int> criarClasseEvento({
+    int? programaId,
     int? projetoId,
     NivelEscopo? escopo,
     int? escopoId,
@@ -130,6 +132,7 @@ abstract interface class RepositorioEventos {
   });
 
   Future<List<ClasseEvento>> listarClassesEventoDetalhadas({
+    int? programaId,
     int? projetoId,
     NivelEscopo? escopo,
     int? escopoId,

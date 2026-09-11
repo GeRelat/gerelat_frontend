@@ -307,20 +307,18 @@ mixin RepositorioTemplatesHttpMixin implements RepositorioTemplates {
     final meventos = await api.listar(
       '/templates/$templateId/eventos-disponiveis/',
     );
-    return meventos.map((evento) {
+    return meventos.map<Evento>((evento) {
       final idProjeto = paraInteiro(evento['projeto']);
       final idClasse = paraInteiro(evento['classe_evento']);
       final nomeNoPayload = paraTexto(evento['classe_evento_nome']);
       return Evento(
         id: paraInteiro(evento['id']),
-        clienteId: paraInteiro(evento['cliente']),
-        programaId: paraInteiro(evento['programa']),
         projetoId: idProjeto,
         classeEventoId: idClasse,
         nome: paraTexto(evento['nome'], fallback: 'Evento sem nome'),
         programa: paraTexto(
           evento['programa_nome'],
-          fallback: 'Escopo direto',
+          fallback: 'Programa',
         ),
         data: DateTime.tryParse(paraTexto(evento['data'])),
         local: paraTexto(evento['local']),

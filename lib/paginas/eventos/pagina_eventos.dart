@@ -192,71 +192,58 @@ class _PaginaEventosState extends State<PaginaEventos> {
             ],
           ),
           const SizedBox(height: 16),
-          // Filtro por Nível
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text(
-                'Nível:',
-                style: Tipografia.bodyMedium.copyWith(
-                  color: Cores.cinzaEscuro,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              ChoiceChip(
-                label: const Text('Todos'),
-                selected: _viewModel.filtroNivel == null,
-                onSelected: (_) => _viewModel.definirFiltroNivel(null),
-                selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
-              ),
-              for (final nivel in _viewModel.niveisPermitidos)
-                ChoiceChip(
-                  label: Text(nivel.rotulo),
-                  selected: _viewModel.filtroNivel == nivel,
-                  onSelected: (_) => _viewModel.definirFiltroNivel(nivel),
-                  selectedColor: Cores.azulAcao.withValues(alpha: 0.16),
-                ),
-            ],
-          ),
-          if (_viewModel.filtroNivel != null &&
-              _viewModel.filtroNivel != NivelEscopo.cliente &&
-              _viewModel.opcoesFiltroEscopo.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 320),
-              child: CampoSelecao(
-                label: 'Filtrar por ${_viewModel.filtroNivel!.rotulo}',
-                valor: _viewModel.filtroEscopoId ?? 0,
-                itens: [
-                  DropdownMenuItem<int>(
-                    value: 0,
-                    child: Text(
-                      'Todos os ${_viewModel.filtroNivel!.rotulo.toLowerCase()}s',
-                    ),
-                  ),
-                  ..._viewModel.opcoesFiltroEscopo.map(
-                    (item) => DropdownMenuItem<int>(
-                      value: item.id,
-                      child: Text(item.nome),
-                    ),
-                  ),
-                ],
-                onChanged: (value) =>
-                    _viewModel.definirFiltroEscopoId(value == 0 ? null : value),
-              ),
-            ),
-          ],
-          const SizedBox(height: 16),
           Wrap(
             spacing: 16,
             runSpacing: 16,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
+              // Filtro por Programa
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 260),
+                child: CampoSelecao(
+                  label: 'Programa',
+                  valor: _viewModel.filtroProgramaId ?? 0,
+                  itens: [
+                    const DropdownMenuItem<int>(
+                      value: 0,
+                      child: Text('Todos os programas'),
+                    ),
+                    ..._viewModel.opcoesProgramas.map(
+                      (p) => DropdownMenuItem<int>(
+                        value: p.id,
+                        child: Text(p.nome),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) => _viewModel
+                      .definirFiltroProgramaId(value == 0 ? null : value),
+                ),
+              ),
+              // Filtro por Projeto
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 260),
+                child: CampoSelecao(
+                  label: 'Projeto',
+                  valor: _viewModel.filtroProjetoId ?? 0,
+                  itens: [
+                    const DropdownMenuItem<int>(
+                      value: 0,
+                      child: Text('Todos os projetos'),
+                    ),
+                    ..._viewModel.opcoesProjetos.map(
+                      (proj) => DropdownMenuItem<int>(
+                        value: proj.id,
+                        child: Text(proj.nome),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) => _viewModel
+                      .definirFiltroProjetoId(value == 0 ? null : value),
+                ),
+              ),
               // Filtro por Classe de Evento
               ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 280),
+                constraints: const BoxConstraints(maxWidth: 260),
                 child: CampoSelecao(
                   label: 'Classe de Evento',
                   valor: _viewModel.filtroClasseId ?? 0,
@@ -272,8 +259,8 @@ class _PaginaEventosState extends State<PaginaEventos> {
                       ),
                     ),
                   ],
-                  onChanged: (value) =>
-                      _viewModel.definirFiltroClasseId(value == 0 ? null : value),
+                  onChanged: (value) => _viewModel
+                      .definirFiltroClasseId(value == 0 ? null : value),
                 ),
               ),
               // Filtro por Período
@@ -404,13 +391,7 @@ class _PaginaEventosState extends State<PaginaEventos> {
 
   /// Linha de um evento.
   Widget _linha(BuildContext context, Evento evento) {
-    final escopo = evento.escopo;
-    final podeEditarExcluir = escopo != null
-        ? _viewModel.temPermissaoNoEscopo(escopo, evento.escopoId)
-        : _viewModel.temPermissaoNoEscopo(
-            NivelEscopo.cliente,
-            _viewModel.clienteAtivoId,
-          );
+    final podeEditarExcluir = _viewModel.temAcessoAoProjeto(evento.projetoId);
 
     return Material(
       color: Colors.transparent,
@@ -495,17 +476,10 @@ class _PaginaEventosState extends State<PaginaEventos> {
   }
 
   void _exibirDetalhesEvento(BuildContext context, Evento evento) {
-    final escopo = evento.escopo;
-    final podeEditarExcluir = escopo != null
-        ? _viewModel.temPermissaoNoEscopo(escopo, evento.escopoId)
-        : _viewModel.temPermissaoNoEscopo(
-            NivelEscopo.cliente,
-            _viewModel.clienteAtivoId,
-          );
+    final podeEditarExcluir = _viewModel.temAcessoAoProjeto(evento.projetoId);
 
-    final escopoTexto = evento.escopo != null
-        ? '${evento.escopo!.rotulo} (${evento.programa})'
-        : evento.programa;
+    final escopoTexto =
+        evento.programa.isNotEmpty ? evento.programa : 'Projeto';
 
     showDialog(
       context: context,

@@ -17,9 +17,13 @@ class EventosViewModel extends BaseViewModel {
   List<ClasseEvento> _classes = [];
   String _termoBusca = '';
   String _filtroPeriodo = 'Todos';
+  int? _filtroProgramaId;
+  int? _filtroProjetoId;
+  int? _filtroClasseId;
+
+  // Compatibilidade com código/testes legados
   NivelEscopo? _filtroNivel;
   int? _filtroEscopoId;
-  int? _filtroClasseId;
 
   EventosViewModel(RepositorioCatalogo repositorio)
     : _repositorio = repositorio,
@@ -27,104 +31,93 @@ class EventosViewModel extends BaseViewModel {
 
   int? get clienteAtivoId => _clienteAtivoId;
   Usuario? get usuarioAtual => _usuarioAtual;
+  int? get filtroProgramaId => _filtroProgramaId;
+  int? get filtroProjetoId => _filtroProjetoId;
+  int? get filtroClasseId => _filtroClasseId;
   NivelEscopo? get filtroNivel => _filtroNivel;
   int? get filtroEscopoId => _filtroEscopoId;
-  int? get filtroClasseId => _filtroClasseId;
-  List<ClasseEvento> get classes {
-    Iterable<ClasseEvento> resultado = _classes;
 
-    if (_filtroNivel != null) {
-      resultado = resultado.where((c) {
-        if (_filtroNivel == NivelEscopo.cliente) {
-          return (c.clienteId == _clienteAtivoId || c.escopo == NivelEscopo.cliente) &&
-              c.programaId == null &&
-              c.projetoId == null;
-        } else if (_filtroNivel == NivelEscopo.programa) {
-          if (_filtroEscopoId != null) {
-            return c.programaId == _filtroEscopoId && c.projetoId == null;
-          }
-          return c.programaId != null && c.projetoId == null;
-        } else if (_filtroNivel == NivelEscopo.projeto) {
-          if (_filtroEscopoId != null) {
-            return c.projetoId == _filtroEscopoId;
-          }
-          return c.projetoId != null;
-        }
-        return true;
-      });
-    }
+  List<NivelEscopo> get niveisPermitidos =>
+      const [NivelEscopo.programa, NivelEscopo.projeto];
 
-    return List.unmodifiable(resultado);
-  }
-
-  List<NivelEscopo> get niveisPermitidos {
-    final usuario = _usuarioAtual;
-    if (usuario == null) return NivelEscopo.selecionaveis;
-    if (usuario.isAdminGeRelat) return NivelEscopo.selecionaveis;
-    if (_clienteAtivoId != null && usuario.eAdminDoCliente(_clienteAtivoId)) {
-      return NivelEscopo.selecionaveis;
-    }
-    final result = <NivelEscopo>[];
-    final temPrograma = usuario.contextosAcesso.programas.any((p) {
-      if (_clienteAtivoId == null) return true;
-      final pId = int.tryParse('${p['id']}');
-      return _hierarquia.programaPorId(pId)?.clienteId == _clienteAtivoId;
-    });
-    if (temPrograma) {
-      result.add(NivelEscopo.programa);
-      result.add(NivelEscopo.projeto);
-    }
-    final temProjeto = usuario.contextosAcesso.projetos.any((p) {
-      if (_clienteAtivoId == null) return true;
-      final projId = int.tryParse('${p['id']}');
-      final cId = _hierarquia.cadeiaDe(NivelAplicacao.projeto, projId).clienteId;
-      return cId == _clienteAtivoId;
-    });
-    if (temProjeto && !result.contains(NivelEscopo.projeto)) {
-      result.add(NivelEscopo.projeto);
-    }
-    return result.isEmpty ? [NivelEscopo.projeto] : result;
-  }
-
-  bool temPermissaoNoEscopo(NivelEscopo escopo, int? escopoId) {
+  bool temAcessoAoPrograma(int? programaId) {
     final usuario = _usuarioAtual;
     if (usuario == null) return true;
     if (usuario.isAdminGeRelat) return true;
     if (_clienteAtivoId != null && usuario.eAdminDoCliente(_clienteAtivoId)) {
       return true;
     }
-    if (escopoId == null) return false;
-
-    switch (escopo) {
-      case NivelEscopo.cliente:
-        return false;
-
-      case NivelEscopo.programa:
-        return usuario.contextosAcesso.programas
-            .any((p) => int.tryParse('${p['id']}') == escopoId);
-
-      case NivelEscopo.projeto:
-        final eMembroDoProjeto = usuario.contextosAcesso.projetos
-            .any((p) => int.tryParse('${p['id']}') == escopoId);
-        if (eMembroDoProjeto) return true;
-
-        final progPaiId = _hierarquia.projetoPorId(escopoId)?.programaId;
-        final eMembroDoProgramaPai = progPaiId != null &&
-            usuario.contextosAcesso.programas
-                .any((p) => int.tryParse('${p['id']}') == progPaiId);
-        return eMembroDoProgramaPai;
+    if (programaId == null) return false;
+    if (usuario.contextosAcesso.programas
+        .any((p) => int.tryParse('${p['id']}') == programaId)) {
+      return true;
     }
+    return usuario.contextosAcesso.projetos.any((p) {
+      final projId = int.tryParse('${p['id']}');
+      return _hierarquia.projetoPorId(projId)?.programaId == programaId;
+    });
   }
 
-  List<OpcaoSelecao> get opcoesFiltroEscopo {
-    final nivel = _filtroNivel;
-    if (nivel == null) return const [];
-    final todas = _hierarquia.opcoesDeEscopo(nivel, clienteId: _clienteAtivoId);
+  bool temAcessoAoProjeto(int? projetoId) {
+    final usuario = _usuarioAtual;
+    if (usuario == null) return true;
+    if (usuario.isAdminGeRelat) return true;
+    if (_clienteAtivoId != null && usuario.eAdminDoCliente(_clienteAtivoId)) {
+      return true;
+    }
+    if (projetoId == null) return false;
+
+    if (usuario.contextosAcesso.projetos
+        .any((p) => int.tryParse('${p['id']}') == projetoId)) {
+      return true;
+    }
+    final progPaiId = _hierarquia.projetoPorId(projetoId)?.programaId;
+    return progPaiId != null &&
+        usuario.contextosAcesso.programas
+            .any((p) => int.tryParse('${p['id']}') == progPaiId);
+  }
+
+  List<OpcaoSelecao> get opcoesProgramas {
+    final todas =
+        _hierarquia.opcoesDe(NivelAplicacao.programa, clienteId: _clienteAtivoId);
     final usuario = _usuarioAtual;
     if (usuario == null || usuario.isAdminGeRelat) return todas;
-    if (_clienteAtivoId != null && usuario.eAdminDoCliente(_clienteAtivoId)) return todas;
+    if (_clienteAtivoId != null && usuario.eAdminDoCliente(_clienteAtivoId)) {
+      return todas;
+    }
+    return todas.where((op) => temAcessoAoPrograma(op.id)).toList();
+  }
 
-    return todas.where((op) => temPermissaoNoEscopo(nivel, op.id)).toList();
+  List<OpcaoSelecao> get opcoesProjetos {
+    final todas =
+        _hierarquia.opcoesDe(NivelAplicacao.projeto, clienteId: _clienteAtivoId);
+    Iterable<OpcaoSelecao> filtradas = todas;
+    if (_filtroProgramaId != null) {
+      filtradas = filtradas.where((op) {
+        return _hierarquia.projetoPorId(op.id)?.programaId == _filtroProgramaId;
+      });
+    }
+    final usuario = _usuarioAtual;
+    if (usuario == null || usuario.isAdminGeRelat) return filtradas.toList();
+    if (_clienteAtivoId != null && usuario.eAdminDoCliente(_clienteAtivoId)) {
+      return filtradas.toList();
+    }
+    return filtradas.where((op) => temAcessoAoProjeto(op.id)).toList();
+  }
+
+  List<OpcaoSelecao> get opcoesFiltroEscopo => opcoesProjetos;
+
+  List<ClasseEvento> get classes {
+    Iterable<ClasseEvento> resultado = _classes;
+    if (_filtroProjetoId != null) {
+      final progId = _hierarquia.projetoPorId(_filtroProjetoId)?.programaId;
+      if (progId != null) {
+        resultado = resultado.where((c) => c.programaId == progId);
+      }
+    } else if (_filtroProgramaId != null) {
+      resultado = resultado.where((c) => c.programaId == _filtroProgramaId);
+    }
+    return List.unmodifiable(resultado);
   }
 
   void definirContexto(int? clienteAtivoId, Usuario? usuarioAtual) {
@@ -132,9 +125,11 @@ class EventosViewModel extends BaseViewModel {
     _clienteAtivoId = clienteAtivoId;
     _usuarioAtual = usuarioAtual;
     if (clienteMudou) {
+      _filtroProgramaId = null;
+      _filtroProjetoId = null;
+      _filtroClasseId = null;
       _filtroNivel = null;
       _filtroEscopoId = null;
-      _filtroClasseId = null;
       notifyListeners();
       carregar();
     }
@@ -146,16 +141,52 @@ class EventosViewModel extends BaseViewModel {
     carregar();
   }
 
+  void definirFiltroProgramaId(int? programaId) {
+    _filtroProgramaId = programaId;
+    if (_filtroProjetoId != null) {
+      final progPai = _hierarquia.projetoPorId(_filtroProjetoId)?.programaId;
+      if (programaId != null && progPai != programaId) {
+        _filtroProjetoId = null;
+      }
+    }
+    _filtroClasseId = null;
+    notifyListeners();
+  }
+
+  void definirFiltroProjetoId(int? projetoId) {
+    _filtroProjetoId = projetoId;
+    if (projetoId != null) {
+      final progPai = _hierarquia.projetoPorId(projetoId)?.programaId;
+      if (progPai != null) {
+        _filtroProgramaId = progPai;
+      }
+    }
+    _filtroClasseId = null;
+    notifyListeners();
+  }
+
   void definirFiltroNivel(NivelEscopo? nivel) {
     _filtroNivel = nivel;
     _filtroEscopoId = null;
     _filtroClasseId = null;
+    if (nivel == NivelEscopo.programa) {
+      _filtroProjetoId = null;
+    } else if (nivel == null) {
+      _filtroProgramaId = null;
+      _filtroProjetoId = null;
+    }
     notifyListeners();
   }
 
   void definirFiltroEscopoId(int? escopoId) {
     _filtroEscopoId = escopoId;
     _filtroClasseId = null;
+    if (_filtroNivel == NivelEscopo.programa) {
+      _filtroProgramaId = escopoId;
+      _filtroProjetoId = null;
+    } else if (_filtroNivel == NivelEscopo.projeto) {
+      definirFiltroProjetoId(escopoId);
+    }
     notifyListeners();
   }
 
@@ -165,45 +196,15 @@ class EventosViewModel extends BaseViewModel {
   }
 
   List<Evento> get eventos {
-    // Eventos de nível cliente (legados) não são mais expostos na interface.
-    Iterable<Evento> resultado = _eventos.where((e) {
-      if (e.escopo == NivelEscopo.cliente) return false;
-      if (e.escopo == null) {
-        final cadeia = _hierarquia.cadeiaDe(NivelAplicacao.evento, e.id);
-        if (cadeia.programaId == null && cadeia.projetoId == null) return false;
-      }
-      return true;
-    });
+    Iterable<Evento> resultado = _eventos;
     final termo = _termoBusca.trim().toLowerCase();
 
-    if (_filtroNivel != null) {
+    if (_filtroProjetoId != null) {
+      resultado = resultado.where((e) => e.projetoId == _filtroProjetoId);
+    } else if (_filtroProgramaId != null) {
       resultado = resultado.where((e) {
-        final escopoDoEvento = e.escopo;
-        if (escopoDoEvento != null) {
-          if (escopoDoEvento != _filtroNivel) return false;
-          if (_filtroEscopoId != null && e.escopoId != _filtroEscopoId) {
-            return false;
-          }
-          return true;
-        }
-
-        final cadeia = _hierarquia.cadeiaDe(NivelAplicacao.evento, e.id);
-        if (_filtroNivel == NivelEscopo.cliente) {
-          return cadeia.clienteId == _clienteAtivoId &&
-              cadeia.programaId == null &&
-              cadeia.projetoId == null;
-        } else if (_filtroNivel == NivelEscopo.programa) {
-          if (cadeia.projetoId != null || cadeia.programaId == null) {
-            return false;
-          }
-          if (_filtroEscopoId != null) return cadeia.programaId == _filtroEscopoId;
-          return true;
-        } else if (_filtroNivel == NivelEscopo.projeto) {
-          if (cadeia.projetoId == null) return false;
-          if (_filtroEscopoId != null) return cadeia.projetoId == _filtroEscopoId;
-          return true;
-        }
-        return false;
+        final progId = _hierarquia.projetoPorId(e.projetoId)?.programaId;
+        return progId == _filtroProgramaId;
       });
     }
 
@@ -251,22 +252,15 @@ class EventosViewModel extends BaseViewModel {
 
       if (_clienteAtivoId != null) {
         _eventos = todos.where((e) {
-          final clienteId = e.escopo != null && e.escopoId != null
-              ? _hierarquia.cadeiaDeEscopo(e.escopo!, e.escopoId).clienteId
+          final clienteId = e.projetoId != null
+              ? _hierarquia.cadeiaDe(NivelAplicacao.projeto, e.projetoId).clienteId
               : _hierarquia.cadeiaDe(NivelAplicacao.evento, e.id).clienteId;
           return clienteId == _clienteAtivoId;
         }).toList();
 
         _classes = todasClasses.where((c) {
-          if (c.clienteId != null) return c.clienteId == _clienteAtivoId;
           if (c.programaId != null) {
             return _hierarquia.programaPorId(c.programaId)?.clienteId ==
-                _clienteAtivoId;
-          }
-          if (c.projetoId != null) {
-            return _hierarquia
-                    .cadeiaDe(NivelAplicacao.projeto, c.projetoId)
-                    .clienteId ==
                 _clienteAtivoId;
           }
           return true;

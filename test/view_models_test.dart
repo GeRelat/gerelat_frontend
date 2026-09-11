@@ -4,7 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/cadastro_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/campo_definicao_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/campo_valor_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/classe_evento_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/evento_form_view_model.dart';
+import 'package:gerelat_frontend/aplicacao/view_models/eventos_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/gerar_relatorio_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/login_view_model.dart';
 import 'package:gerelat_frontend/aplicacao/view_models/programa_form_view_model.dart';
@@ -118,6 +120,35 @@ void main() {
       expect(viewModel.classes, hasLength(1));
       expect(sucesso, isTrue);
       expect(repositorio.eventoCriado, 'Evento Teste');
+    });
+
+    test('ClasseEventoViewModel opera no nível programa e lista/cria classes', () async {
+      final repositorio = _RepositorioCatalogoFake();
+      final viewModel = ClasseEventoViewModel(repositorio);
+
+      await viewModel.carregarHierarquia();
+      expect(viewModel.niveisPermitidos, [NivelEscopo.programa]);
+      expect(viewModel.opcoesProgramas, hasLength(1));
+
+      final sucesso = await viewModel.salvar(nomeClasse: 'Nova Classe');
+      expect(sucesso, isTrue);
+    });
+
+    test('EventosViewModel filtra eventos por programa e projeto', () async {
+      final repositorio = _RepositorioCatalogoFake();
+      final viewModel = EventosViewModel(repositorio);
+
+      await viewModel.carregar();
+      expect(viewModel.eventos, hasLength(1));
+
+      viewModel.definirFiltroProgramaId(10);
+      expect(viewModel.eventos, hasLength(1));
+
+      viewModel.definirFiltroProjetoId(1);
+      expect(viewModel.eventos, hasLength(1));
+
+      viewModel.definirFiltroProjetoId(999);
+      expect(viewModel.eventos, isEmpty);
     });
 
     test('GerarRelatorioViewModel envia a cadeia de escopo do template', () async {
@@ -1080,6 +1111,7 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
 
   @override
   Future<int> criarClasseEvento({
+    int? programaId,
     int? projetoId,
     NivelEscopo? escopo,
     int? escopoId,
@@ -1088,6 +1120,7 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
 
   @override
   Future<List<ClasseEvento>> listarClassesEventoDetalhadas({
+    int? programaId,
     int? projetoId,
     NivelEscopo? escopo,
     int? escopoId,
@@ -1367,6 +1400,7 @@ class _RepositorioCatalogoFake implements RepositorioCatalogo {
 
   @override
   Future<List<OpcaoSelecao>> listarClassesEvento({
+    int? programaId,
     int? projetoId,
     NivelEscopo? escopo,
     int? escopoId,
